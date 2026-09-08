@@ -45,12 +45,24 @@ class Engine:
         self.tempo_seen = 0.0                           # monotonic time of last external beat
         self._beat_flag = False
         self._taps = []
+        self._prodj_dev = None
         # live audio
         self.audio_energy = 0.0
         self.audio_bass = 0.0
         self.audio_ok = False
         self.prodj_ok = False
         self.prodj_decks = {}                           # device -> dict(bpm, beat, seen)
+        # input sources: name -> dict(enabled, ok, detail). Inputs update these; UI toggles them.
+        self.auto_enabled = True
+        self.sources = {
+            "web":   dict(enabled=True,  ok=True,  detail="serving", clients=0),
+            "prodj": dict(enabled=bool(cfg.get("prodj_enabled", True)), ok=False, detail="waiting for beat packets on udp/%d" % int(cfg.get("prodj_port", 50001))),
+            "audio": dict(enabled=bool(cfg.get("audio_enabled", False)), ok=False, detail="off"),
+            "midi":  dict(enabled=bool(cfg.get("midi_enabled", True)),  ok=False, detail="no controller"),
+            "osc":   dict(enabled=bool(cfg.get("osc_enabled", True)),   ok=False, detail="udp/%d" % int(cfg.get("osc_port", 9000))),
+            "auto":  dict(enabled=True,  ok=True,  detail="drifting"),
+        }
+        self.audio_stream = None
         # fleet
         self.fleet = {}                                 # name -> heartbeat dict
         self.log = []                                   # recent events for the UI
@@ -86,6 +98,10 @@ class Engine:
             self.auto[i] = bool(enabled)
             self._dirty = True
 
+    def source(self, name, **kw):
+        """Update a source's status line (enabled / ok / detail / extra fields)."""
+        self.sources.setdefault(name, {}).update(kw)
+
     def event(self, msg):
         self.log.append((time.time(), msg))
         del self.log[:-60]
@@ -100,6 +116,7 @@ class Engine:
         self.bar_beat = float(bar_beat or 0)
         self.tempo_source = source
         self.tempo_seen = time.monotonic()
+        self._prodj_dev = device
         self._beat_flag = True
 
     def tap(self):
@@ -136,7 +153,7 @@ class Engine:
                 self.bar_beat = ((self.bar_beat - 1 + n) % 4) + 1
 
         # auto drift
-        depth = self.auto_depth
+        depth = self.auto_depth if self.auto_enabled else 0.0
         x = self.t * self.auto_rate
         for i, p in enumerate(PARAMS):
             v = self.base[i]
@@ -150,11 +167,25 @@ class Engine:
             self.out[i] = v
 
         # live audio overrides the manual sliders while audio is running
-        if self.audio_ok and self.cfg.get("audio_drive_params", True):
+        if self.audio_ok and self.sources["audio"]["enabled"] and self.cfg.get("audio_drive_params", True):
             self.out[INDEX["energy"]] = self.audio_energy
             self.out[INDEX["bass"]] = self.audio_bass
 
         self.prodj_ok = (self.tempo_source == "prodj" and now - self.tempo_seen < 5.0)
+        src = self.sources
+        src["prodj"]["ok"] = self.prodj_ok
+        if src["prodj"]["enabled"]:
+            live = {d: x for d, x in self.prodj_decks.items() if time.time() - x["seen"] < 5}
+            src["prodj"]["detail"] = ("locked · deck %s · %.1f BPM" % (self._prodj_dev, self.bpm)) if self.prodj_ok else \
+                ("decks seen: " + ", ".join(sorted(live)) if live else "waiting for beat packets on udp/%d" % int(self.cfg.get("prodj_port", 50001)))
+        else:
+            src["prodj"]["detail"] = "disabled"
+        src["auto"]["enabled"] = self.auto_enabled
+        src["auto"]["ok"] = self.auto_enabled and depth > 0 and any(self.auto)
+        n_auto = sum(1 for a in self.auto if a)
+        src["auto"]["detail"] = ("%d params drifting · depth %.2f" % (n_auto, self.auto_depth)) if self.auto_enabled else "paused"
+        if self.audio_ok:
+            src["audio"]["detail"] = "energy %.2f · bass %.2f" % (self.audio_energy, self.audio_bass)
         flags = (FLAG_BEAT if self._beat_flag else 0) | (FLAG_PRODJ if self.prodj_ok else 0) | (FLAG_AUDIO if self.audio_ok else 0)
         self._beat_flag = False
         self.seq = (self.seq + 1) & 0xFFFFFFFF
@@ -257,7 +288,8 @@ class Engine:
             bpm=round(self.bpm, 2), bar_beat=self.bar_beat, beat_t=self.beat_t,
             tempo_source=self.tempo_source, prodj=self.prodj_ok, audio=self.audio_ok,
             decks=self.prodj_decks, clock_speed=self.clock_speed, auto_depth=self.auto_depth,
-            auto_rate=self.auto_rate, presets=list(self.presets.keys()), fleet=fleet,
+            auto_rate=self.auto_rate, auto_enabled=self.auto_enabled, presets=list(self.presets.keys()), fleet=fleet,
+            sources=self.sources,
             log=[m for _, m in self.log[-12:]],
         )
 
@@ -269,4 +301,9 @@ DEFAULT_PRESETS = {
     "Kaleido dendrite": dict(mode=1, iterations=140, zoom=1.0, center_x=0.0, center_y=0.0, julia_x=0.0, julia_y=1.0, hue=0.35, hue_spread=1.0, glow=0.6, kaleido=8, warp=0.15),
     "Tricorn bloom":   dict(mode=3, iterations=160, zoom=0.5, center_x=0.0, center_y=0.0, julia_x=-0.2, julia_y=0.7, hue=0.75, hue_spread=1.6, glow=0.4, kaleido=6),
     "Deep purple":     dict(mode=0, iterations=400, zoom=12.0, center_x=-0.748, center_y=0.1, hue=0.72, hue_spread=0.6, brightness=0.9, glow=0.2, kaleido=0),
+    "Plasma lava":     dict(mode=4, iterations=200, zoom=0.0, center_x=0.0, center_y=0.0, rotation=0.0, hue=0.0, hue_spread=0.7, glow=0.5, warp=0.3, kaleido=0),
+    "AVS tunnel":      dict(mode=5, iterations=256, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.55, hue_spread=1.0, glow=0.7, warp=0.2, kaleido=0, beat_pulse=0.6),
+    "Hyperspace":      dict(mode=6, iterations=320, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.6, hue_spread=1.5, glow=0.8, warp=0.6, kaleido=0, beat_pulse=0.5),
+    "Scope waves":     dict(mode=7, iterations=256, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.3, hue_spread=1.2, glow=0.5, warp=0.1, kaleido=0, energy=0.3),
+    "Kaleido plasma":  dict(mode=4, iterations=160, zoom=-0.5, center_x=0.4, center_y=0.2, hue=0.8, hue_spread=1.0, glow=0.4, warp=0.2, kaleido=6),
 }

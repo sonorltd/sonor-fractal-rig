@@ -1,6 +1,6 @@
-# STUDIO - Fractal Rig (v0.1.0)
+# STUDIO - Fractal Rig (v0.2.0)
 
-> Current version: 0.1.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.2.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
 Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 120-byte UDP multicast
@@ -41,6 +41,10 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
 ## Feature timeline
 - 2026-09-08 v0.1.0 — first cut: renderer, master, web UI (live + Pages demo), Pro DJ Link
   passive parser, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.
+- 2026-09-08 v0.2.0 — 4 non-fractal scenes (plasma, tunnel, starfield, waves) behind the same
+  `mode` param; Sources panel in the web UI with live link status + enable/disable toggles,
+  audio device picker and Pro DJ Link deck-follow; runtime source toggles over WebSocket;
+  Info tab (sources, scenes, Pi setup, layouts, network, protocol, troubleshooting).
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.
@@ -48,3 +52,5 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
 - Version sites: `renderer/fractal.c APP_VERSION`, `master/master.py APP_VERSION`,
   `web/index.html #pill-ver`, this banner. Bump all four together.
 - Protocol changes: bump `PROTOCOL_VERSION` in `params.py` only when the header changes.
+- GLSL gotcha (learned v0.2.0): `smoothstep(a, b, x)` with a > b is undefined on Mesa — always
+  write `1.0 - smoothstep(b, a, x)`.

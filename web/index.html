@@ -49,7 +49,7 @@
   .beat.on { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.12); }
 
   .tempo { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; align-items: center; }
-  .tempo .src { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+  .tempo .tsrc { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
   .bpm { font-family: var(--mono); font-size: 32px; font-weight: 500; line-height: 1; }
   .bpm small { font-size: 12px; color: var(--muted); margin-left: 4px; }
   .decks { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
@@ -78,6 +78,7 @@
   .auto.on::after { left: 10px; background: var(--pink); }
   .auto[disabled] { opacity: .25; }
   .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+  .modes button { padding: 6px 4px; font-size: 12px; }
 
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .presets { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -95,6 +96,39 @@
   .kv .card { padding: 10px; }
   .kv .card b { display: block; font-family: var(--mono); font-size: 18px; font-weight: 500; }
   .kv .card span { color: var(--muted); font-size: 11px; }
+  .nav { display: flex; gap: 2px; background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+  .nav button { background: none; border: 0; border-radius: 999px; padding: 4px 12px; color: var(--muted); font-size: 12px; }
+  .nav button.active { background: var(--accent); color: #fff; }
+  .src { display: grid; grid-template-columns: 14px 92px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+  .src:last-child { border-bottom: 0; }
+  .src .name { font-weight: 500; font-size: 13px; }
+  .src .name small { display: block; color: var(--muted); font-weight: 400; font-size: 10px; }
+  .src .detail { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src .detail b { color: var(--text); font-weight: 500; }
+  .src .detail .last { color: var(--accent2); }
+  .src .ctl { display: flex; gap: 6px; align-items: center; }
+  .src select { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; font-size: 12px; max-width: 150px; }
+  .toggle { width: 40px; height: 22px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); position: relative; padding: 0; flex: 0 0 auto; }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: left .15s, background .15s; }
+  .toggle.on { border-color: var(--ok); background: rgba(120,186,87,.15); }
+  .toggle.on::after { left: 20px; background: var(--ok); }
+  @media (max-width: 600px) { .src { grid-template-columns: 14px 1fr auto; } .src .detail { grid-column: 2 / 3; } }
+
+  /* info tab */
+  #info { display: block; max-width: 900px; margin: 0 auto; padding: 16px; }
+  #info[hidden], main[hidden] { display: none; }
+  #info .card { margin-bottom: 16px; }
+  #info h3 { margin: 0 0 8px; font-size: 16px; }
+  #info h4 { margin: 14px 0 4px; font-size: 13px; color: var(--accent2); }
+  #info p, #info li { line-height: 1.55; font-size: 13.5px; color: #cfd2db; }
+  #info ul, #info ol { padding-left: 20px; margin: 4px 0 8px; }
+  #info code, #info pre { font-family: var(--mono); font-size: 12px; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; }
+  #info code { padding: 1px 5px; }
+  #info pre { padding: 10px 12px; overflow-x: auto; line-height: 1.5; }
+  #info table { margin: 6px 0 10px; }
+  #info td { color: #cfd2db; font-family: var(--font); font-size: 13px; vertical-align: top; }
+  #info td:first-child { font-family: var(--mono); white-space: nowrap; color: var(--text); }
+  #info .toc { display: flex; flex-wrap: wrap; gap: 6px; }
   footer { text-align: center; color: var(--muted); font-size: 11px; padding: 20px; }
   footer a { color: var(--muted); text-decoration: underline; }
 </style>
@@ -106,7 +140,8 @@
   <span class="pill" id="pill-fleet">0 projectors</span>
   <span class="pill" id="pill-tempo"><i class="dot" id="tempo-dot"></i><span id="tempo-label">no tempo</span></span>
   <div class="spacer"></div>
-  <span class="pill" id="pill-ver">v0.1.0</span>
+  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="info">Info</button></nav>
+  <span class="pill" id="pill-ver">v0.2.0</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
@@ -122,6 +157,11 @@
         <input class="text" id="master-url" placeholder="ws://fractal-master.local:8080/ws">
         <button class="btn small" id="master-connect">Connect to a master</button>
       </span>
+    </div>
+
+    <div class="card">
+      <h2>Sources <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">green = linked · amber = enabled, waiting · grey = off</span></h2>
+      <div id="sources"></div>
     </div>
 
     <div class="card">
@@ -144,7 +184,7 @@
           <button class="btn small" id="bpm-set">Set</button>
           <button class="btn small" id="bpm-clear">Clear</button>
         </div>
-        <div class="src" id="tempo-src">Pro DJ Link: waiting for beat packets on udp/50001</div>
+        <div class="tsrc" id="tempo-src">Pro DJ Link: waiting for beat packets on udp/50001</div>
       </div>
     </div>
 
@@ -200,6 +240,142 @@
     </div>
   </aside>
 </main>
+
+<section id="info" hidden>
+  <div class="card">
+    <h3>Fractal Rig — how it all fits together</h3>
+    <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master renders too, so it is projector #1). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 20 parameters — in one 120-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet.</p>
+    <div class="toc">
+      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-trouble">Troubleshooting</a>
+    </div>
+  </div>
+
+  <div class="card" id="i-sources">
+    <h3>Sources — what drives the picture</h3>
+    <p>All sources feed one engine on the master. Human inputs (this page, MIDI, OSC, presets) set a <em>base</em> value per parameter — last write wins. Auto-drift adds a slow offset on top of anything with the pink toggle. Audio, when running, owns <code>energy</code> and <code>bass</code> outright. Tempo has a priority order: <b>Pro DJ Link</b> if a beat has been seen in the last 5 s, else <b>tap / typed BPM</b>, else the <b>audio onset</b> guess. The Sources panel on the Control tab shows a live dot for each: green = linked and delivering, amber = enabled but waiting for a device/packets, grey = switched off.</p>
+
+    <h4>Web UI (this page)</h4>
+    <p>Served by the master at <code>http://&lt;master-ip&gt;:8080/</code>; works on a phone. Every parameter has a slider and an auto-drift toggle; presets save the sliders <em>and</em> which ones are drifting. <kbd>Space</kbd> = tap tempo. When no master is reachable (e.g. the GitHub Pages copy) the page runs a local simulation of the engine — "demo mode" — with the identical shader in the preview.</p>
+
+    <h4>Pro DJ Link (XDJ-RX2 / CDJ / DJM)</h4>
+    <p>Every Pioneer player with a LINK port broadcasts a small packet on <b>every beat</b> (UDP 50001): deck number, track BPM, pitch fader position and beat-in-bar 1–4. The master only <em>listens</em> — it never joins as a virtual CDJ, never claims a player number, and nothing appears on the decks. It records the animation-clock time of each beat plus the effective BPM (track BPM × pitch); the shader derives beat phase from those, so <code>beat_pulse</code> and <code>bar_swing</code> land exactly on the grid and stay locked between packets. Follow mode "auto" hands over to whichever deck beat most recently (natural during a mix); or pin deck 1/2. Needs: one Ethernet cable from the LINK port to the rig's switch — see <a href="#i-network">Network</a>.</p>
+
+    <h4>Audio in</h4>
+    <p>Optional. Any class-compliant USB audio input on the master (USB interface, the XDJ's USB audio, or a mic pointed at the room). ~40× a second the master computes overall loudness and a 30–150 Hz bass band, auto-gained so they sit mid-range whatever the volume, and writes them to <code>energy</code> (brightness / saturation lift) and <code>bass</code> (warmth + punch). A crude onset detector supplies beats <em>only</em> when Pro DJ Link is not locked — expect it to wander on breakdowns. Pick the input device in the Sources panel; needs <code>libportaudio2</code> + <code>sounddevice numpy</code> (installer adds them on the master).</p>
+
+    <h4>MIDI</h4>
+    <p>Any class-compliant controller on the master's USB. CC → parameter via <code>midi_map</code> in <code>config.json</code>; defaults: CC1 zoom, CC2 rotation, CC3 hue, CC4 hue spread, CC5 warp, CC6 glow, CC7 brightness, CC8 contrast, CC9/10 Julia re/im, CC11 beat pulse, CC12 kaleidoscope. Notes 36+ recall presets in order, note 35 = tap. "Map last CC →" on the Control tab learns a knob for this session (copy into config to keep). Reconnects automatically. Tip: the XDJ-RX2 is itself a USB MIDI controller when not in rekordbox mode.</p>
+
+    <h4>OSC</h4>
+    <p>UDP 9000. <code>/frx/&lt;param&gt; f</code> (e.g. <code>/frx/hue 0.5</code>), <code>/frx/tap</code>, <code>/frx/bpm f</code>, <code>/frx/preset s|i</code>, <code>/frx/auto_&lt;param&gt; 0|1</code>. TouchOSC, Lemur, Ableton (Max for Live / OSC plugins), Resolume, QLab and Beat Link Trigger all speak this — it is the bolt-on route for anything not built in.</p>
+
+    <h4>Autonomous</h4>
+    <p>Parameters with the pink toggle wander on smooth noise around wherever you left their slider. "Auto depth" is how far, "Auto rate" how fast; zoom drifts deliberately shallower. The Sources toggle pauses all drift at once without losing which params were selected. With nothing else plugged in the rig runs itself indefinitely.</p>
+  </div>
+
+  <div class="card" id="i-scenes">
+    <h3>Scenes &amp; controls</h3>
+    <table><tbody>
+      <tr><td>0 Mandelbrot</td><td>The classic set. Zoom into the boundary (Seahorse valley preset); <code>iterations</code> = detail, <code>glow</code> = orbit-trap light inside the set.</td></tr>
+      <tr><td>1 Julia</td><td>Julia set for seed <code>julia_x/y</code>. Put <em>those</em> on auto-drift for endlessly morphing shapes.</td></tr>
+      <tr><td>2 Burning Ship</td><td>Abs-value variant — ship / flame structures. Rotation ≈ π shows it upright.</td></tr>
+      <tr><td>3 Tricorn</td><td>Conjugate variant — three-fold symmetry, pairs well with <code>kaleido</code>.</td></tr>
+      <tr><td>4 Plasma</td><td>Classic demoscene plasma. <code>warp</code> adds noise turbulence, <code>iterations</code> = banding, <code>hue_spread</code> = colour cycles.</td></tr>
+      <tr><td>5 Tunnel</td><td>Winamp/AVS-style infinite tunnel. <code>iterations</code> = spoke count, <code>warp</code> = twist, <code>beat_pulse</code> lunges forward on the kick.</td></tr>
+      <tr><td>6 Starfield</td><td>Hyperspace warp. <code>warp</code> = streak length, <code>iterations</code> = star layers, beat pulse = speed burst.</td></tr>
+      <tr><td>7 Waves</td><td>Oscilloscope wave stack — the Milkdrop feel. <code>energy</code>/<code>bass</code> (live from audio) set amplitude and ripple; <code>iterations</code> = number of traces.</td></tr>
+    </tbody></table>
+    <p>Everything is one shader, so <code>kaleido</code>, <code>rotation</code>, <code>zoom</code>, the palette controls, <code>beat_pulse</code> and <code>bar_swing</code> work on every scene, and switching scenes is one integer in the packet — all projectors flip on the same frame. Adding a scene is a function in <code>renderer/shaders/fractal.frag</code> and a name in the mode list; it appears here and on every Pi on the next restart. Want real Milkdrop presets? <a href="https://github.com/projectM-visualizer/projectm" target="_blank" rel="noopener">projectM</a> runs on a Pi, but its presets are not deterministic across machines, so it cannot be pixel-synced the way this shader is — it would be a "one Pi, one projector" alternative, not a wall.</p>
+    <h4>Cheat-sheet</h4>
+    <table><tbody>
+      <tr><td>zoom</td><td>log2 magnification (each +1 doubles). Float precision runs out around 22–24 on fractals.</td></tr>
+      <tr><td>center_x / y</td><td>Pan. Also pans the non-fractal scenes.</td></tr>
+      <tr><td>kaleido</td><td>0 = off; 2–16 mirror segments. Applied before everything else, so it works on all scenes.</td></tr>
+      <tr><td>hue / hue_spread / hue_speed</td><td>Base colour, how many colour cycles across the gradient, automatic colour cycling rate (negative = reverse).</td></tr>
+      <tr><td>contrast / brightness</td><td>Gamma-style contrast (keeps blacks black — projectors love black) and output gain.</td></tr>
+      <tr><td>beat_pulse / bar_swing</td><td>Kick per beat (zoom + brightness) and a slow sway per 4-beat bar. Need a tempo source.</td></tr>
+      <tr><td>Clock speed</td><td>Rate of the master's animation clock. 0 freezes motion everywhere; 2 doubles it.</td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="card" id="i-pi">
+    <h3>Pi setup</h3>
+    <h4>Shopping list</h4>
+    <ul>
+      <li><b>Raspberry Pi 5</b> (best) or Pi 4, one per projector. Pi 5 does 1080p ≈ 60 fps at the default render scale 0.6 with 150–300 iterations; Pi 4 use scale 0.5 / ~120 iterations. Pi Zero 2 W works at scale 0.35 for simpler scenes.</li>
+      <li>Official PSU per Pi (27 W for Pi 5, 15 W for Pi 4) — under-powered Pis throttle the GPU. micro-HDMI → HDMI cable per projector.</li>
+      <li>A cheap <b>gigabit switch</b> and patch leads. Wired beats Wi-Fi: multicast on Wi-Fi jitters 20–50 ms and gets dropped under load; wired is &lt;1 ms.</li>
+      <li>Master extras: a small router/DHCP if the XDJ is on the same switch, a MIDI controller and/or USB audio input if you want them.</li>
+      <li>microSD 16 GB+ (or NVMe on Pi 5) with <b>Raspberry Pi OS Bookworm Lite</b> (64-bit). Lite is preferred: the renderer draws straight to HDMI via KMSDRM with no desktop in the way.</li>
+    </ul>
+    <h4>Flash &amp; first boot</h4>
+    <ol>
+      <li>Raspberry Pi Imager → OS Lite 64-bit → gear icon: set hostname (<code>fractal-master</code>, <code>fractal-2</code>, …), enable SSH, set user/password, skip Wi-Fi (or set it for first-time convenience).</li>
+      <li>Boot on the wired LAN, <code>ssh user@fractal-2.local</code>.</li>
+    </ol>
+    <h4>Install</h4>
+<pre>sudo apt install -y git
+git clone https://github.com/sonorltd/sonor-fractal-rig.git ~/fractal-rig
+cd ~/fractal-rig
+
+# projector Pis
+sudo bash setup/install.sh slave
+# the master (also renders → projector #1)
+sudo bash setup/install.sh master</pre>
+    <p>The installer builds the renderer, creates a Python venv for the master, installs systemd units (<code>fractal-renderer</code>, <code>fractal-master</code>) that start at boot, adds the user to the video/render groups and disables console blanking. Re-run it after <code>git pull</code>. Logs: <code>journalctl -fu fractal-renderer</code> (fps, packets, master status) and <code>journalctl -fu fractal-master</code> (inputs, the web UI URL).</p>
+    <h4>Projector settings that matter</h4>
+    <ul>
+      <li>Set the projector to its native resolution and 60 Hz; turn off "dynamic contrast", "eco/auto iris" and frame interpolation — they fight the beat pulse.</li>
+      <li>Force a mode on the Pi if a projector negotiates badly: <code>video=HDMI-A-1:1920x1080@60</code> on <code>/boot/firmware/cmdline.txt</code>.</li>
+      <li>On Pi OS <b>Desktop</b> instead of Lite: remove <code>Environment=SDL_VIDEODRIVER=KMSDRM</code> from the renderer unit and it runs fullscreen under Wayland.</li>
+    </ul>
+  </div>
+
+  <div class="card" id="i-layouts">
+    <h3>Layouts</h3>
+    <p>Renderer arguments go on the install line (or <code>sudo systemctl edit fractal-renderer</code>). Mix freely per Pi.</p>
+    <table><tbody>
+      <tr><td>(nothing)</td><td><b>Same image everywhere.</b> Simplest, most forgiving. Default.</td></tr>
+      <tr><td>--tile 2 2 1 0</td><td><b>One big canvas.</b> This Pi is column 1, row 0 of a 2×2 wall (top-right). Aspect and zoom are computed for the whole wall, so features flow across projector edges.</td></tr>
+      <tr><td>--view 0.7 1.57 0.15</td><td><b>Family of variations.</b> Same fractal and motion but this projector is +0.7 log2 zoom, rotated 90° and hue-shifted 0.15 — five related-but-different pictures around a room.</td></tr>
+      <tr><td>--scale 0.5</td><td>Internal render scale (0.2–1). Lower = faster. 0.5–0.6 on a projector is visually free.</td></tr>
+      <tr><td>--name stage-left</td><td>Name shown in the Projectors table (default: hostname).</td></tr>
+    </tbody></table>
+    <p>Example 5-Pi plan: master + 2 + 3 + 4 as a 2×2 tiled wall behind the booth, Pi 5 on the side wall with <code>--view -0.5 3.14 0.3</code>. Everything still kicks on the same beat because the beat lives in the packet, not the Pi.</p>
+  </div>
+
+  <div class="card" id="i-network">
+    <h3>Network &amp; Pro DJ Link</h3>
+    <ul>
+      <li>All Pis on one wired switch, one subnet. Multicast group <code>239.255.42.1:5005</code>, TTL 1 — never leaves the LAN. Renderers heartbeat back to the master on UDP 5006.</li>
+      <li>Pioneer gear with no DHCP self-assigns <code>169.254.x.x</code>. Either put a small router (DHCP) on the same switch so the XDJ and Pis share a subnet, or give the master Pi a second address: <code>sudo nmcli con mod "Wired connection 1" +ipv4.addresses 169.254.42.10/16 &amp;&amp; sudo nmcli con up "Wired connection 1"</code>.</li>
+      <li>Beat packets are broadcast, so the master only needs to be on the same layer-2 segment as the LINK port. Nothing is sent to the decks.</li>
+      <li>Managed switches: leave IGMP snooping <em>off</em> for this VLAN (or make sure a querier exists), otherwise multicast may be pruned after a minute or two.</li>
+      <li>A laptop on the same LAN can run the master instead of a Pi (<code>python3 master/master.py</code>) — handy for development.</li>
+      <li>Want deck names, on-air state or which deck is tempo master? Run <a href="https://github.com/Deep-Symmetry/beat-link-trigger" target="_blank" rel="noopener">Beat Link Trigger</a> on a laptop and have it send OSC to the master.</li>
+    </ul>
+  </div>
+
+  <div class="card" id="i-protocol">
+    <h3>Sync protocol (short version)</h3>
+    <p>Packet: magic <code>FRX1</code>, version, param count, sequence, flags, <code>t</code> (master clock, f64), <code>beat_t</code> (clock time of the last beat, f64), <code>bpm</code>, <code>bar_beat</code>, then 20 floats in the order of <code>master/params.py</code>. Renderers store <code>(t, arrival)</code> and render at <code>t + (now − arrival)</code> — re-anchored 60× a second, so there is no drift to correct. Continuous params are smoothed (τ 60 ms) identically on every Pi; discrete ones (scene, iterations, kaleido) snap. Beats are never sent as a phase — the shader computes <code>fract((t − beat_t)·bpm/60)</code> itself, so it can't wrap mid-interpolation. Lose the master for 3 s and a Pi freewheels on its own clock, then re-locks silently. HDMI outputs are not genlocked, so adjacent projectors can be up to one frame (16 ms) apart — invisible at normal speeds. Full detail in <code>PROTOCOL.md</code>.</p>
+  </div>
+
+  <div class="card" id="i-trouble">
+    <h3>Troubleshooting</h3>
+    <table><tbody>
+      <tr><td>Projectors table empty</td><td>Renderers can't see the master's multicast. Same subnet? IGMP snooping? <code>journalctl -fu fractal-renderer</code> should say "master acquired". Try <code>--iface &lt;pi-ip&gt;</code> on multi-NIC Pis.</td></tr>
+      <tr><td>"freewheel" in renderer log</td><td>Packets stopped for &gt;3 s. Master down, cable, or Wi-Fi drop. Picture keeps moving; it re-locks automatically.</td></tr>
+      <tr><td>Pro DJ Link stays amber</td><td>No beat packets reaching the master: LINK cable, subnet (169.254 vs DHCP), or a deck that isn't playing. <code>sudo tcpdump -ni eth0 udp port 50001</code> on the master shows them if they're there.</td></tr>
+      <tr><td>Low fps on a Pi</td><td>Lower <code>--scale</code> (0.5 → 0.4) or iterations (150). Check <code>vcgencmd get_throttled</code> — 0x50000 means the PSU is weak.</td></tr>
+      <tr><td>Garbage / black on Pi 5 with KMSDRM</td><td>Update: <code>sudo apt full-upgrade</code> (needs SDL ≥ 2.30). Or run under Pi OS Desktop without the KMSDRM line.</td></tr>
+      <tr><td>Audio never goes green</td><td><code>arecord -l</code> must list the device; add the user to <code>audio</code>; master needs <code>libportaudio2</code>. Pick the device in the Sources panel.</td></tr>
+      <tr><td>MIDI never goes green</td><td><code>aconnect -l</code> lists the controller? Set <code>midi_port_contains</code> in config if several ports exist.</td></tr>
+      <tr><td>Blank between tiles / seams</td><td>Tiling assumes edge-to-edge, same-resolution projectors. Edge-blend feathering is on the roadmap.</td></tr>
+    </tbody></table>
+  </div>
+</section>
+
 <footer>Fractal Rig · a Sonor side-project · one master, N synced Raspberry Pi projectors · <a href="https://github.com/sonorltd/sonor-fractal-rig">source</a></footer>
 
 <script src="params.js"></script>
@@ -212,12 +388,29 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 let PARAMS = window.FRX_PARAMS || [];
 const idx = {}; PARAMS.forEach((p, i) => idx[p.key] = i);
 const GROUPS = ['shape', 'colour', 'music'];
-const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn'];
+const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves'];
 
 // ------------------------------------------------------------ state (mirrors engine.py)
 const S = {
   live: false, base: {}, out: {}, auto: {}, presets: {}, t: 0, tRecv: 0, clock_speed: 1, auto_depth: 0.35, auto_rate: 0.05,
   bpm: 0, beat_t: 0, bar_beat: 0, tempo_source: 'none', fleet: {}, log: [], decks: {}, last_cc: null,
+  auto_enabled: true, audio_devices: [], audio_device: null, prodj_follow: 0,
+  sources: {
+    web:   {enabled: true, ok: true, detail: 'this page'},
+    prodj: {enabled: true, ok: false, detail: 'needs the master (demo)'},
+    audio: {enabled: false, ok: false, detail: 'needs the master (demo)'},
+    midi:  {enabled: true, ok: false, detail: 'needs the master (demo)'},
+    osc:   {enabled: true, ok: false, detail: 'needs the master (demo)'},
+    auto:  {enabled: true, ok: true, detail: 'drifting'},
+  },
+};
+const SOURCE_META = {
+  web:   {label: 'Web UI',       sub: 'this page · phone / laptop'},
+  prodj: {label: 'Pro DJ Link',  sub: 'XDJ / CDJ beat grid · udp 50001'},
+  audio: {label: 'Audio in',     sub: 'mic / line · energy + bass'},
+  midi:  {label: 'MIDI',         sub: 'USB controller · CC → params'},
+  osc:   {label: 'OSC',          sub: 'TouchOSC / Ableton · udp 9000'},
+  auto:  {label: 'Autonomous',   sub: 'slow noise drift'},
 };
 PARAMS.forEach(p => { S.base[p.key] = p.def_; S.out[p.key] = p.def_; S.auto[p.key] = !!p.auto; });
 const DEMO_PRESETS = {
@@ -226,6 +419,10 @@ const DEMO_PRESETS = {
   'Burning ship': {mode:2, iterations:200, zoom:3.2, center_x:-1.755, center_y:-0.03, rotation:3.1416, hue:0.9, hue_spread:0.8, glow:0.25, kaleido:0},
   'Kaleido dendrite': {mode:1, iterations:140, zoom:1.0, center_x:0, center_y:0, julia_x:0, julia_y:1.0, hue:0.35, hue_spread:1.0, glow:0.6, kaleido:8, warp:0.15},
   'Tricorn bloom': {mode:3, iterations:160, zoom:0.5, center_x:0, center_y:0, julia_x:-0.2, julia_y:0.7, hue:0.75, hue_spread:1.6, glow:0.4, kaleido:6},
+  'Plasma lava': {mode:4, iterations:200, zoom:0, center_x:0, center_y:0, rotation:0, hue:0, hue_spread:0.7, glow:0.5, warp:0.3, kaleido:0},
+  'AVS tunnel': {mode:5, iterations:256, zoom:0, center_x:0, center_y:0, hue:0.55, hue_spread:1.0, glow:0.7, warp:0.2, kaleido:0, beat_pulse:0.6},
+  'Hyperspace': {mode:6, iterations:320, zoom:0, center_x:0, center_y:0, hue:0.6, hue_spread:1.5, glow:0.8, warp:0.6, kaleido:0, beat_pulse:0.5},
+  'Scope waves': {mode:7, iterations:256, zoom:0, center_x:0, center_y:0, hue:0.3, hue_spread:1.2, glow:0.5, warp:0.1, kaleido:0, energy:0.3},
 };
 
 // ------------------------------------------------------------ transport (live) / simulator (demo)
@@ -240,6 +437,7 @@ function applyLocal(m) {   // demo-mode engine — same semantics as engine.py
   if ('clock_speed' in m) S.clock_speed = +m.clock_speed;
   if ('auto_depth' in m) S.auto_depth = +m.auto_depth;
   if ('auto_rate' in m) S.auto_rate = +m.auto_rate;
+  if (m.source) { const sname = m.source.name; if (sname === 'auto') { S.auto_enabled = !!m.source.enabled; S.sources.auto.enabled = S.auto_enabled; S.sources.auto.ok = S.auto_enabled; S.sources.auto.detail = S.auto_enabled ? 'drifting' : 'paused'; } else if (S.sources[sname] && 'enabled' in m.source) { S.sources[sname].enabled = !!m.source.enabled; } }
   if (m.preset) {
     if (m.preset.load && S.presets[m.preset.load]) { const p = S.presets[m.preset.load]; for (const k in p) if (k !== '_auto') S.base[k] = snap(k, p[k]); if (p._auto) PARAMS.forEach(q => S.auto[q.key] = p._auto.includes(q.key)); logLocal('preset: ' + m.preset.load); }
     if (m.preset.save) { S.presets[m.preset.save] = Object.assign({}, S.base, {_auto: PARAMS.filter(p => S.auto[p.key]).map(p => p.key)}); logLocal('preset saved: ' + m.preset.save); }
@@ -264,7 +462,7 @@ function demoTick() {
   const x = S.t * S.auto_rate;
   PARAMS.forEach((p, i) => {
     let v = S.base[p.key];
-    if (S.auto[p.key] && S.auto_depth > 0) { const d = S.auto_depth * (p.key === 'zoom' ? 0.06 : 0.15); v = clamp(v + noise(x, i * 12.9898) * (p.max - p.min) * d, p.min, p.max); if (p.kind === 'i') v = Math.round(v); }
+    if (S.auto[p.key] && S.auto_depth > 0 && S.auto_enabled) { const d = S.auto_depth * (p.key === 'zoom' ? 0.06 : 0.15); v = clamp(v + noise(x, i * 12.9898) * (p.max - p.min) * d, p.min, p.max); if (p.kind === 'i') v = Math.round(v); }
     S.out[p.key] = v;
   });
 }
@@ -279,7 +477,8 @@ function connect(url) {
     if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); buildControls(); $('pill-ver').textContent = 'v' + m.version; return; }
     if (m.type !== 'state') return;
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
-      clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio});
+      clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
+      auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0});
     S.t = m.t; S.tRecv = performance.now();
     S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
     renderControls();
@@ -343,7 +542,46 @@ function renderControls() {
   $('fleet').innerHTML = fl.length ? fl.map(([n, h]) => `<tr><td>${n}</td><td>${h.ip}</td><td>${h.fps.toFixed(0)}</td><td>${h.res}</td><td>${h.tile}</td><td>${h.lost}</td><td>${h.age}s</td></tr>`).join('')
     : `<tr><td colspan="7" style="color:var(--muted)">${S.live ? 'no renderers heard yet — start ./fractal on a Pi on this LAN' : 'demo mode — no fleet'}</td></tr>`;
   $('last-cc').textContent = S.last_cc == null ? '—' : 'CC ' + S.last_cc;
+  renderSources();
   renderLog();
+}
+let srcBuilt = '';
+function renderSources() {
+  const names = Object.keys(SOURCE_META);
+  const sig = names.map(n => n + (S.sources[n] ? S.sources[n].enabled : '') ).join('|') + (S.audio_devices || []).length + S.live;
+  if (sig !== srcBuilt) {   // structure changed → rebuild controls
+    srcBuilt = sig;
+    $('sources').innerHTML = names.map(n => {
+      const meta = SOURCE_META[n];
+      let extra = '';
+      if (n === 'audio' && S.live) extra = `<select id="audio-dev"><option value="">default input</option>${(S.audio_devices || []).map(d => `<option value="${d.index}">${esc(d.name)}</option>`).join('')}</select>`;
+      if (n === 'prodj' && S.live) extra = `<select id="prodj-follow"><option value="0">follow: auto</option><option value="1">deck 1</option><option value="2">deck 2</option><option value="3">deck 3</option><option value="4">deck 4</option></select>`;
+      const toggle = n === 'web' ? '' : `<button class="toggle" data-src="${n}" title="enable / disable"></button>`;
+      return `<div class="src" data-src="${n}"><i class="dot"></i><div class="name">${meta.label}<small>${meta.sub}</small></div><div class="detail"></div><div class="ctl">${extra}${toggle}</div></div>`;
+    }).join('');
+    $('sources').querySelectorAll('.toggle').forEach(b => b.onclick = () => {
+      const n = b.dataset.src, on = !(S.sources[n] && S.sources[n].enabled);
+      const msg = {source: {name: n, enabled: on}};
+      if (n === 'audio' && on && $('audio-dev')) msg.source.device = $('audio-dev').value === '' ? null : +$('audio-dev').value;
+      send(msg);
+    });
+    const ad = $('audio-dev'); if (ad) { ad.value = S.audio_device == null ? '' : String(S.audio_device); ad.onchange = () => { if (S.sources.audio.enabled) send({source: {name: 'audio', enabled: true, device: ad.value === '' ? null : +ad.value}}); }; }
+    const pf = $('prodj-follow'); if (pf) { pf.value = String(S.prodj_follow || 0); pf.onchange = () => send({source: {name: 'prodj', enabled: S.sources.prodj.enabled, follow: +pf.value}}); }
+  }
+  names.forEach(n => {
+    const row = $('sources').querySelector(`.src[data-src="${n}"]`); if (!row) return;
+    const st = S.sources[n] || {};
+    const cls = !st.enabled ? '' : st.ok ? 'ok' : 'warn';
+    row.querySelector('.dot').className = 'dot ' + cls;
+    let d = esc(st.detail || '');
+    if (n === 'web') d = S.live ? `<b>${esc(st.detail || 'connected')}</b>` : '<b>demo mode</b> — simulating locally';
+    if (n === 'midi' && st.last) d += ` · <span class="last">${esc(st.last)}</span>`;
+    if (n === 'osc' && st.last && st.seen && Date.now() / 1000 - st.seen < 10) d += ` · <span class="last">${esc(st.last)}</span>`;
+    if (!S.live && n !== 'web' && n !== 'auto') d = st.enabled ? 'enabled — needs a master to link' : 'disabled';
+    row.querySelector('.detail').innerHTML = d;
+    const t = row.querySelector('.toggle'); if (t) t.className = 'toggle' + (st.enabled ? ' on' : '');
+    const pf = row.querySelector('#prodj-follow'); if (pf && document.activeElement !== pf) pf.value = String(S.prodj_follow || 0);
+  });
 }
 function renderLog() { $('log').innerHTML = (S.log || []).slice().reverse().map(m => `<div>${esc(m)}</div>`).join(''); }
 
@@ -400,6 +638,16 @@ function frame(now) {
   $('pill-t').textContent = 't ' + t.toFixed(1);
   if (++fpsN >= 30) { $('pill-fps').textContent = (fpsN / ((now - fpsT) / 1000)).toFixed(0) + ' fps'; fpsN = 0; fpsT = now; }
 }
+
+// ------------------------------------------------------------ views
+$('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
+  $('nav').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+  const info = b.dataset.view === 'info';
+  document.querySelector('main').hidden = info; $('info').hidden = !info;
+  try { localStorage.setItem('frx.view', b.dataset.view); } catch (e) {}
+  if (!info) window.scrollTo(0, 0);
+});
+try { if (localStorage.getItem('frx.view') === 'info') $('nav').querySelector('[data-view=info]').click(); } catch (e) {}
 
 // ------------------------------------------------------------ boot
 buildControls();

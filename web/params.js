@@ -3,14 +3,14 @@ window.FRX_PROTOCOL_VERSION = 1;
 window.FRX_PARAMS = [
  {
   "key": "mode",
-  "label": "Fractal",
+  "label": "Scene",
   "min": 0,
-  "max": 3,
+  "max": 7,
   "def_": 0,
   "kind": "i",
   "auto": false,
   "group": "shape",
-  "tip": "0 Mandelbrot \u00b7 1 Julia \u00b7 2 Burning Ship \u00b7 3 Tricorn"
+  "tip": "0 Mandelbrot \u00b7 1 Julia \u00b7 2 Burning Ship \u00b7 3 Tricorn \u00b7 4 Plasma \u00b7 5 Tunnel \u00b7 6 Starfield \u00b7 7 Waves"
  },
  {
   "key": "iterations",

@@ -22,7 +22,7 @@ MAGIC = b"FRX1"
 
 PARAMS = [
     # key            label             min    max    default kind auto  group     tip
-    ("mode",         "Fractal",        0,     3,     0,     'i', False, "shape",  "0 Mandelbrot · 1 Julia · 2 Burning Ship · 3 Tricorn"),
+    ("mode",         "Scene",          0,     7,     0,     'i', False, "shape",  "0 Mandelbrot · 1 Julia · 2 Burning Ship · 3 Tricorn · 4 Plasma · 5 Tunnel · 6 Starfield · 7 Waves"),
     ("iterations",   "Iterations",     16,    1024,  160,   'i', False, "shape",  "Detail. Pi 5 is happy to ~300 at 1080p half-res"),
     ("zoom",         "Zoom (log2)",    -2,    28,    0.6,   'f', True,  "shape",  "log2 magnification. Float precision runs out ~22–24"),
     ("center_x",     "Centre X",       -2.5,  2.5,   -0.55, 'f', True,  "shape",  ""),

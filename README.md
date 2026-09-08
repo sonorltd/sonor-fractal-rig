@@ -35,10 +35,10 @@ drifts on its own.
 | path | what | runs on |
 |---|---|---|
 | `renderer/` | `fractal.c` — 350-line C/SDL2/GLES3 fullscreen renderer. Multicast in, HDMI out, tiling, freewheel, heartbeat. | every Pi |
-| `renderer/shaders/fractal.frag` | **The** shader: Mandelbrot / Julia / Burning Ship / Tricorn, orbit-trap glow, kaleidoscope, domain warp, beat pulse, bar sway. Byte-identical on Pis and in the web preview. | GPU |
+| `renderer/shaders/fractal.frag` | **The** shader: 8 scenes — Mandelbrot / Julia / Burning Ship / Tricorn fractals plus Plasma / Tunnel / Starfield / Waves (the Winamp-AVS end of things) — orbit-trap glow, kaleidoscope, domain warp, beat pulse, bar sway. Byte-identical on Pis and in the web preview. | GPU |
 | `master/` | `master.py` + `engine.py` + `inputs.py` — asyncio param engine, 60 Hz broadcaster, web UI + WebSocket, Pro DJ Link / MIDI / OSC / audio inputs, presets, fleet heartbeat. | master Pi (or a laptop) |
 | `master/params.py` | Single source of truth for the parameter table → generates `params.h`, `params.glsl`, `params.js`. | — |
-| `web/` | `index.html` — phone-friendly control surface with a live WebGL2 preview. Live when served by the master, demo mode on GitHub Pages. | browser |
+| `web/` | `index.html` — phone-friendly control surface: Sources panel (live link status + on/off for Pro DJ Link, audio, MIDI, OSC, auto-drift), all params, presets, fleet, and an **Info** tab with the full manual. Live WebGL2 preview. Live when served by the master, demo mode on GitHub Pages. | browser |
 | `setup/` | `install.sh` (role = master or slave), systemd units, host naming examples. | Pi |
 | `PROTOCOL.md` | The wire format and the sync reasoning. | — |
 
@@ -92,6 +92,18 @@ sudo bash setup/install.sh slave --scale 0.5 --name stage-left
 See `setup/hosts.example.txt` for a full 5-Pi naming plan. Mix freely — a 2×2 tiled wall plus
 a fifth projector showing a rotated variation is one line per Pi.
 
+## Scenes
+
+| # | scene | notes |
+|---|---|---|
+| 0–3 | Mandelbrot · Julia · Burning Ship · Tricorn | escape-time fractals with orbit-trap glow |
+| 4 | Plasma | classic demoscene plasma; `warp` = turbulence |
+| 5 | Tunnel | Winamp/AVS-style infinite tunnel; `beat_pulse` lunges on the kick |
+| 6 | Starfield | hyperspace warp; `warp` = streak length |
+| 7 | Waves | oscilloscope wave stack; `energy`/`bass` shape it live |
+
+All scenes share the same parameters, so kaleidoscope, rotation, palette and beat controls work on every one and every MIDI/OSC mapping stays valid. Adding a scene is one function in `fractal.frag`. (Real Milkdrop presets via projectM run on a Pi, but aren't deterministic across machines, so they can't be pixel-synced into a wall the way this shader is.)
+
 ## Controlling it
 
 | input | how |
@@ -137,7 +149,7 @@ reads the generated tables at start-up.
 
 - [ ] second HDMI output per Pi as an independent tile (`--out 1`)
 - [ ] edge-blend feathering for overlapping projectors (`--blend L R T B` in px)
-- [ ] more scenes (Mandelbulb slices, Lyapunov, IFS ferns) behind the same `mode` param
+- [ ] more scenes (Mandelbulb slices, Lyapunov, IFS ferns, spectrum bars via 8-band audio) behind the same `mode` param
 - [ ] master failover — any renderer promotes itself if no packets for 10 s
 - [ ] Beat Link Trigger recipe for track-name → preset switching
 

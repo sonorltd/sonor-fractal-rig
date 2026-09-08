@@ -30,11 +30,17 @@ class ProDJLink(asyncio.DatagramProtocol):
     """
     def __init__(self, engine, cfg):
         self.engine = engine
-        self.follow = int(cfg.get("prodj_follow_device", 0))   # 0 = auto (most recent deck)
+        self.cfg = cfg
         self.last_dev = None
+
+    @property
+    def follow(self):
+        return int(self.cfg.get("prodj_follow_device", 0) or 0)   # 0 = auto (most recent deck)
 
     def datagram_received(self, data, addr):
         if len(data) < 0x60 or data[:10] != PRODJ_HEADER or data[0x0a] != PRODJ_BEAT:
+            return
+        if not self.engine.sources["prodj"]["enabled"]:
             return
         dev = data[0x21]
         pitch = struct.unpack_from(">I", data, 0x54)[0]
@@ -62,6 +68,7 @@ class ProDJLink(asyncio.DatagramProtocol):
             engine.event("Pro DJ Link listener on udp/%d" % int(cfg.get("prodj_port", 50001)))
         except Exception as ex:
             engine.event(f"Pro DJ Link disabled: {ex}")
+            engine.source("prodj", enabled=False, ok=False, detail=f"failed: {ex}")
 
 
 # ============================================================ MIDI
@@ -70,19 +77,30 @@ async def midi_task(engine, cfg):
         import mido
     except ImportError:
         engine.event("MIDI disabled: pip install mido python-rtmidi")
+        engine.source("midi", ok=False, detail="mido not installed (pip install mido python-rtmidi)")
         return
     want = (cfg.get("midi_port_contains") or "").lower()
     chan = int(cfg.get("midi_channel", 0))
     ccmap = {int(k): v for k, v in cfg.get("midi_map", {}).items() if k.isdigit()}
     port = None
     while True:
+        if not engine.sources["midi"]["enabled"]:
+            if port is not None:
+                try: port.close()
+                except Exception: pass
+                port = None
+            engine.source("midi", ok=False, detail="disabled")
+            await asyncio.sleep(1)
+            continue
         if port is None:
             names = mido.get_input_names()
+            engine.source("midi", ok=False, detail=("no controller found" if not names else "found: " + ", ".join(names)[:60]))
             match = [n for n in names if want in n.lower()] if want else names
             if match:
                 try:
                     port = mido.open_input(match[0])
                     engine.event(f"MIDI in: {match[0]}")
+                    engine.source("midi", ok=True, detail=match[0])
                 except Exception as ex:
                     engine.event(f"MIDI open failed: {ex}")
                     port = None
@@ -95,6 +113,7 @@ async def midi_task(engine, cfg):
                     continue
                 if msg.type == "control_change":
                     engine.last_cc = msg.control                      # for MIDI-learn in the UI
+                    engine.source("midi", last=f"CC {msg.control} = {msg.value}")
                     key = ccmap.get(msg.control)
                     if key:
                         engine.set_norm(key, msg.value / 127.0, "midi")
@@ -105,6 +124,7 @@ async def midi_task(engine, cfg):
                         engine.tap()
         except Exception as ex:
             engine.event(f"MIDI error: {ex} — reconnecting")
+            engine.source("midi", ok=False, detail="reconnecting")
             try:
                 port.close()
             except Exception:
@@ -120,13 +140,15 @@ async def osc_start(engine, cfg):
         from pythonosc.osc_server import AsyncIOOSCUDPServer
     except ImportError:
         engine.event("OSC disabled: pip install python-osc")
+        engine.source("osc", ok=False, detail="python-osc not installed")
         return
     d = Dispatcher()
 
     def on_param(addr, *args):
         key = addr.split("/")[-1]
-        if not args:
+        if not args or not engine.sources["osc"]["enabled"]:
             return
+        engine.source("osc", ok=True, last=f"{addr} {args[0]}", seen=time.time())
         if key == "tap":
             engine.tap()
         elif key == "bpm":
@@ -143,8 +165,10 @@ async def osc_start(engine, cfg):
         server = AsyncIOOSCUDPServer(("0.0.0.0", int(cfg.get("osc_port", 9000))), d, asyncio.get_running_loop())
         await server.create_serve_endpoint()
         engine.event("OSC listening on udp/%d  (/frx/<param> f)" % int(cfg.get("osc_port", 9000)))
+        engine.source("osc", detail="listening on udp/%d" % int(cfg.get("osc_port", 9000)))
     except Exception as ex:
         engine.event(f"OSC failed: {ex}")
+        engine.source("osc", enabled=False, ok=False, detail=f"failed: {ex}")
 
 
 # ============================================================ Audio
@@ -198,6 +222,7 @@ class Audio:
             import numpy  # noqa
         except ImportError:
             engine.event("Audio disabled: pip install sounddevice numpy (+ apt libportaudio2)")
+            engine.source("audio", enabled=False, ok=False, detail="sounddevice/numpy not installed")
             return None
         a = Audio(engine, cfg)
         try:
@@ -206,8 +231,32 @@ class Audio:
                                     blocksize=cfg.get("audio_blocksize", 1024), callback=a.callback)
             stream.start()
             engine.audio_ok = True
-            engine.event(f"Audio in: {sd.query_devices(stream.device)['name']}")
+            engine.audio_stream = stream
+            name = sd.query_devices(stream.device)['name']
+            engine.event(f"Audio in: {name}")
+            engine.source("audio", enabled=True, ok=True, detail=name, device=name)
             return stream
         except Exception as ex:
             engine.event(f"Audio failed: {ex}")
+            engine.source("audio", enabled=False, ok=False, detail=f"failed: {ex}")
             return None
+
+    @staticmethod
+    def stop(engine):
+        if engine.audio_stream is not None:
+            try:
+                engine.audio_stream.stop(); engine.audio_stream.close()
+            except Exception:
+                pass
+        engine.audio_stream = None
+        engine.audio_ok = False
+        engine.source("audio", enabled=False, ok=False, detail="off")
+        engine.event("Audio stopped")
+
+    @staticmethod
+    def devices():
+        try:
+            import sounddevice as sd
+            return [dict(index=i, name=d["name"]) for i, d in enumerate(sd.query_devices()) if d["max_input_channels"] > 0]
+        except Exception:
+            return []

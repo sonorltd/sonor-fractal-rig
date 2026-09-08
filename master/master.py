@@ -24,7 +24,7 @@ from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
 import inputs
 
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 
 
 def load_config(args):
@@ -126,6 +126,27 @@ async def web_app(engine, cfg):
                         engine.save_preset(p["save"])
                     if "delete" in p:
                         engine.delete_preset(p["delete"])
+                if "source" in m:
+                    name, on = m["source"].get("name"), bool(m["source"].get("enabled", True))
+                    if name == "audio":
+                        if on:
+                            if m["source"].get("device") is not None:
+                                cfg["audio_device"] = m["source"]["device"]
+                            inputs.Audio.start(engine, cfg)
+                        else:
+                            inputs.Audio.stop(engine)
+                    elif name == "auto":
+                        engine.auto_enabled = on
+                    elif name == "prodj" and "follow" in m["source"]:
+                        cfg["prodj_follow_device"] = int(m["source"]["follow"] or 0)
+                        engine.event(f"Pro DJ Link: follow deck {cfg['prodj_follow_device'] or 'auto'}")
+                    elif name in engine.sources:
+                        engine.source(name, enabled=on)
+                        engine.event(f"{name} {'enabled' if on else 'disabled'}")
+                        if name == "prodj" and not on:
+                            engine.prodj_decks.clear()
+                            if engine.tempo_source == "prodj":
+                                engine.tempo_source = "tap" if engine.bpm else "none"
                 if "midi_learn" in m:
                     cc = getattr(engine, "last_cc", None)
                     if cc is not None:
@@ -135,11 +156,19 @@ async def web_app(engine, cfg):
             clients.discard(ws)
         return ws
 
+    dev_cache = dict(t=0.0, list=[])
+
     async def pusher():
         while True:
             if clients:
+                engine.source("web", clients=len(clients), detail=f"{len(clients)} client{'s' if len(clients) != 1 else ''} connected")
                 snap = engine.snapshot()
                 snap["last_cc"] = getattr(engine, "last_cc", None)
+                if time.monotonic() - dev_cache["t"] > 5:
+                    dev_cache.update(t=time.monotonic(), list=inputs.Audio.devices())
+                snap["audio_devices"] = dev_cache["list"]
+                snap["prodj_follow"] = int(cfg.get("prodj_follow_device", 0) or 0)
+                snap["audio_device"] = cfg.get("audio_device")
                 data = json.dumps(snap)
                 for ws in list(clients):
                     try:
