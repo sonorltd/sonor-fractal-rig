@@ -1,0 +1,19 @@
+# Suggested naming for a 5-Pi rig (set with `sudo raspi-config` -> hostname, or in Imager).
+# The master also renders, so it is projector #1 — you don't need a 6th Pi.
+#
+# hostname            role     renderer args                 projector
+fractal-master        master   --scale 0.6                   1 (centre)
+fractal-2             slave    --scale 0.6                   2
+fractal-3             slave    --scale 0.6                   3
+fractal-4             slave    --scale 0.6                   4
+fractal-5             slave    --scale 0.6                   5
+#
+# ONE BIG CANVAS instead (2x2 wall, projectors edge-to-edge):
+# fractal-master      master   --tile 2 2 0 0
+# fractal-2           slave    --tile 2 2 1 0
+# fractal-3           slave    --tile 2 2 0 1
+# fractal-4           slave    --tile 2 2 1 1
+#
+# FAMILY OF VARIATIONS (same fractal, each projector its own zoom / rotation / hue):
+# fractal-2           slave    --view 0.7 1.57 0.15
+# fractal-3           slave    --view -0.5 3.14 0.30

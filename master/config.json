@@ -1,0 +1,49 @@
+{
+  "_comment": "Fractal Rig master config. Copy to config.local.json to override without touching git.",
+
+  "multicast_group": "239.255.42.1",
+  "multicast_port": 5005,
+  "multicast_iface": "",
+  "heartbeat_port": 5006,
+  "tick_hz": 60,
+
+  "http_host": "0.0.0.0",
+  "http_port": 8080,
+
+  "osc_enabled": true,
+  "osc_port": 9000,
+
+  "midi_enabled": true,
+  "midi_port_contains": "",
+  "midi_channel": 0,
+  "midi_map": {
+    "_comment": "CC number -> param key. Notes 36+ recall presets by index. Edit to taste / use MIDI learn in the UI.",
+    "1":  "zoom",
+    "2":  "rotation",
+    "3":  "hue",
+    "4":  "hue_spread",
+    "5":  "warp",
+    "6":  "glow",
+    "7":  "brightness",
+    "8":  "contrast",
+    "9":  "julia_x",
+    "10": "julia_y",
+    "11": "beat_pulse",
+    "12": "kaleido"
+  },
+
+  "prodj_enabled": true,
+  "prodj_port": 50001,
+  "prodj_follow_device": 0,
+
+  "audio_enabled": false,
+  "audio_device": null,
+  "audio_samplerate": 44100,
+  "audio_blocksize": 1024,
+  "audio_gain": 1.0,
+  "audio_drive_params": true,
+
+  "clock_speed": 1.0,
+  "auto_depth": 0.35,
+  "auto_rate": 0.05
+}

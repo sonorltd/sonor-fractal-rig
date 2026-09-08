@@ -1,0 +1,8 @@
+renderer/fractal
+master/.venv/
+master/state.json
+master/presets.json
+master/config.local.json
+__pycache__/
+*.ppm
+.DS_Store

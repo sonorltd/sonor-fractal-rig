@@ -1,0 +1,16 @@
+[Unit]
+Description=Fractal Rig master (param engine, web UI, Pro DJ Link / MIDI / OSC inputs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@REPO@/master
+ExecStart=@REPO@/master/.venv/bin/python @REPO@/master/master.py --quiet
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

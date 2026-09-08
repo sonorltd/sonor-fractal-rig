@@ -1,0 +1,21 @@
+[Unit]
+Description=Fractal Rig renderer (GLES fullscreen, follows master over multicast)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@REPO@/renderer
+# KMSDRM = draw straight to the HDMI output, no X/Wayland needed (Pi OS Lite).
+# On Pi OS Desktop delete the next line and it will use the compositor instead.
+Environment=SDL_VIDEODRIVER=KMSDRM
+Environment=SDL_VIDEO_KMSDRM_ATOMIC=1
+ExecStart=@REPO@/renderer/fractal @ARGS@
+Restart=always
+RestartSec=2
+Nice=-5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

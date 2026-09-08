@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="stage">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fractal Rig</title>
+<meta name="description" content="Master control surface for a multi-Raspberry-Pi fractal projection rig — one master, N synced projectors.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Stage-side control surface: dark by design (this lives on a phone next to a DJ booth,
+     not in the office). Deliberate deviation from Sonor SLATE-FIRST — side-project, non-Sonor UI. */
+  :root {
+    --bg: #0b0c10; --panel: #13151c; --panel2: #191c25; --line: #262a37;
+    --text: #e8e9ee; --muted: #8b90a3; --accent: #8058a1; --accent2: #4bb9d3;
+    --ok: #78ba57; --warn: #f5d05c; --bad: #ec6061; --pink: #e67eb1;
+    --radius: 10px; --font: 'DM Sans', system-ui, -apple-system, Segoe UI, sans-serif;
+    --mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
+  a { color: var(--accent2); text-decoration: none; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  header { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+  .logo { font-weight: 700; letter-spacing: .12em; font-size: 13px; }
+  .logo span { color: var(--accent2); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.warn { background: var(--warn); }
+  .dot.bad { background: var(--bad); }
+  .spacer { flex: 1; }
+  .strip { display: flex; gap: 2px; height: 3px; }
+  .strip i { flex: 1; display: block; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 420px); gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+  .card h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .card h2 .spacer { flex: 1; }
+
+  #preview { width: 100%; aspect-ratio: 16/9; border-radius: 8px; background: #000; display: block; }
+  .previewwrap { position: relative; }
+  .previewwrap .overlay { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .beat { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--muted); transition: transform .08s, background .08s; }
+  .beat.on { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.12); }
+
+  .tempo { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; align-items: center; }
+  .tempo .src { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+  .bpm { font-family: var(--mono); font-size: 32px; font-weight: 500; line-height: 1; }
+  .bpm small { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .decks { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+  .btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; color: var(--text); }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.small { padding: 4px 8px; font-size: 12px; }
+  .btn.tap { min-width: 84px; font-weight: 700; }
+  .btn.active { border-color: var(--accent2); color: var(--accent2); }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+  .tabs button { background: none; border: 0; padding: 8px 12px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tabs button.active { color: var(--text); border-bottom-color: var(--accent2); font-weight: 500; }
+
+  .param { display: grid; grid-template-columns: 110px 1fr 56px 30px; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+  .param:last-child { border-bottom: 0; }
+  .param label { font-size: 13px; }
+  .param label small { display: block; color: var(--muted); font-size: 10px; }
+  .param input[type=range] { width: 100%; accent-color: var(--accent2); }
+  .param .val { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+  .param .val.live { color: var(--accent2); }
+  .auto { width: 26px; height: 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); position: relative; padding: 0; }
+  .auto::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: left .15s, background .15s; }
+  .auto.on { border-color: var(--pink); }
+  .auto.on::after { left: 10px; background: var(--pink); }
+  .auto[disabled] { opacity: .25; }
+  .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .presets .btn { display: flex; gap: 6px; align-items: center; }
+  .presets .x { color: var(--muted); font-size: 11px; }
+  input.text { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; flex: 1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--mono); }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  td:first-child, th:first-child { color: var(--text); }
+  .log { font-family: var(--mono); font-size: 11px; color: var(--muted); max-height: 140px; overflow: auto; line-height: 1.5; }
+  .banner { background: linear-gradient(90deg, rgba(128,88,161,.25), rgba(75,185,211,.15)); border: 1px solid var(--accent); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; }
+  .banner b { color: var(--accent2); }
+  .kv { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .kv .card { padding: 10px; }
+  .kv .card b { display: block; font-family: var(--mono); font-size: 18px; font-weight: 500; }
+  .kv .card span { color: var(--muted); font-size: 11px; }
+  footer { text-align: center; color: var(--muted); font-size: 11px; padding: 20px; }
+  footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">FRACTAL <span>RIG</span></div>
+  <span class="pill"><i class="dot" id="conn-dot"></i><span id="conn-label">connecting…</span></span>
+  <span class="pill" id="pill-fleet">0 projectors</span>
+  <span class="pill" id="pill-tempo"><i class="dot" id="tempo-dot"></i><span id="tempo-label">no tempo</span></span>
+  <div class="spacer"></div>
+  <span class="pill" id="pill-ver">v0.1.0</span>
+  <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
+</header>
+<div class="strip" aria-hidden="true">
+  <i style="background:#8058a1"></i><i style="background:#4bb9d3"></i><i style="background:#78ba57"></i><i style="background:#f5d05c"></i><i style="background:#e37c59"></i><i style="background:#ec6061"></i><i style="background:#e67eb1"></i><i style="background:#ad9978"></i><i style="background:#b7b1a7"></i><i style="background:#302f2e"></i>
+</div>
+
+<main>
+  <section style="display:flex;flex-direction:column;gap:16px;min-width:0">
+    <div class="banner" id="demo-banner" hidden>
+      <b>Demo mode</b> — no master found on this host, so the page is simulating one locally. Everything below works
+      (sliders, auto-drift, tap tempo, presets) and the preview is the <em>exact</em> shader the Pis run.
+      <span class="row" style="margin-top:8px">
+        <input class="text" id="master-url" placeholder="ws://fractal-master.local:8080/ws">
+        <button class="btn small" id="master-connect">Connect to a master</button>
+      </span>
+    </div>
+
+    <div class="card">
+      <h2>Live preview <span class="spacer"></span><span class="pill" id="pill-fps">— fps</span><span class="pill" id="pill-t">t 0.0</span></h2>
+      <div class="previewwrap">
+        <canvas id="preview" width="960" height="540"></canvas>
+        <div class="overlay">
+          <div class="beat" id="beat1">1</div><div class="beat" id="beat2">2</div><div class="beat" id="beat3">3</div><div class="beat" id="beat4">4</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tempo</h2>
+      <div class="tempo">
+        <div><div class="bpm"><span id="bpm">—</span><small>BPM</small></div><div class="decks" id="decks"></div></div>
+        <div class="row">
+          <button class="btn tap" id="tap">TAP</button>
+          <input class="text" id="bpm-in" type="number" step="0.1" min="0" max="300" placeholder="type BPM" style="flex:0 0 110px">
+          <button class="btn small" id="bpm-set">Set</button>
+          <button class="btn small" id="bpm-clear">Clear</button>
+        </div>
+        <div class="src" id="tempo-src">Pro DJ Link: waiting for beat packets on udp/50001</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Presets</h2>
+      <div class="presets" id="presets"></div>
+      <div class="row" style="margin-top:10px">
+        <input class="text" id="preset-name" placeholder="new preset name">
+        <button class="btn small primary" id="preset-save">Save current</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Projectors <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">heartbeats every second from each renderer</span></h2>
+      <table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>age</th></tr></thead><tbody id="fleet"></tbody></table>
+    </div>
+
+    <div class="card">
+      <h2>Log</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+
+  <aside style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <h2>Parameters <span class="spacer"></span><span class="pill" id="pill-live">live</span></h2>
+      <div class="modes" id="modes"></div>
+      <div class="tabs" id="tabs"></div>
+      <div id="params"></div>
+    </div>
+
+    <div class="card">
+      <h2>Master</h2>
+      <div class="param"><label>Clock speed<small>animation time rate</small></label><input type="range" id="clock_speed" min="0" max="3" step="0.01"><span class="val" id="clock_speed_v"></span><span></span></div>
+      <div class="param"><label>Auto depth<small>how far drift wanders</small></label><input type="range" id="auto_depth" min="0" max="1" step="0.01"><span class="val" id="auto_depth_v"></span><span></span></div>
+      <div class="param"><label>Auto rate<small>how fast drift wanders</small></label><input type="range" id="auto_rate" min="0" max="0.5" step="0.005"><span class="val" id="auto_rate_v"></span><span></span></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn small" id="auto-all">Auto: all</button>
+        <button class="btn small" id="auto-none">Auto: none</button>
+        <button class="btn small" id="reset">Reset defaults</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>MIDI / OSC</h2>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6">
+        OSC: <code>/frx/&lt;param&gt; f</code> · <code>/frx/tap</code> · <code>/frx/bpm f</code> · <code>/frx/preset s|i</code> · <code>/frx/auto_&lt;param&gt; 0|1</code> on udp/9000.<br>
+        MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; note 35 = tap.<br>
+        Last CC seen: <b id="last-cc" style="color:var(--text)">—</b>
+        <select id="learn-param" class="btn small"></select>
+        <button class="btn small" id="learn">Map last CC →</button>
+      </div>
+    </div>
+  </aside>
+</main>
+<footer>Fractal Rig · a Sonor side-project · one master, N synced Raspberry Pi projectors · <a href="https://github.com/sonorltd/sonor-fractal-rig">source</a></footer>
+
+<script src="params.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+let PARAMS = window.FRX_PARAMS || [];
+const idx = {}; PARAMS.forEach((p, i) => idx[p.key] = i);
+const GROUPS = ['shape', 'colour', 'music'];
+const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn'];
+
+// ------------------------------------------------------------ state (mirrors engine.py)
+const S = {
+  live: false, base: {}, out: {}, auto: {}, presets: {}, t: 0, tRecv: 0, clock_speed: 1, auto_depth: 0.35, auto_rate: 0.05,
+  bpm: 0, beat_t: 0, bar_beat: 0, tempo_source: 'none', fleet: {}, log: [], decks: {}, last_cc: null,
+};
+PARAMS.forEach(p => { S.base[p.key] = p.def_; S.out[p.key] = p.def_; S.auto[p.key] = !!p.auto; });
+const DEMO_PRESETS = {
+  'Seahorse valley': {mode:0, iterations:260, zoom:6.5, center_x:-0.7435, center_y:0.1314, hue:0.62, hue_spread:1.4, glow:0.3, kaleido:0},
+  'Julia spiral': {mode:1, iterations:180, zoom:0.4, center_x:0, center_y:0, julia_x:-0.7885, julia_y:0.1, hue:0.05, hue_spread:2.0, glow:0.5, kaleido:0},
+  'Burning ship': {mode:2, iterations:200, zoom:3.2, center_x:-1.755, center_y:-0.03, rotation:3.1416, hue:0.9, hue_spread:0.8, glow:0.25, kaleido:0},
+  'Kaleido dendrite': {mode:1, iterations:140, zoom:1.0, center_x:0, center_y:0, julia_x:0, julia_y:1.0, hue:0.35, hue_spread:1.0, glow:0.6, kaleido:8, warp:0.15},
+  'Tricorn bloom': {mode:3, iterations:160, zoom:0.5, center_x:0, center_y:0, julia_x:-0.2, julia_y:0.7, hue:0.75, hue_spread:1.6, glow:0.4, kaleido:6},
+};
+
+// ------------------------------------------------------------ transport (live) / simulator (demo)
+let ws = null, demoTimer = null, taps = [];
+function send(m) { if (S.live && ws && ws.readyState === 1) ws.send(JSON.stringify(m)); else applyLocal(m); }
+
+function applyLocal(m) {   // demo-mode engine — same semantics as engine.py
+  if (m.set) for (const k in m.set) S.base[k] = snap(k, m.set[k]);
+  if (m.auto) for (const k in m.auto) S.auto[k] = !!m.auto[k];
+  if (m.tap) tapLocal();
+  if ('bpm' in m) { S.bpm = clamp(+m.bpm || 0, 0, 300); S.tempo_source = S.bpm ? 'tap' : 'none'; }
+  if ('clock_speed' in m) S.clock_speed = +m.clock_speed;
+  if ('auto_depth' in m) S.auto_depth = +m.auto_depth;
+  if ('auto_rate' in m) S.auto_rate = +m.auto_rate;
+  if (m.preset) {
+    if (m.preset.load && S.presets[m.preset.load]) { const p = S.presets[m.preset.load]; for (const k in p) if (k !== '_auto') S.base[k] = snap(k, p[k]); if (p._auto) PARAMS.forEach(q => S.auto[q.key] = p._auto.includes(q.key)); logLocal('preset: ' + m.preset.load); }
+    if (m.preset.save) { S.presets[m.preset.save] = Object.assign({}, S.base, {_auto: PARAMS.filter(p => S.auto[p.key]).map(p => p.key)}); logLocal('preset saved: ' + m.preset.save); }
+    if (m.preset.delete) delete S.presets[m.preset.delete];
+    try { localStorage.setItem('frx.presets', JSON.stringify(S.presets)); } catch (e) {}
+  }
+  renderControls();
+}
+function snap(k, v) { const p = PARAMS[idx[k]]; v = clamp(+v, p.min, p.max); return p.kind === 'i' ? Math.round(v) : v; }
+function tapLocal() {
+  const now = performance.now() / 1000; taps = taps.filter(x => now - x < 3).concat([now]);
+  if (taps.length >= 2) { let s = 0; for (let i = 1; i < taps.length; i++) s += taps[i] - taps[i - 1]; S.bpm = 60 / (s / (taps.length - 1)); }
+  S.beat_t = S.t; S.bar_beat = ((taps.length - 1) % 4) + 1; S.tempo_source = 'tap';
+}
+function logLocal(m) { S.log.push(m); S.log = S.log.slice(-12); renderLog(); }
+const noise = (x, seed) => Math.sin(x + seed) * 0.5 + Math.sin(x * 2.618 + seed * 1.7) * 0.3 + Math.sin(x * 0.382 + seed * 3.1) * 0.2;
+let lastDemo = performance.now();
+function demoTick() {
+  const now = performance.now(), dt = Math.min((now - lastDemo) / 1000, 0.25); lastDemo = now;
+  S.t += dt * S.clock_speed; S.tRecv = now;
+  if (S.bpm > 0 && S.t - S.beat_t > 60) { const per = 60 / S.bpm, n = Math.floor((S.t - S.beat_t) / per); S.beat_t += n * per; if (S.bar_beat) S.bar_beat = ((S.bar_beat - 1 + n) % 4) + 1; }
+  const x = S.t * S.auto_rate;
+  PARAMS.forEach((p, i) => {
+    let v = S.base[p.key];
+    if (S.auto[p.key] && S.auto_depth > 0) { const d = S.auto_depth * (p.key === 'zoom' ? 0.06 : 0.15); v = clamp(v + noise(x, i * 12.9898) * (p.max - p.min) * d, p.min, p.max); if (p.kind === 'i') v = Math.round(v); }
+    S.out[p.key] = v;
+  });
+}
+
+function connect(url) {
+  setConn('warn', 'connecting…');
+  try { ws = new WebSocket(url); } catch (e) { return startDemo(); }
+  const timer = setTimeout(() => { if (ws.readyState !== 1) { ws.close(); } }, 2500);
+  ws.onopen = () => { clearTimeout(timer); S.live = true; if (demoTimer) { clearInterval(demoTimer); demoTimer = null; } $('demo-banner').hidden = true; setConn('ok', 'master ' + new URL(url).host); $('pill-live').textContent = 'live'; };
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); buildControls(); $('pill-ver').textContent = 'v' + m.version; return; }
+    if (m.type !== 'state') return;
+    Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
+      clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio});
+    S.t = m.t; S.tRecv = performance.now();
+    S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
+    renderControls();
+  };
+  ws.onclose = () => { if (S.live) { S.live = false; setConn('bad', 'master lost — retrying'); setTimeout(() => connect(url), 2000); } else startDemo(); };
+  ws.onerror = () => {};
+}
+function startDemo() {
+  if (demoTimer) return;
+  S.live = false; setConn('warn', 'demo · no master'); $('pill-live').textContent = 'demo';
+  $('demo-banner').hidden = false;
+  try { S.presets = JSON.parse(localStorage.getItem('frx.presets') || 'null') || Object.assign({}, DEMO_PRESETS); } catch (e) { S.presets = Object.assign({}, DEMO_PRESETS); }
+  logLocal('demo mode: simulating the master locally');
+  demoTimer = setInterval(demoTick, 1000 / 60);
+  renderControls();
+}
+function setConn(cls, label) { $('conn-dot').className = 'dot ' + cls; $('conn-label').textContent = label; }
+
+// ------------------------------------------------------------ controls
+let activeGroup = 'shape';
+function buildControls() {
+  $('modes').innerHTML = MODE_NAMES.map((n, i) => `<button class="btn small" data-mode="${i}">${n}</button>`).join('');
+  $('modes').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {mode: +b.dataset.mode}}));
+  $('tabs').innerHTML = GROUPS.map(g => `<button data-g="${g}" class="${g === activeGroup ? 'active' : ''}">${g}</button>`).join('');
+  $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => { activeGroup = b.dataset.g; buildControls(); });
+  $('params').innerHTML = PARAMS.filter(p => p.group === activeGroup && p.key !== 'mode').map(p => `
+    <div class="param" data-key="${p.key}">
+      <label title="${p.tip || ''}">${p.label}${p.tip ? `<small>${p.tip}</small>` : ''}</label>
+      <input type="range" min="${p.min}" max="${p.max}" step="${p.kind === 'i' ? 1 : (p.max - p.min) / 1000}" value="${S.base[p.key]}">
+      <span class="val"></span>
+      <button class="auto ${S.auto[p.key] ? 'on' : ''}" title="auto-drift" ${p.kind === 'i' ? 'disabled' : ''}></button>
+    </div>`).join('');
+  $('params').querySelectorAll('.param').forEach(row => {
+    const k = row.dataset.key, r = row.querySelector('input'), a = row.querySelector('.auto');
+    r.oninput = () => { row.dataset.touch = performance.now(); send({set: {[k]: +r.value}}); };
+    a.onclick = () => send({auto: {[k]: !S.auto[k]}});
+  });
+  $('learn-param').innerHTML = PARAMS.map(p => `<option value="${p.key}">${p.label}</option>`).join('');
+  renderControls();
+}
+function fmt(v, p) { return p.kind === 'i' ? String(Math.round(v)) : (Math.abs(v) < 10 ? (+v).toFixed(3) : (+v).toFixed(1)); }
+function renderControls() {
+  $('params').querySelectorAll('.param').forEach(row => {
+    const k = row.dataset.key, p = PARAMS[idx[k]], r = row.querySelector('input'), v = row.querySelector('.val'), a = row.querySelector('.auto');
+    if (!(row.dataset.touch && performance.now() - row.dataset.touch < 800)) r.value = S.base[k];
+    const drifting = S.auto[k] && Math.abs(S.out[k] - S.base[k]) > 1e-4;
+    v.textContent = fmt(drifting ? S.out[k] : S.base[k], p); v.className = 'val' + (drifting ? ' live' : '');
+    a.className = 'auto' + (S.auto[k] ? ' on' : '');
+  });
+  $('modes').querySelectorAll('button').forEach(b => b.className = 'btn small' + (+b.dataset.mode === Math.round(S.base.mode) ? ' active' : ''));
+  for (const k of ['clock_speed', 'auto_depth', 'auto_rate']) { if (document.activeElement !== $(k)) $(k).value = S[k]; $(k + '_v').textContent = (+S[k]).toFixed(2); }
+  $('bpm').textContent = S.bpm ? S.bpm.toFixed(1) : '—';
+  const src = {none: 'no tempo', prodj: 'Pro DJ Link', tap: 'tap / manual', audio: 'audio onset'}[S.tempo_source] || S.tempo_source;
+  $('tempo-label').textContent = src; $('tempo-dot').className = 'dot ' + (S.tempo_source === 'prodj' ? 'ok' : S.bpm ? 'warn' : '');
+  $('tempo-src').textContent = S.tempo_source === 'prodj' ? 'Locked to Pro DJ Link beat packets' : S.live ? 'Pro DJ Link: waiting for beat packets on udp/50001 · tap or type a BPM meanwhile' : 'Demo: tap or type a BPM';
+  $('decks').innerHTML = Object.entries(S.decks || {}).map(([d, x]) => `<span class="pill">deck ${d} · ${x.bpm} · beat ${x.beat}</span>`).join('');
+  $('presets').innerHTML = Object.keys(S.presets).map(n => `<span class="btn small" data-p="${esc(n)}">${esc(n)} <span class="x" data-del="${esc(n)}">✕</span></span>`).join('') || '<span style="color:var(--muted)">none yet</span>';
+  $('presets').querySelectorAll('[data-p]').forEach(b => b.onclick = e => { if (e.target.dataset.del) { if (confirm('Delete preset "' + e.target.dataset.del + '"?')) send({preset: {delete: e.target.dataset.del}}); } else send({preset: {load: b.dataset.p}}); });
+  const fl = Object.entries(S.fleet || {});
+  $('pill-fleet').textContent = fl.length + (fl.length === 1 ? ' projector' : ' projectors');
+  $('fleet').innerHTML = fl.length ? fl.map(([n, h]) => `<tr><td>${n}</td><td>${h.ip}</td><td>${h.fps.toFixed(0)}</td><td>${h.res}</td><td>${h.tile}</td><td>${h.lost}</td><td>${h.age}s</td></tr>`).join('')
+    : `<tr><td colspan="7" style="color:var(--muted)">${S.live ? 'no renderers heard yet — start ./fractal on a Pi on this LAN' : 'demo mode — no fleet'}</td></tr>`;
+  $('last-cc').textContent = S.last_cc == null ? '—' : 'CC ' + S.last_cc;
+  renderLog();
+}
+function renderLog() { $('log').innerHTML = (S.log || []).slice().reverse().map(m => `<div>${esc(m)}</div>`).join(''); }
+
+$('tap').onclick = () => send({tap: 1});
+$('bpm-set').onclick = () => send({bpm: +$('bpm-in').value});
+$('bpm-clear').onclick = () => send({bpm: 0});
+$('preset-save').onclick = () => { const n = $('preset-name').value.trim(); if (n) { send({preset: {save: n}}); $('preset-name').value = ''; } };
+$('auto-all').onclick = () => { const a = {}; PARAMS.forEach(p => { if (p.kind !== 'i') a[p.key] = true; }); send({auto: a}); };
+$('auto-none').onclick = () => { const a = {}; PARAMS.forEach(p => a[p.key] = false); send({auto: a}); };
+$('reset').onclick = () => { const s = {}; PARAMS.forEach(p => s[p.key] = p.def_); send({set: s}); };
+$('learn').onclick = () => send({midi_learn: $('learn-param').value});
+for (const k of ['clock_speed', 'auto_depth', 'auto_rate']) $(k).oninput = () => send({[k]: +$(k).value});
+document.addEventListener('keydown', e => { if (e.code === 'Space' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); send({tap: 1}); } });
+
+// ------------------------------------------------------------ WebGL2 preview — the real shader
+const canvas = $('preview');
+const gl = canvas.getContext('webgl2', {antialias: false, preserveDrawingBuffer: false});
+let prog = null, U = {}, cur = null, fpsN = 0, fpsT = performance.now();
+async function fetchFirst(paths) { for (const p of paths) { try { const r = await fetch(p, {cache: 'no-cache'}); if (r.ok) return await r.text(); } catch (e) {} } throw new Error('shader not found: ' + paths.join(', ')); }
+async function initGL() {
+  if (!gl) { logLocal('WebGL2 not available — preview disabled'); return; }
+  const pre = await fetchFirst(['../renderer/shaders/params.glsl', '/shaders/params.glsl', 'shaders/params.glsl']);
+  const frag = await fetchFirst(['../renderer/shaders/fractal.frag', '/shaders/fractal.frag', 'shaders/fractal.frag']);
+  const vs = '#version 300 es\nvoid main(){vec2 v=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(v*2.0-1.0,0.0,1.0);}';
+  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, pre + '\n' + frag)); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  for (const n of ['u_res', 'u_time', 'u_beat_t', 'u_bpm', 'u_bar_beat', 'u_tile', 'u_view', 'u_p']) U[n] = gl.getUniformLocation(prog, n);
+  gl.bindVertexArray(gl.createVertexArray());
+  requestAnimationFrame(frame);
+}
+let lastF = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min((now - lastF) / 1000, 0.25); lastF = now;
+  // preview clock follows the master's clock exactly like a Pi does: anchor + extrapolate
+  const t = S.t + (now - S.tRecv) / 1000 * (S.live ? S.clock_speed : 0);
+  const target = PARAMS.map(p => S.out[p.key]);
+  if (!cur) cur = target.slice();
+  const a = 1 - Math.exp(-dt / 0.06);
+  PARAMS.forEach((p, i) => cur[i] = p.kind === 'i' ? target[i] : cur[i] + (target[i] - cur[i]) * a);
+  // scale preview resolution to the CSS size (cap at 960 wide for laptops/phones)
+  const w = Math.min(960, Math.round(canvas.clientWidth * Math.min(devicePixelRatio, 1.5))), h = Math.round(w * 9 / 16);
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  gl.viewport(0, 0, w, h); gl.useProgram(prog);
+  gl.uniform2f(U.u_res, w, h); gl.uniform1f(U.u_time, t % 100000); gl.uniform1f(U.u_beat_t, S.beat_t % 100000);
+  gl.uniform1f(U.u_bpm, S.bpm); gl.uniform1f(U.u_bar_beat, S.bar_beat); gl.uniform4f(U.u_tile, 0, 0, 1, 1); gl.uniform3f(U.u_view, 0, 0, 0);
+  gl.uniform1fv(U.u_p, new Float32Array(cur));
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  // beat LEDs
+  let beatIdx = 0;
+  if (S.bpm > 1) { const beats = (t - S.beat_t) * S.bpm / 60; const bb = S.bar_beat ? S.bar_beat - 1 : 0; beatIdx = ((Math.floor(beats) + bb) % 4 + 4) % 4 + 1; const ph = beats - Math.floor(beats); for (let i = 1; i <= 4; i++) $('beat' + i).className = 'beat' + (i === beatIdx && ph < 0.25 ? ' on' : ''); }
+  else for (let i = 1; i <= 4; i++) $('beat' + i).className = 'beat';
+  $('pill-t').textContent = 't ' + t.toFixed(1);
+  if (++fpsN >= 30) { $('pill-fps').textContent = (fpsN / ((now - fpsT) / 1000)).toFixed(0) + ' fps'; fpsN = 0; fpsT = now; }
+}
+
+// ------------------------------------------------------------ boot
+buildControls();
+initGL().catch(e => { console.error(e); logLocal('preview error: ' + e.message); });
+const saved = (() => { try { return localStorage.getItem('frx.master'); } catch (e) { return null; } })();
+$('master-url').value = saved || '';
+$('master-connect').onclick = () => { const u = $('master-url').value.trim(); if (u) { try { localStorage.setItem('frx.master', u); } catch (e) {} connect(u); } };
+const here = location.protocol.startsWith('http') && !/github\.io$/.test(location.hostname) ? (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' : null;
+if (saved) connect(saved); else if (here) connect(here); else startDemo();
+})();
+</script>
+</body>
+</html>
