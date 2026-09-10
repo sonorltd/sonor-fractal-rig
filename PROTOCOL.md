@@ -18,7 +18,7 @@ config. Wired gigabit switch strongly recommended; on Wi-Fi many APs throttle
 multicast to 1–6 Mbps and drop it under load (our stream is 58 kbit/s, so it
 usually still works, but jitter goes from <1 ms to 20–50 ms).
 
-## Packet (120 bytes, little-endian)
+## Packet (136 bytes, little-endian)
 
 ```
 offset  type   field       meaning
@@ -31,7 +31,7 @@ offset  type   field       meaning
 24      f64    beat_t      animation-clock time of the most recent beat
 32      f32    bpm         0 = no tempo
 36      f32    bar_beat    beat-within-bar (1..4) at beat_t, 0 = unknown
-40      f32×20 params      in the order defined in master/params.py
+40      f32×24 params      in the order defined in master/params.py
 ```
 
 `master/params.py` is the single source of truth for the parameter table.
@@ -59,11 +59,26 @@ offset  type   field       meaning
   invisible at normal motion speeds; if you ever need true genlock, that is a
   hardware problem (Datapath/Decklink), not a software one.
 
+## Audio stream (master → renderers, optional, for projectM)
+
+`239.255.42.1:5007`, sent from the master's audio callback whenever audio input is running:
+
+```
+4s  'FRXA'   u32 seq   u32 sample_rate   u16 n_samples (≤1024)   u16 channels (1)   int16[n] pcm
+```
+
+~86 packets/s at 44.1 kHz mono (≈ 700 kbit/s). Renderers feed it straight into
+libprojectM; if no FRXA packet arrives for 1 s they synthesise a beat-locked
+kick/hat from `t`, `beat_t` and `bpm` instead — identical on every Pi.
+
 ## Heartbeat (renderer → master)
 
 ```
-HB 1 <name> <fps> <WxH> <cols> <rows> <x> <y> <packets> <lost> <version>
+HB 3 <name> <fps> <WxH> <cols> <rows> <x> <y> <packets> <lost> <version> <cpuTempC> <pmPresets> <pmCurrent> <audioPkts>
 ```
+
+`pmPresets` = −1 when the renderer was built without libprojectM. v1/v2
+heartbeats with fewer fields are still accepted.
 
 The master lists live renderers in the web UI (name, IP, fps, tile, loss, age).
 

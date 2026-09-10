@@ -34,12 +34,12 @@ drifts on its own.
 
 | path | what | runs on |
 |---|---|---|
-| `renderer/` | `fractal.c` — 350-line C/SDL2/GLES3 fullscreen renderer. Multicast in, HDMI out, tiling, freewheel, heartbeat. | every Pi |
+| `renderer/` | `fractal.c` — C/SDL2/GLES3 fullscreen renderer. Multicast in, HDMI out, tiling, freewheel, heartbeat. `pm_bridge.c` + `shaders/post.frag` — optional libprojectM 4 scene with PCM stream + post-pass. | every Pi |
 | `renderer/shaders/fractal.frag` | **The** shader: 8 scenes — Mandelbrot / Julia / Burning Ship / Tricorn fractals plus Plasma / Tunnel / Starfield / Waves (the Winamp-AVS end of things) — orbit-trap glow, kaleidoscope, domain warp, beat pulse, bar sway. Byte-identical on Pis and in the web preview. | GPU |
 | `master/` | `master.py` + `engine.py` + `inputs.py` — asyncio param engine, 60 Hz broadcaster, web UI + WebSocket, Pro DJ Link / MIDI / OSC / audio inputs, presets, fleet heartbeat. | master Pi (or a laptop) |
 | `master/params.py` | Single source of truth for the parameter table → generates `params.h`, `params.glsl`, `params.js`. | — |
 | `web/` | `index.html` — phone-friendly control surface: Sources panel (live link status + on/off for Pro DJ Link, audio, MIDI, OSC, auto-drift), all params, presets, fleet, and an **Info** tab with the full manual. Live WebGL2 preview. Live when served by the master, demo mode on GitHub Pages. | browser |
-| `setup/` | `install.sh` (role = master or slave), systemd units, host naming examples. | Pi |
+| `setup/` | `install.sh` (role = master or slave), `selftest.sh` (pass/fail bring-up checker), systemd units, host naming examples. | Pi |
 | `PROTOCOL.md` | The wire format and the sync reasoning. | — |
 
 ## Hardware
@@ -75,6 +75,13 @@ On Pi OS **Lite** the renderer draws straight to the HDMI output through KMSDRM 
 needed. On Pi OS **Desktop** remove the `SDL_VIDEODRIVER=KMSDRM` line from the unit and it
 runs as a fullscreen Wayland/X window instead.
 
+Then on every Pi run the self-test — it listens for the master's multicast, Pro DJ Link traffic,
+checks groups/GPU/SDL, services, fps, MIDI and audio devices, temperature and throttling:
+
+```bash
+bash setup/selftest.sh
+```
+
 Open the web UI from any phone on the LAN: **`http://<master-ip>:8080/`** (the master logs
 the URL: `journalctl -fu fractal-master`).
 
@@ -101,17 +108,22 @@ a fifth projector showing a rotated variation is one line per Pi.
 | 5 | Tunnel | Winamp/AVS-style infinite tunnel; `beat_pulse` lunges on the kick |
 | 6 | Starfield | hyperspace warp; `warp` = streak length |
 | 7 | Waves | oscilloscope wave stack; `energy`/`bass` shape it live |
+| 8 | **projectM** | real Milkdrop `.milk` presets via libprojectM 4 on each Pi — master picks the preset, streams PCM audio (or Pis synthesise a beat-locked signal), optional kaleido/zoom/hue post-pass via `pm_mix`. Optional install: `sudo bash setup/install-projectm.sh` |
 
-All scenes share the same parameters, so kaleidoscope, rotation, palette and beat controls work on every one and every MIDI/OSC mapping stays valid. Adding a scene is one function in `fractal.frag`. (Real Milkdrop presets via projectM run on a Pi, but aren't deterministic across machines, so they can't be pixel-synced into a wall the way this shader is.)
+Scenes 0–7 share one shader, so kaleidoscope, rotation, palette and beat controls work on every one and every MIDI/OSC mapping stays valid. Adding a scene is one function in `fractal.frag`.
+
+### projectM (scene 8)
+
+`setup/install-projectm.sh` builds libprojectM 4 with GLES from source on each Pi (~15 min), pulls the original Milkdrop preset pack (`--cream` adds Cream of the Crop, ~10k presets) and the texture pack, and rebuilds the renderer with `HAVE_PROJECTM`. The master owns preset selection (`pm_preset` index into the byte-sorted preset list — identical on every Pi as long as the packs are identical; the Renderers table flags mismatches), prev/next/random/search/auto-cycle-every-N-bars in the UI, OSC `/frx/pm_next|pm_prev|pm_random`, MIDI notes 33/32. The master multicasts its audio input as PCM (udp/5007) so presets react to the room; without audio every Pi synthesises the same beat-locked kick from the shared clock. `pm_mix` runs projectM's output through our post-pass (kaleido, rotation, zoom, hue, beat pulse). **Sync caveat:** Milkdrop presets use their own timing and randomness — Pis look alike (same preset, same audio, same switch frame) but are not pixel-identical, so use scenes 0–7 for seamless tiled walls and projectM for identical-image or family layouts.
 
 ## Controlling it
 
 | input | how |
 |---|---|
-| **Web UI** | sliders for all 20 params with per-param **auto-drift** toggles, 4 fractal modes, presets (save/load/delete), tap tempo (space bar too), BPM entry, clock speed, drift depth/rate, fleet table, MIDI learn. |
+| **Web UI** | three tabs. **Control**: Sources panel (link status + on/off per source), 8 scenes, sliders for all 20 params with per-param **auto-drift** toggles, presets, tap tempo (space bar), **SET BEAT 1** bar resync (key `1`), BPM entry, clock speed, drift depth/rate, fleet table, MIDI learn. **Status**: everything debuggable — link RTT, master CPU/temp/throttle, tick rate and worst gap, multicast/IGMP, per-source raw counters (incl. Pro DJ Link packet types), decks, per-Pi fps/loss/temp/version, effective config, full log, one-click diagnostics JSON. **Info**: the manual. Fully mobile-adaptive. |
 | **Pro DJ Link** | Plug the master Pi into the same network as the XDJ-RX2 / CDJ **LINK** port. The master listens *passively* to the beat packets every player already broadcasts on UDP 50001 — no virtual-CDJ handshake, no player number to steal, nothing shows up on the decks. Locks BPM + beat-in-bar; `prodj_follow_device` in `config.json` pins a deck (0 = follow whichever deck beat most recently). |
-| **MIDI** | Any class-compliant controller. `config.json → midi_map` maps CC → param (defaults for CC 1–12), notes 36+ recall presets in order, note 35 = tap. "Map last CC →" in the UI does MIDI-learn for the session. |
-| **OSC** | udp/9000: `/frx/<param> f` · `/frx/tap` · `/frx/bpm f` · `/frx/preset s|i` · `/frx/auto_<param> 0|1`. TouchOSC / Lemur / Ableton Max-for-Live all speak this. |
+| **MIDI** | Any class-compliant controller. `config.json → midi_map` maps CC → param (defaults for CC 1–12), notes 36+ recall presets in order, note 35 = tap, note 34 = set beat 1. "Map last CC →" in the UI does MIDI-learn for the session. |
+| **OSC** | udp/9000: `/frx/<param> f` · `/frx/tap` · `/frx/beat1` · `/frx/bpm f` · `/frx/preset s|i` · `/frx/auto_<param> 0|1`. TouchOSC / Lemur / Ableton Max-for-Live all speak this. |
 | **Audio** | `python3 master.py --audio` (or `"audio_enabled": true`). Drives the `energy` and `bass` params from RMS + a 30–150 Hz band with auto-gain; falls back to onset-detected beats when no Pro DJ Link is present. |
 | **Autonomous** | Everything with the pink toggle drifts on smooth noise. Depth/rate live in the Master panel. Leave it and walk away. |
 
@@ -150,6 +162,7 @@ reads the generated tables at start-up.
 - [ ] second HDMI output per Pi as an independent tile (`--out 1`)
 - [ ] edge-blend feathering for overlapping projectors (`--blend L R T B` in px)
 - [ ] more scenes (Mandelbulb slices, Lyapunov, IFS ferns, spectrum bars via 8-band audio) behind the same `mode` param
+- [ ] projectM: per-Pi seed + frame-time injection when libprojectM exposes it, for tighter cross-Pi match
 - [ ] master failover — any renderer promotes itself if no packets for 10 s
 - [ ] Beat Link Trigger recipe for track-name → preset switching
 

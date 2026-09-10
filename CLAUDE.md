@@ -1,9 +1,9 @@
-# STUDIO - Fractal Rig (v0.2.0)
+# STUDIO - Fractal Rig (v0.4.0)
 
-> Current version: 0.2.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.4.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
-Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 120-byte UDP multicast
+Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 136-byte UDP multicast
 state packet at 60 Hz, N Pi renderers (C + SDL2 + GLES3) drawing the same GLSL shader to
 projectors over HDMI. Inputs: web UI, MIDI, OSC, Pioneer Pro DJ Link (passive beat listener),
 optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
@@ -45,9 +45,25 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   `mode` param; Sources panel in the web UI with live link status + enable/disable toggles,
   audio device picker and Pro DJ Link deck-follow; runtime source toggles over WebSocket;
   Info tab (sources, scenes, Pi setup, layouts, network, protocol, troubleshooting).
+- 2026-09-08 v0.3.0 — Status tab (browser/link RTT, master system + throttle decode, clock/broadcast
+  stats, per-source detail incl. Pro DJ Link raw packet counters, decks, renderer fleet detail with
+  temps, effective config, full log, copy-diagnostics JSON); heartbeat v2 carries CPU temp;
+  `setup/selftest.sh` on-Pi pass/fail checker; SET BEAT 1 bar resync (UI, key `1`, OSC
+  `/frx/beat1`, MIDI note 34); mobile-adaptive layout for all three tabs.
+- 2026-09-10 v0.4.0 — projectM scene 8: `renderer/pm_bridge.c` (libprojectM 4 C API, optional at
+  build time via pkg-config), `shaders/post.frag` post-pass (tiling/kaleido/zoom/hue over the
+  projectM frame, `pm_mix`), master-owned preset selection (`pm_preset` index into a byte-sorted
+  list — `master/pm.py` and `pm_bridge.c` must sort identically), PCM multicast stream udp/5007
+  (`FRXA`) with synthetic beat-locked fallback on the Pis, auto-cycle every N bars, UI card with
+  search/prev/next/random, heartbeat v3 (preset count / current / audio pkts), `install-projectm.sh`.
+  libprojectM 4.1 always presents to framebuffer 0 → renderer lets it, then blits fb0 → pm_tex.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.
+  libprojectM is the ONE optional extra, isolated behind `pm_bridge.h` and `HAVE_PROJECTM`; the
+  renderer must always build and run without it.
+- Preset list ordering is a cross-language contract: `master/pm.py scan_presets` and
+  `renderer/pm_bridge.c pm_scan_presets` (recursive, relative path, byte order). Change both or neither.
 - Never send anything TO the Pioneer network (no virtual CDJ) without an explicit decision.
 - Version sites: `renderer/fractal.c APP_VERSION`, `master/master.py APP_VERSION`,
   `web/index.html #pill-ver`, this banner. Bump all four together.

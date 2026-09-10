@@ -5,12 +5,12 @@ window.FRX_PARAMS = [
   "key": "mode",
   "label": "Scene",
   "min": 0,
-  "max": 7,
+  "max": 8,
   "def_": 0,
   "kind": "i",
   "auto": false,
   "group": "shape",
-  "tip": "0 Mandelbrot \u00b7 1 Julia \u00b7 2 Burning Ship \u00b7 3 Tricorn \u00b7 4 Plasma \u00b7 5 Tunnel \u00b7 6 Starfield \u00b7 7 Waves"
+  "tip": "0 Mandelbrot \u00b7 1 Julia \u00b7 2 Burning Ship \u00b7 3 Tricorn \u00b7 4 Plasma \u00b7 5 Tunnel \u00b7 6 Starfield \u00b7 7 Waves \u00b7 8 projectM"
  },
  {
   "key": "iterations",
@@ -220,5 +220,49 @@ window.FRX_PARAMS = [
   "auto": false,
   "group": "music",
   "tip": "live low-band level"
+ },
+ {
+  "key": "pm_preset",
+  "label": "Preset #",
+  "min": 0,
+  "max": 16383,
+  "def_": 0,
+  "kind": "i",
+  "auto": false,
+  "group": "projectm",
+  "tip": "index into the sorted preset list (same pack on every Pi)"
+ },
+ {
+  "key": "pm_beat_sens",
+  "label": "Beat sensitivity",
+  "min": 0,
+  "max": 5,
+  "def_": 1.0,
+  "kind": "f",
+  "auto": false,
+  "group": "projectm",
+  "tip": "projectM beat detection gain"
+ },
+ {
+  "key": "pm_blend",
+  "label": "Blend (s)",
+  "min": 0,
+  "max": 10,
+  "def_": 2.0,
+  "kind": "f",
+  "auto": false,
+  "group": "projectm",
+  "tip": "soft-cut crossfade when the preset changes; 0 = hard cut"
+ },
+ {
+  "key": "pm_mix",
+  "label": "Shader mix",
+  "min": 0,
+  "max": 1,
+  "def_": 0.0,
+  "kind": "f",
+  "auto": true,
+  "group": "projectm",
+  "tip": "0 = pure projectM \u00b7 1 = projectM warped through our zoom/rotate/kaleido/hue post-pass"
  }
 ];

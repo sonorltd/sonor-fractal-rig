@@ -16,7 +16,7 @@ echo "== Fractal Rig installer :: role=$ROLE repo=$REPO user=$USER_NAME"
 
 echo "== apt packages"
 apt-get update -qq
-apt-get install -y -qq build-essential pkg-config libsdl2-dev libgles2-mesa-dev python3-venv python3-pip git
+apt-get install -y -qq build-essential pkg-config libsdl2-dev libgles2-mesa-dev python3-venv python3-pip git alsa-utils curl
 if [ "$ROLE" = "master" ]; then
   apt-get install -y -qq libportaudio2 libasound2-dev libjack-dev || true
 fi
@@ -57,3 +57,4 @@ echo "   journalctl -fu fractal-renderer      # fps / packets / master status"
 if [ "$ROLE" = "master" ]; then echo "   journalctl -fu fractal-master        # inputs, web UI url"; fi
 if [ "$ROLE" = "master" ]; then echo "   web UI:  http://$(hostname -I | awk '{print $1}'):8080/"; fi
 echo "   change renderer args:  sudo systemctl edit fractal-renderer  (or re-run this script)"
+echo "   Milkdrop presets (scene 8, optional, ~15 min):  sudo bash setup/install-projectm.sh"

@@ -159,6 +159,7 @@ void main() {
     // ---- non-fractal scenes ------------------------------------------------
     if (mode >= 4) {
         vec2 q = p + centreShift(mode);
+        if (mode >= 8) mode = 4;                       // projectM not available here -> plasma stand-in
         vec3 sc = mode == 4 ? scenePlasma(q, u_time, hue, pulse)
                 : mode == 5 ? sceneTunnel(q, u_time, hue, pulse)
                 : mode == 6 ? sceneStars(q, u_time, hue, pulse)

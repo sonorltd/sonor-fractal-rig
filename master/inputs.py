@@ -38,8 +38,18 @@ class ProDJLink(asyncio.DatagramProtocol):
         return int(self.cfg.get("prodj_follow_device", 0) or 0)   # 0 = auto (most recent deck)
 
     def datagram_received(self, data, addr):
-        if len(data) < 0x60 or data[:10] != PRODJ_HEADER or data[0x0a] != PRODJ_BEAT:
+        raw = self.engine.prodj_raw
+        if len(data) < 0x0b or data[:10] != PRODJ_HEADER:
+            raw["bad"] += 1
             return
+        raw["packets"] += 1
+        raw["last_type"] = "0x%02x" % data[0x0a]
+        raw["last_from"] = addr[0]
+        raw["last_seen"] = time.time()
+        if data[0x0a] != PRODJ_BEAT or len(data) < 0x60:
+            raw["other"] += 1
+            return
+        raw["beats"] += 1
         if not self.engine.sources["prodj"]["enabled"]:
             return
         dev = data[0x21]
@@ -122,6 +132,12 @@ async def midi_task(engine, cfg):
                         engine.load_preset_index(msg.note - 36)
                     elif msg.note == 35:
                         engine.tap()
+                    elif msg.note == 34:
+                        engine.beat_one()
+                    elif msg.note == 33:
+                        engine.pm_step(1, "midi")
+                    elif msg.note == 32:
+                        engine.pm_step(-1, "midi")
         except Exception as ex:
             engine.event(f"MIDI error: {ex} — reconnecting")
             engine.source("midi", ok=False, detail="reconnecting")
@@ -151,6 +167,14 @@ async def osc_start(engine, cfg):
         engine.source("osc", ok=True, last=f"{addr} {args[0]}", seen=time.time())
         if key == "tap":
             engine.tap()
+        elif key == "beat1":
+            engine.beat_one()
+        elif key == "pm_next":
+            engine.pm_step(1, "osc")
+        elif key == "pm_prev":
+            engine.pm_step(-1, "osc")
+        elif key == "pm_random":
+            engine.pm_random("osc")
         elif key == "bpm":
             engine.set_bpm(args[0])
         elif key == "preset":
@@ -187,6 +211,11 @@ class Audio:
     def callback(self, indata, frames, t, status):
         import numpy as np
         x = indata[:, 0].astype("float32")
+        if self.e.audio_stream is not None:
+            try:
+                self.e.audio_stream.send_float(x * self.gain)
+            except Exception:
+                pass
         rms = float(np.sqrt(np.mean(x * x))) * self.gain
         spec = np.abs(np.fft.rfft(x * np.hanning(len(x))))
         sr = self.cfg.get("audio_samplerate", 44100)
@@ -231,7 +260,10 @@ class Audio:
                                     blocksize=cfg.get("audio_blocksize", 1024), callback=a.callback)
             stream.start()
             engine.audio_ok = True
-            engine.audio_stream = stream
+            engine._sd_stream = stream
+            if cfg.get("pm_audio_stream", True):
+                from pm import AudioStream
+                engine.audio_stream = AudioStream(cfg)
             name = sd.query_devices(stream.device)['name']
             engine.event(f"Audio in: {name}")
             engine.source("audio", enabled=True, ok=True, detail=name, device=name)
@@ -243,15 +275,25 @@ class Audio:
 
     @staticmethod
     def stop(engine):
-        if engine.audio_stream is not None:
+        st = getattr(engine, "_sd_stream", None)
+        if st is not None:
             try:
-                engine.audio_stream.stop(); engine.audio_stream.close()
+                st.stop(); st.close()
             except Exception:
                 pass
+        engine._sd_stream = None
         engine.audio_stream = None
         engine.audio_ok = False
         engine.source("audio", enabled=False, ok=False, detail="off")
         engine.event("Audio stopped")
+
+    @staticmethod
+    def midi_ports():
+        try:
+            import mido
+            return mido.get_input_names()
+        except Exception:
+            return []
 
     @staticmethod
     def devices():

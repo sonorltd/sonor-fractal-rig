@@ -77,7 +77,7 @@
   .auto.on { border-color: var(--pink); }
   .auto.on::after { left: 10px; background: var(--pink); }
   .auto[disabled] { opacity: .25; }
-  .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+  .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
   .modes button { padding: 6px 4px; font-size: 12px; }
 
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -114,6 +114,22 @@
   .toggle.on::after { left: 20px; background: var(--ok); }
   @media (max-width: 600px) { .src { grid-template-columns: 14px 1fr auto; } .src .detail { grid-column: 2 / 3; } }
 
+  /* status tab */
+  #status { display: block; max-width: 1200px; margin: 0 auto; padding: 16px; }
+  #status[hidden] { display: none; }
+  #status .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  #status .card { margin-bottom: 0; }
+  #status .card.wide { grid-column: 1 / -1; }
+  .kvt { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .kvt td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .kvt td:first-child { color: var(--muted); white-space: nowrap; width: 38%; font-family: var(--font); }
+  .kvt td:last-child { font-family: var(--mono); color: var(--text); word-break: break-word; }
+  .ok { color: var(--ok) !important; } .warn { color: var(--warn) !important; } .bad { color: var(--bad) !important; } .mute { color: var(--muted) !important; }
+  .flag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px; border: 1px solid currentColor; }
+  pre.diag { font-family: var(--mono); font-size: 11px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; max-height: 320px; margin: 0; line-height: 1.45; color: var(--muted); }
+  .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; line-height: 1.5; }
+  .hint b { color: var(--warn); }
+
   /* info tab */
   #info { display: block; max-width: 900px; margin: 0 auto; padding: 16px; }
   #info[hidden], main[hidden] { display: none; }
@@ -129,6 +145,47 @@
   #info td { color: #cfd2db; font-family: var(--font); font-size: 13px; vertical-align: top; }
   #info td:first-child { font-family: var(--mono); white-space: nowrap; color: var(--text); }
   #info .toc { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* ---- mobile ---- */
+  .card .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  @media (max-width: 700px) {
+    html, body { font-size: 15px; }
+    header { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+    header .logo { order: 0; }
+    header .nav { order: 1; margin-left: auto; }
+    header .pill { order: 2; font-size: 11px; padding: 3px 7px; }
+    header .spacer { display: none; }
+    #pill-ver { display: none; }
+    main { padding: 10px; gap: 12px; }
+    .card { padding: 12px; border-radius: 8px; }
+    .modes { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .modes button { font-size: 11px; padding: 8px 2px; }
+    .param { grid-template-columns: 84px 1fr 48px 28px; gap: 6px; padding: 7px 0; }
+    .param label { font-size: 12px; } .param label small { display: none; }
+    .param input[type=range] { height: 28px; }
+    .tempo { grid-template-columns: 1fr; }
+    .btn { padding: 10px 12px; }            /* finger-sized */
+    .btn.small { padding: 7px 9px; font-size: 12px; }
+    .toggle { width: 46px; height: 26px; } .toggle::after { width: 20px; height: 20px; } .toggle.on::after { left: 22px; }
+    .src { grid-template-columns: 14px 1fr auto; gap: 4px 10px; }
+    .src .dot { grid-row: 1; } .src .name { grid-row: 1; grid-column: 2; } .src .ctl { grid-row: 1; grid-column: 3; }
+    .src .detail { grid-row: 2; grid-column: 2 / -1; white-space: normal; }
+    .card h2 > span:not(.spacer):not(.pill) { display: none; }   /* legends */
+    header a.pill { display: none; }
+    #status .card, #info .card { min-width: 0; overflow: hidden; }
+    .kvt { table-layout: fixed; } .kvt td:last-child { overflow-wrap: anywhere; }
+    pre.diag { max-width: 100%; }
+    .src .ctl select { max-width: 120px; }
+    .previewwrap .overlay .beat { width: 28px; height: 28px; font-size: 10px; }
+    #status { padding: 10px; } #status .grid { grid-template-columns: 1fr; gap: 12px; }
+    .kvt td:first-child { width: 42%; }
+    #info { padding: 10px; } #info p, #info li { font-size: 14px; }
+    #info pre { font-size: 11px; }
+    input[type=range] { accent-color: var(--accent2); }
+  }
+  @media (max-width: 400px) {
+    .param { grid-template-columns: 72px 1fr 44px 26px; }
+    .modes button { font-size: 10px; }
+  }
   footer { text-align: center; color: var(--muted); font-size: 11px; padding: 20px; }
   footer a { color: var(--muted); text-decoration: underline; }
 </style>
@@ -140,8 +197,8 @@
   <span class="pill" id="pill-fleet">0 projectors</span>
   <span class="pill" id="pill-tempo"><i class="dot" id="tempo-dot"></i><span id="tempo-label">no tempo</span></span>
   <div class="spacer"></div>
-  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="info">Info</button></nav>
-  <span class="pill" id="pill-ver">v0.2.0</span>
+  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
+  <span class="pill" id="pill-ver">v0.4.0</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
@@ -168,6 +225,11 @@
       <h2>Live preview <span class="spacer"></span><span class="pill" id="pill-fps">— fps</span><span class="pill" id="pill-t">t 0.0</span></h2>
       <div class="previewwrap">
         <canvas id="preview" width="960" height="540"></canvas>
+        <div id="pm-overlay" hidden style="position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:rgba(11,12,16,.55);border-radius:8px;padding:20px">
+          <div><div style="font-weight:700;letter-spacing:.1em;font-size:12px;color:var(--accent2)">PROJECTM ON THE PIs</div>
+          <div style="font-family:var(--mono);font-size:13px;margin-top:6px" id="pm-overlay-name">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">Milkdrop presets render on each Pi, not in the browser — plasma stand-in shown here.</div></div>
+        </div>
         <div class="overlay">
           <div class="beat" id="beat1">1</div><div class="beat" id="beat2">2</div><div class="beat" id="beat3">3</div><div class="beat" id="beat4">4</div>
         </div>
@@ -180,6 +242,7 @@
         <div><div class="bpm"><span id="bpm">—</span><small>BPM</small></div><div class="decks" id="decks"></div></div>
         <div class="row">
           <button class="btn tap" id="tap">TAP</button>
+          <button class="btn" id="beat1" title="mark now as beat 1 of the bar (keeps BPM)">SET BEAT 1</button>
           <input class="text" id="bpm-in" type="number" step="0.1" min="0" max="300" placeholder="type BPM" style="flex:0 0 110px">
           <button class="btn small" id="bpm-set">Set</button>
           <button class="btn small" id="bpm-clear">Clear</button>
@@ -197,9 +260,31 @@
       </div>
     </div>
 
+    <div class="card" id="pm-card">
+      <h2>projectM · Milkdrop presets <span class="spacer"></span><span class="pill" id="pm-count">—</span></h2>
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn small" id="pm-prev">◀ prev</button>
+        <button class="btn small primary" id="pm-random">random</button>
+        <button class="btn small" id="pm-next">next ▶</button>
+        <span style="flex:1;min-width:120px;font-family:var(--mono);font-size:12px;color:var(--accent2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="pm-name">—</span>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <input class="text" id="pm-search" placeholder="search presets… (type, then pick)" list="pm-list" autocomplete="off">
+        <datalist id="pm-list"></datalist>
+        <select id="pm-select" class="btn small" style="max-width:260px"></select>
+      </div>
+      <div class="row">
+        <label style="font-size:12px;color:var(--muted)">auto-cycle every</label>
+        <input class="text" id="pm-cycle" type="number" min="0" max="256" step="1" style="flex:0 0 80px"> <span style="font-size:12px;color:var(--muted)">bars (0 = off)</span>
+        <button class="btn small" id="pm-shuffle">shuffle</button>
+        <button class="btn small" id="pm-rescan" title="re-read the preset folder on the master">rescan</button>
+        <span class="hint" id="pm-hint" style="margin:0"></span>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Projectors <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">heartbeats every second from each renderer</span></h2>
-      <table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>age</th></tr></thead><tbody id="fleet"></tbody></table>
+      <div class="tablewrap"><table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>age</th></tr></thead><tbody id="fleet"></tbody></table></div>
     </div>
 
     <div class="card">
@@ -231,8 +316,8 @@
     <div class="card">
       <h2>MIDI / OSC</h2>
       <div style="font-size:12px;color:var(--muted);line-height:1.6">
-        OSC: <code>/frx/&lt;param&gt; f</code> · <code>/frx/tap</code> · <code>/frx/bpm f</code> · <code>/frx/preset s|i</code> · <code>/frx/auto_&lt;param&gt; 0|1</code> on udp/9000.<br>
-        MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; note 35 = tap.<br>
+        OSC: <code>/frx/&lt;param&gt; f</code> · <code>/frx/tap</code> · <code>/frx/beat1</code> · <code>/frx/bpm f</code> · <code>/frx/preset s|i</code> · <code>/frx/auto_&lt;param&gt; 0|1</code> on udp/9000.<br>
+        MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; note 35 = tap, note 34 = set beat 1.<br>
         Last CC seen: <b id="last-cc" style="color:var(--text)">—</b>
         <select id="learn-param" class="btn small"></select>
         <button class="btn small" id="learn">Map last CC →</button>
@@ -240,6 +325,17 @@
     </div>
   </aside>
 </main>
+
+<section id="status" hidden>
+  <div class="card wide" style="margin-bottom:16px">
+    <h2>Status &amp; debugging <span class="spacer"></span>
+      <button class="btn small" id="diag-copy">Copy diagnostics JSON</button>
+      <button class="btn small" id="diag-refresh">Refresh MIDI / audio lists</button>
+    </h2>
+    <div id="st-summary" class="hint"></div>
+  </div>
+  <div class="grid" id="st-grid"></div>
+</section>
 
 <section id="info" hidden>
   <div class="card">
@@ -255,7 +351,7 @@
     <p>All sources feed one engine on the master. Human inputs (this page, MIDI, OSC, presets) set a <em>base</em> value per parameter — last write wins. Auto-drift adds a slow offset on top of anything with the pink toggle. Audio, when running, owns <code>energy</code> and <code>bass</code> outright. Tempo has a priority order: <b>Pro DJ Link</b> if a beat has been seen in the last 5 s, else <b>tap / typed BPM</b>, else the <b>audio onset</b> guess. The Sources panel on the Control tab shows a live dot for each: green = linked and delivering, amber = enabled but waiting for a device/packets, grey = switched off.</p>
 
     <h4>Web UI (this page)</h4>
-    <p>Served by the master at <code>http://&lt;master-ip&gt;:8080/</code>; works on a phone. Every parameter has a slider and an auto-drift toggle; presets save the sliders <em>and</em> which ones are drifting. <kbd>Space</kbd> = tap tempo. When no master is reachable (e.g. the GitHub Pages copy) the page runs a local simulation of the engine — "demo mode" — with the identical shader in the preview.</p>
+    <p>Served by the master at <code>http://&lt;master-ip&gt;:8080/</code>; works on a phone. Every parameter has a slider and an auto-drift toggle; presets save the sliders <em>and</em> which ones are drifting. <kbd>Space</kbd> = tap tempo, <kbd>1</kbd> = set beat 1 (re-align the bar to the music without changing BPM — the pulse and bar-swing follow instantly on every projector). When no master is reachable (e.g. the GitHub Pages copy) the page runs a local simulation of the engine — "demo mode" — with the identical shader in the preview.</p>
 
     <h4>Pro DJ Link (XDJ-RX2 / CDJ / DJM)</h4>
     <p>Every Pioneer player with a LINK port broadcasts a small packet on <b>every beat</b> (UDP 50001): deck number, track BPM, pitch fader position and beat-in-bar 1–4. The master only <em>listens</em> — it never joins as a virtual CDJ, never claims a player number, and nothing appears on the decks. It records the animation-clock time of each beat plus the effective BPM (track BPM × pitch); the shader derives beat phase from those, so <code>beat_pulse</code> and <code>bar_swing</code> land exactly on the grid and stay locked between packets. Follow mode "auto" hands over to whichever deck beat most recently (natural during a mix); or pin deck 1/2. Needs: one Ethernet cable from the LINK port to the rig's switch — see <a href="#i-network">Network</a>.</p>
@@ -264,10 +360,10 @@
     <p>Optional. Any class-compliant USB audio input on the master (USB interface, the XDJ's USB audio, or a mic pointed at the room). ~40× a second the master computes overall loudness and a 30–150 Hz bass band, auto-gained so they sit mid-range whatever the volume, and writes them to <code>energy</code> (brightness / saturation lift) and <code>bass</code> (warmth + punch). A crude onset detector supplies beats <em>only</em> when Pro DJ Link is not locked — expect it to wander on breakdowns. Pick the input device in the Sources panel; needs <code>libportaudio2</code> + <code>sounddevice numpy</code> (installer adds them on the master).</p>
 
     <h4>MIDI</h4>
-    <p>Any class-compliant controller on the master's USB. CC → parameter via <code>midi_map</code> in <code>config.json</code>; defaults: CC1 zoom, CC2 rotation, CC3 hue, CC4 hue spread, CC5 warp, CC6 glow, CC7 brightness, CC8 contrast, CC9/10 Julia re/im, CC11 beat pulse, CC12 kaleidoscope. Notes 36+ recall presets in order, note 35 = tap. "Map last CC →" on the Control tab learns a knob for this session (copy into config to keep). Reconnects automatically. Tip: the XDJ-RX2 is itself a USB MIDI controller when not in rekordbox mode.</p>
+    <p>Any class-compliant controller on the master's USB. CC → parameter via <code>midi_map</code> in <code>config.json</code>; defaults: CC1 zoom, CC2 rotation, CC3 hue, CC4 hue spread, CC5 warp, CC6 glow, CC7 brightness, CC8 contrast, CC9/10 Julia re/im, CC11 beat pulse, CC12 kaleidoscope. Notes 36+ recall presets in order, note 35 = tap, note 34 = set beat 1. "Map last CC →" on the Control tab learns a knob for this session (copy into config to keep). Reconnects automatically. Tip: the XDJ-RX2 is itself a USB MIDI controller when not in rekordbox mode.</p>
 
     <h4>OSC</h4>
-    <p>UDP 9000. <code>/frx/&lt;param&gt; f</code> (e.g. <code>/frx/hue 0.5</code>), <code>/frx/tap</code>, <code>/frx/bpm f</code>, <code>/frx/preset s|i</code>, <code>/frx/auto_&lt;param&gt; 0|1</code>. TouchOSC, Lemur, Ableton (Max for Live / OSC plugins), Resolume, QLab and Beat Link Trigger all speak this — it is the bolt-on route for anything not built in.</p>
+    <p>UDP 9000. <code>/frx/&lt;param&gt; f</code> (e.g. <code>/frx/hue 0.5</code>), <code>/frx/tap</code>, <code>/frx/beat1</code>, <code>/frx/bpm f</code>, <code>/frx/preset s|i</code>, <code>/frx/auto_&lt;param&gt; 0|1</code>. TouchOSC, Lemur, Ableton (Max for Live / OSC plugins), Resolume, QLab and Beat Link Trigger all speak this — it is the bolt-on route for anything not built in.</p>
 
     <h4>Autonomous</h4>
     <p>Parameters with the pink toggle wander on smooth noise around wherever you left their slider. "Auto depth" is how far, "Auto rate" how fast; zoom drifts deliberately shallower. The Sources toggle pauses all drift at once without losing which params were selected. With nothing else plugged in the rig runs itself indefinitely.</p>
@@ -284,8 +380,14 @@
       <tr><td>5 Tunnel</td><td>Winamp/AVS-style infinite tunnel. <code>iterations</code> = spoke count, <code>warp</code> = twist, <code>beat_pulse</code> lunges forward on the kick.</td></tr>
       <tr><td>6 Starfield</td><td>Hyperspace warp. <code>warp</code> = streak length, <code>iterations</code> = star layers, beat pulse = speed burst.</td></tr>
       <tr><td>7 Waves</td><td>Oscilloscope wave stack — the Milkdrop feel. <code>energy</code>/<code>bass</code> (live from audio) set amplitude and ripple; <code>iterations</code> = number of traces.</td></tr>
+      <tr><td>8 projectM</td><td><b>Real Milkdrop presets</b> via libprojectM 4 on each Pi. Pick presets in the projectM card; <code>pm_mix</code> blends in our post-pass (kaleido / zoom / rotate / hue) on top. See the projectM section below.</td></tr>
     </tbody></table>
-    <p>Everything is one shader, so <code>kaleido</code>, <code>rotation</code>, <code>zoom</code>, the palette controls, <code>beat_pulse</code> and <code>bar_swing</code> work on every scene, and switching scenes is one integer in the packet — all projectors flip on the same frame. Adding a scene is a function in <code>renderer/shaders/fractal.frag</code> and a name in the mode list; it appears here and on every Pi on the next restart. Want real Milkdrop presets? <a href="https://github.com/projectM-visualizer/projectm" target="_blank" rel="noopener">projectM</a> runs on a Pi, but its presets are not deterministic across machines, so it cannot be pixel-synced the way this shader is — it would be a "one Pi, one projector" alternative, not a wall.</p>
+    <p>Scenes 0–7 are one shader, so <code>kaleido</code>, <code>rotation</code>, <code>zoom</code>, the palette controls, <code>beat_pulse</code> and <code>bar_swing</code> work on every scene, and switching scenes is one integer in the packet — all projectors flip on the same frame. Adding a scene is a function in <code>renderer/shaders/fractal.frag</code> and a name in the mode list.</p>
+    <h4>Scene 8 — projectM (Milkdrop)</h4>
+    <p>Each Pi runs <a href="https://github.com/projectM-visualizer/projectm" target="_blank" rel="noopener">libprojectM 4</a> (built for GLES by <code>setup/install-projectm.sh</code>) and renders the real <code>.milk</code> preset files — the original Winamp Milkdrop pack (~550) and optionally Cream of the Crop (~10,000). The <b>master</b> owns preset selection: the current preset's index in the sorted list rides in the packet as <code>pm_preset</code>, so every Pi loads the same file on the same frame, with a <code>pm_blend</code>-second crossfade. Prev / next / random / search / auto-cycle every N bars live in the projectM card; OSC <code>/frx/pm_next|pm_prev|pm_random</code>; MIDI notes 33 / 32.</p>
+    <p><b>Audio:</b> projectM needs a waveform. When the master's audio input is running it multicasts the PCM to the Pis (udp/5007, ~700 kbit/s) so every preset reacts to the room. Without it, each Pi synthesises an identical beat-locked kick + hat from the shared clock and BPM — presets still pump on the beat, and because the signal is derived from the same numbers it is the same on every Pi.</p>
+    <p><b>Honesty about sync:</b> Milkdrop presets use their own frame timing and random numbers, so two Pis on the same preset with the same audio look <em>alike</em> — same preset, same colours, same beat reaction — but are not pixel-identical, and they drift apart over minutes until the next preset change re-aligns them. That is fine for "same vibe on every projector" and for the family-of-variations layout; it is wrong for a seamless tiled wall (you'll see the seams move). Use scenes 0–7 for tiled walls. <code>pm_mix</code> runs projectM's frame through our post-pass so kaleidoscope, rotation, zoom, hue shift and beat pulse still apply.</p>
+    <p><b>Install (every Pi + master, ~15 min each):</b> <code>sudo bash setup/install-projectm.sh</code> (add <code>--cream</code> for the big pack). The preset <em>count</em> must be identical on all Pis and the master — the Renderers table flags any Pi whose count differs, because preset numbers would then point at different files. Pi 5 renders most presets at 1080p/0.6 scale comfortably; Pi 4 is happier at scale 0.5.</p>
     <h4>Cheat-sheet</h4>
     <table><tbody>
       <tr><td>zoom</td><td>log2 magnification (each +1 doubles). Float precision runs out around 22–24 on fractals.</td></tr>
@@ -387,14 +489,15 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 let PARAMS = window.FRX_PARAMS || [];
 const idx = {}; PARAMS.forEach((p, i) => idx[p.key] = i);
-const GROUPS = ['shape', 'colour', 'music'];
-const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves'];
+const GROUPS = ['shape', 'colour', 'music', 'projectm'];
+const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'projectM'];
 
 // ------------------------------------------------------------ state (mirrors engine.py)
 const S = {
   live: false, base: {}, out: {}, auto: {}, presets: {}, t: 0, tRecv: 0, clock_speed: 1, auto_depth: 0.35, auto_rate: 0.05,
   bpm: 0, beat_t: 0, bar_beat: 0, tempo_source: 'none', fleet: {}, log: [], decks: {}, last_cc: null,
   auto_enabled: true, audio_devices: [], audio_device: null, prodj_follow: 0,
+  pm: {count: 0, index: 0, name: null, cycle_bars: 16, shuffle: true, audio: null}, pm_presets: [],
   sources: {
     web:   {enabled: true, ok: true, detail: 'this page'},
     prodj: {enabled: true, ok: false, detail: 'needs the master (demo)'},
@@ -427,12 +530,16 @@ const DEMO_PRESETS = {
 
 // ------------------------------------------------------------ transport (live) / simulator (demo)
 let ws = null, demoTimer = null, taps = [];
+const BR = {rtt: null, rttMax: 0, snaps: 0, snapHz: 0, snapWin: performance.now(), lastSnap: 0, gl: null, glVendor: null, previewFps: 0, wsUrl: null, connectedAt: 0, reconnects: 0, errors: []};
+window.addEventListener('error', e => { BR.errors.push((e.message || 'error') + ' @' + (e.lineno || '?')); BR.errors = BR.errors.slice(-8); });
 function send(m) { if (S.live && ws && ws.readyState === 1) ws.send(JSON.stringify(m)); else applyLocal(m); }
 
 function applyLocal(m) {   // demo-mode engine — same semantics as engine.py
   if (m.set) for (const k in m.set) S.base[k] = snap(k, m.set[k]);
   if (m.auto) for (const k in m.auto) S.auto[k] = !!m.auto[k];
   if (m.tap) tapLocal();
+  if (m.pm) { const q = m.pm, n = (S.pm_presets || []).length || 1; if ('index' in q) S.pm.index = ((+q.index % n) + n) % n; if (q.next) S.pm.index = (S.pm.index + 1) % n; if (q.prev) S.pm.index = (S.pm.index - 1 + n) % n; if (q.random) S.pm.index = Math.floor(Math.random() * n); if ('cycle_bars' in q) S.pm.cycle_bars = +q.cycle_bars; if ('shuffle' in q) S.pm.shuffle = !!q.shuffle; S.base.pm_preset = S.pm.index; }
+  if (m.beat1) { S.beat_t = S.t; S.bar_beat = 1; if (S.bpm) S.tempo_source = 'tap'; logLocal('bar resync: beat 1'); }
   if ('bpm' in m) { S.bpm = clamp(+m.bpm || 0, 0, 300); S.tempo_source = S.bpm ? 'tap' : 'none'; }
   if ('clock_speed' in m) S.clock_speed = +m.clock_speed;
   if ('auto_depth' in m) S.auto_depth = +m.auto_depth;
@@ -471,19 +578,24 @@ function connect(url) {
   setConn('warn', 'connecting…');
   try { ws = new WebSocket(url); } catch (e) { return startDemo(); }
   const timer = setTimeout(() => { if (ws.readyState !== 1) { ws.close(); } }, 2500);
-  ws.onopen = () => { clearTimeout(timer); S.live = true; if (demoTimer) { clearInterval(demoTimer); demoTimer = null; } $('demo-banner').hidden = true; setConn('ok', 'master ' + new URL(url).host); $('pill-live').textContent = 'live'; };
+  BR.wsUrl = url;
+  ws.onopen = () => { clearTimeout(timer); S.live = true; BR.connectedAt = Date.now(); if (BR.pingTimer) clearInterval(BR.pingTimer); BR.pingTimer = setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ping: performance.now()})); }, 2000); if (demoTimer) { clearInterval(demoTimer); demoTimer = null; } $('demo-banner').hidden = true; setConn('ok', 'master ' + new URL(url).host); $('pill-live').textContent = 'live'; };
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
-    if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); buildControls(); $('pill-ver').textContent = 'v' + m.version; return; }
+    if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); S.pm_presets = m.pm_presets || []; buildControls(); buildPmList(); $('pill-ver').textContent = 'v' + m.version; return; }
+    if (m.type === 'pm_presets') { S.pm_presets = m.pm_presets || []; buildPmList(); return; }
+    if (m.type === 'pong') { BR.rtt = Math.round((performance.now() - m.ping) * 10) / 10; BR.rttMax = Math.max(BR.rttMax, BR.rtt); BR.clockSkew = Math.round((Date.now() / 1000 - m.t) * 1000 - BR.rtt / 2); return; }
     if (m.type !== 'state') return;
+    BR.snaps++; BR.lastSnap = performance.now(); if (BR.lastSnap - BR.snapWin > 2000) { BR.snapHz = Math.round(BR.snaps / ((BR.lastSnap - BR.snapWin) / 1000) * 10) / 10; BR.snaps = 0; BR.snapWin = BR.lastSnap; }
+    Object.assign(S, {packets_sent: m.packets_sent, tick_hz: m.tick_hz, tick_gap_ms: m.tick_gap_ms, uptime: m.uptime, diag: m.diag || {}, prodj_raw: m.prodj_raw || {}, seq: m.seq});
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
       clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
-      auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0});
+      auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, pm: m.pm || S.pm});
     S.t = m.t; S.tRecv = performance.now();
     S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
     renderControls();
   };
-  ws.onclose = () => { if (S.live) { S.live = false; setConn('bad', 'master lost — retrying'); setTimeout(() => connect(url), 2000); } else startDemo(); };
+  ws.onclose = () => { if (BR.pingTimer) { clearInterval(BR.pingTimer); BR.pingTimer = null; } if (S.live) { BR.reconnects++; S.live = false; setConn('bad', 'master lost — retrying'); setTimeout(() => connect(url), 2000); } else startDemo(); };
   ws.onerror = () => {};
 }
 function startDemo() {
@@ -491,6 +603,7 @@ function startDemo() {
   S.live = false; setConn('warn', 'demo · no master'); $('pill-live').textContent = 'demo';
   $('demo-banner').hidden = false;
   try { S.presets = JSON.parse(localStorage.getItem('frx.presets') || 'null') || Object.assign({}, DEMO_PRESETS); } catch (e) { S.presets = Object.assign({}, DEMO_PRESETS); }
+  S.pm_presets = ['demo/Flexi - infused with the spiral.milk', 'demo/Geiss - Feedback.milk', 'demo/Rovastar - Fractopia.milk', 'demo/martin - liquid palette.milk']; buildPmList();
   logLocal('demo mode: simulating the master locally');
   demoTimer = setInterval(demoTick, 1000 / 60);
   renderControls();
@@ -543,7 +656,9 @@ function renderControls() {
     : `<tr><td colspan="7" style="color:var(--muted)">${S.live ? 'no renderers heard yet — start ./fractal on a Pi on this LAN' : 'demo mode — no fleet'}</td></tr>`;
   $('last-cc').textContent = S.last_cc == null ? '—' : 'CC ' + S.last_cc;
   renderSources();
+  renderPm();
   renderLog();
+  if (!$('status').hidden) renderStatus();
 }
 let srcBuilt = '';
 function renderSources() {
@@ -583,9 +698,48 @@ function renderSources() {
     const pf = row.querySelector('#prodj-follow'); if (pf && document.activeElement !== pf) pf.value = String(S.prodj_follow || 0);
   });
 }
-function renderLog() { $('log').innerHTML = (S.log || []).slice().reverse().map(m => `<div>${esc(m)}</div>`).join(''); }
+function renderLog() { $('log').innerHTML = (S.log || []).slice(-12).reverse().map(m => `<div>${esc(m)}</div>`).join(''); }
 
+function buildPmList() {
+  const list = S.pm_presets || [];
+  $('pm-count').textContent = list.length ? list.length + ' presets' : (S.live ? 'no presets on master' : 'demo');
+  const sel = $('pm-select');
+  const MAX = 3000;   // keep the <select> sane; the search box covers the rest
+  sel.innerHTML = list.slice(0, MAX).map((n, i) => `<option value="${i}">${i} · ${esc(n.replace(/\.milk$|\.prjm$/i, ''))}</option>`).join('') + (list.length > MAX ? `<option disabled>… ${list.length - MAX} more — use search</option>` : '');
+  sel.onchange = () => send({pm: {index: +sel.value}});
+  $('pm-hint').innerHTML = list.length ? '' : (S.live ? 'Master has no presets in <code>pm_preset_dir</code>. Run <code>sudo bash setup/install-projectm.sh</code> on every Pi (master included), then rescan.' : 'Demo mode — preset list comes from the master.');
+}
+let pmSearchT = null;
+$('pm-search').oninput = () => {
+  clearTimeout(pmSearchT);
+  pmSearchT = setTimeout(() => {
+    const q = $('pm-search').value.toLowerCase(); if (q.length < 2) return;
+    const hits = []; (S.pm_presets || []).forEach((n, i) => { if (hits.length < 40 && n.toLowerCase().includes(q)) hits.push([i, n]); });
+    $('pm-list').innerHTML = hits.map(([i, n]) => `<option value="${i} · ${esc(n.replace(/\.milk$|\.prjm$/i, ''))}">`).join('');
+  }, 120);
+};
+$('pm-search').onchange = () => { const m = /^(\d+)\s·/.exec($('pm-search').value); if (m) { send({pm: {index: +m[1]}}); $('pm-search').value = ''; } };
+$('pm-prev').onclick = () => send({pm: {prev: 1}});
+$('pm-next').onclick = () => send({pm: {next: 1}});
+$('pm-random').onclick = () => send({pm: {random: 1}});
+$('pm-rescan').onclick = () => send({pm: {rescan: 1}});
+$('pm-cycle').onchange = () => send({pm: {cycle_bars: +$('pm-cycle').value}});
+$('pm-shuffle').onclick = () => send({pm: {shuffle: !S.pm.shuffle}});
+function renderPm() {
+  const pm = S.pm || {}; const list = S.pm_presets || [];
+  const name = list[pm.index] || pm.name || '—';
+  $('pm-name').textContent = list.length ? `#${pm.index} · ${name.replace(/\.milk$|\.prjm$/i, '')}` : '—';
+  $('pm-name').title = name;
+  if (document.activeElement !== $('pm-select')) $('pm-select').value = String(pm.index || 0);
+  if (document.activeElement !== $('pm-cycle')) $('pm-cycle').value = pm.cycle_bars == null ? 16 : pm.cycle_bars;
+  $('pm-shuffle').className = 'btn small' + (pm.shuffle ? ' active' : '');
+  const on8 = Math.round(S.base.mode) === 8;
+  $('pm-card').style.borderColor = on8 ? 'var(--accent)' : '';
+  $('pm-overlay').hidden = !on8;
+  $('pm-overlay-name').textContent = list.length ? `#${pm.index} · ${name}` : 'no presets on the master yet';
+}
 $('tap').onclick = () => send({tap: 1});
+$('beat1').onclick = () => send({beat1: 1});
 $('bpm-set').onclick = () => send({bpm: +$('bpm-in').value});
 $('bpm-clear').onclick = () => send({bpm: 0});
 $('preset-save').onclick = () => { const n = $('preset-name').value.trim(); if (n) { send({preset: {save: n}}); $('preset-name').value = ''; } };
@@ -594,7 +748,7 @@ $('auto-none').onclick = () => { const a = {}; PARAMS.forEach(p => a[p.key] = fa
 $('reset').onclick = () => { const s = {}; PARAMS.forEach(p => s[p.key] = p.def_); send({set: s}); };
 $('learn').onclick = () => send({midi_learn: $('learn-param').value});
 for (const k of ['clock_speed', 'auto_depth', 'auto_rate']) $(k).oninput = () => send({[k]: +$(k).value});
-document.addEventListener('keydown', e => { if (e.code === 'Space' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); send({tap: 1}); } });
+document.addEventListener('keydown', e => { if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return; if (e.code === 'Space') { e.preventDefault(); send({tap: 1}); } if (e.key === '1') send({beat1: 1}); });
 
 // ------------------------------------------------------------ WebGL2 preview — the real shader
 const canvas = $('preview');
@@ -610,6 +764,7 @@ async function initGL() {
   prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, pre + '\n' + frag)); gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
   for (const n of ['u_res', 'u_time', 'u_beat_t', 'u_bpm', 'u_bar_beat', 'u_tile', 'u_view', 'u_p']) U[n] = gl.getUniformLocation(prog, n);
+  try { const ext = gl.getExtension('WEBGL_debug_renderer_info'); BR.gl = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); BR.glVendor = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR); } catch (e) { BR.gl = 'unknown'; }
   gl.bindVertexArray(gl.createVertexArray());
   requestAnimationFrame(frame);
 }
@@ -636,18 +791,145 @@ function frame(now) {
   if (S.bpm > 1) { const beats = (t - S.beat_t) * S.bpm / 60; const bb = S.bar_beat ? S.bar_beat - 1 : 0; beatIdx = ((Math.floor(beats) + bb) % 4 + 4) % 4 + 1; const ph = beats - Math.floor(beats); for (let i = 1; i <= 4; i++) $('beat' + i).className = 'beat' + (i === beatIdx && ph < 0.25 ? ' on' : ''); }
   else for (let i = 1; i <= 4; i++) $('beat' + i).className = 'beat';
   $('pill-t').textContent = 't ' + t.toFixed(1);
-  if (++fpsN >= 30) { $('pill-fps').textContent = (fpsN / ((now - fpsT) / 1000)).toFixed(0) + ' fps'; fpsN = 0; fpsT = now; }
+  if (++fpsN >= 30) { BR.previewFps = Math.round(fpsN / ((now - fpsT) / 1000)); $('pill-fps').textContent = BR.previewFps + ' fps'; fpsN = 0; fpsT = now; }
 }
+
+
+// ------------------------------------------------------------ status / debugging tab
+const kv = rows => `<table class="kvt">${rows.filter(r => r).map(([k, v, cls]) => `<tr><td>${k}</td><td class="${cls || ''}">${v == null || v === '' ? '<span class="mute">—</span>' : v}</td></tr>`).join('')}</table>`;
+const fmtAge = s => s == null ? '—' : s < 60 ? s.toFixed(0) + 's' : s < 3600 ? (s / 60).toFixed(0) + 'm' : (s / 3600).toFixed(1) + 'h';
+const yesno = b => b ? '<span class="ok">yes</span>' : '<span class="bad">no</span>';
+function throttleDecode(str) {
+  if (!str) return null;
+  const m = /0x([0-9a-f]+)/i.exec(str); if (!m) return esc(str);
+  const v = parseInt(m[1], 16); if (!v) return '<span class="ok">0x0 — healthy</span>';
+  const bits = {0: 'UNDER-VOLTAGE NOW', 1: 'freq capped now', 2: 'throttled now', 3: 'soft temp limit now', 16: 'under-voltage occurred', 17: 'freq cap occurred', 18: 'throttling occurred', 19: 'soft temp limit occurred'};
+  const on = Object.entries(bits).filter(([b]) => v & (1 << b)).map(([, n]) => n);
+  return `<span class="${v & 0xF ? 'bad' : 'warn'}">${str} — ${on.join(', ')}</span>`;
+}
+let stBuilt = false;
+function renderStatus() {
+  const d = S.diag || {}, now = Date.now() / 1000, cfg = d.config || {};
+  const cards = [];
+  // ---- summary line
+  const problems = [];
+  if (!S.live) problems.push('not connected to a master (demo mode)');
+  if (S.live && S.tick_hz && S.tick_hz < (cfg.tick_hz || 60) * 0.9) problems.push(`master tick rate low (${S.tick_hz} Hz)`);
+  if (S.live && S.tick_gap_ms > 50) problems.push(`master tick gap ${S.tick_gap_ms} ms`);
+  if (d.throttled && !/0x0\b/.test(d.throttled)) problems.push('master Pi throttled / under-voltage');
+  if (d.cpu_temp > 75) problems.push(`master CPU ${d.cpu_temp}°C`);
+  const fl = Object.entries(S.fleet || {});
+  fl.forEach(([n, h]) => { if (h.fps && h.fps < 45) problems.push(`${n}: ${h.fps.toFixed(0)} fps`); if (h.lost > 0) problems.push(`${n}: ${h.lost} packets lost`); if (h.temp > 75) problems.push(`${n}: ${h.temp}°C`); if (h.age > 3) problems.push(`${n}: last heartbeat ${h.age}s ago`); });
+  if (S.live && fl.length === 0) problems.push('no renderers heard');
+  if (S.live && S.sources.prodj && S.sources.prodj.enabled && !S.sources.prodj.ok) problems.push('Pro DJ Link enabled but not locked');
+  if (BR.rtt > 100) problems.push(`UI round-trip ${BR.rtt} ms`);
+  $('st-summary').innerHTML = problems.length ? '<b>Attention:</b> ' + problems.map(esc).join(' · ') : '<span class="ok">All green</span> — master ticking, ' + fl.length + ' renderer' + (fl.length === 1 ? '' : 's') + ' heard, no faults flagged.';
+
+  // ---- browser / connection
+  cards.push(['This browser & link', kv([
+    ['Mode', S.live ? '<span class="ok">live</span>' : '<span class="warn">demo (no master)</span>'],
+    ['WebSocket', BR.wsUrl ? esc(BR.wsUrl) : '—'],
+    ['Connected for', S.live ? fmtAge((Date.now() - BR.connectedAt) / 1000) : '—'],
+    ['Reconnects this page', BR.reconnects],
+    ['UI round-trip', BR.rtt == null ? null : `${BR.rtt} ms (worst ${BR.rttMax})`, BR.rtt > 100 ? 'warn' : 'ok'],
+    ['Clock skew browser−master', BR.clockSkew == null ? null : BR.clockSkew + ' ms', Math.abs(BR.clockSkew) > 2000 ? 'warn' : ''],
+    ['Snapshots received', BR.snapHz ? BR.snapHz + ' Hz (target 15)' : '—', BR.snapHz && BR.snapHz < 10 ? 'warn' : ''],
+    ['Preview fps', BR.previewFps || '—'],
+    ['WebGL renderer', BR.gl ? esc(BR.glVendor + ' · ' + BR.gl) : '<span class="bad">no WebGL2</span>'],
+    ['Page version', document.getElementById('pill-ver').textContent + (d.app && ('v' + d.app) !== $('pill-ver').textContent ? ` <span class="warn">master is v${d.app}</span>` : '')],
+    ['User agent', esc(navigator.userAgent)],
+    ['Page errors', BR.errors.length ? BR.errors.map(esc).join('<br>') : '<span class="ok">none</span>'],
+  ])]);
+
+  if (S.live) {
+    cards.push(['Master system', kv([
+      ['Host', esc(d.host || '')], ['Model', esc(d.pi_model || d.machine || '')], ['OS', esc(d.os || '')],
+      ['IP addresses', (d.ips || []).map(esc).join('<br>')],
+      ['Master uptime', fmtAge(S.uptime)], ['System uptime', fmtAge(d.uptime_s)],
+      ['Load (1/5/15)', esc(d.load || '')],
+      ['CPU temp', d.cpu_temp == null ? null : d.cpu_temp + ' °C', d.cpu_temp > 75 ? 'bad' : d.cpu_temp > 65 ? 'warn' : 'ok'],
+      ['Throttle flags', d.has_vcgencmd ? throttleDecode(d.throttled) : '<span class="mute">not a Pi (no vcgencmd)</span>'],
+      ['Memory used', esc(d.mem || '')], ['Python', esc(d.python || '')], ['App / PID', `v${esc(d.app || '?')} · pid ${d.pid || '?'}`],
+      ['Time on master', esc(d.time || '')],
+    ])]);
+    const target = cfg.tick_hz || 60;
+    cards.push(['Clock & broadcast', kv([
+      ['Animation clock t', S.t.toFixed(2) + ' s'], ['Clock speed', S.clock_speed],
+      ['Tick rate', S.tick_hz ? `${S.tick_hz} Hz (target ${target})` : '—', S.tick_hz && S.tick_hz < target * 0.9 ? 'bad' : 'ok'],
+      ['Worst tick gap (1 s window)', S.tick_gap_ms != null ? S.tick_gap_ms + ' ms' : null, S.tick_gap_ms > 50 ? 'bad' : S.tick_gap_ms > 25 ? 'warn' : 'ok'],
+      ['Packets sent', S.packets_sent], ['Sequence', S.seq],
+      ['Multicast group', `${cfg.multicast_group}:${cfg.multicast_port} ttl 1`],
+      ['Send interface', cfg.multicast_iface || 'default route'],
+      ['Group joined locally (IGMP)', d.igmp_joined == null ? null : (d.igmp_joined ? `<span class="ok">yes (${d.igmp_joined} iface)</span>` : '<span class="warn">no — local renderer not running?</span>')],
+      ['Heartbeat port', 'udp/' + (cfg.heartbeat_port || 5006)], ['Web UI clients', d.ws_clients],
+      ['Tempo', S.bpm ? `${S.bpm.toFixed(2)} BPM · ${S.tempo_source} · bar beat ${S.bar_beat || '?'}` : 'none'],
+      ['beat_t', S.beat_t ? S.beat_t.toFixed(3) : null],
+    ])]);
+  }
+
+  // ---- sources detail
+  const sr = S.sources || {}, pr = S.prodj_raw || {};
+  const srcRows = Object.keys(SOURCE_META).map(n => {
+    const st = sr[n] || {}; const dot = !st.enabled ? 'mute' : st.ok ? 'ok' : 'warn';
+    let extra = '';
+    if (n === 'midi') extra = `<br><span class="mute">ports:</span> ${(d.midi_ports || []).length ? d.midi_ports.map(esc).join(', ') : 'none'}${st.last ? `<br><span class="mute">last:</span> ${esc(st.last)}` : ''}${S.last_cc != null ? ` · learn CC ${S.last_cc}` : ''}`;
+    if (n === 'audio') extra = `<br><span class="mute">devices:</span> ${(d.audio_devices || []).length ? d.audio_devices.map(x => esc(x.index + ': ' + x.name)).join(', ') : 'none'}<br><span class="mute">selected:</span> ${S.audio_device == null ? 'default' : esc(S.audio_device)} · energy ${(S.out.energy || 0).toFixed(2)} bass ${(S.out.bass || 0).toFixed(2)}`;
+    if (n === 'osc') extra = `<br><span class="mute">port:</span> udp/${cfg.osc_port || 9000}${st.last ? `<br><span class="mute">last:</span> ${esc(st.last)} (${fmtAge(now - st.seen)} ago)` : '<br><span class="mute">no messages yet</span>'}`;
+    if (n === 'prodj') extra = `<br><span class="mute">raw:</span> ${pr.packets || 0} Pioneer pkts · ${pr.beats || 0} beats · ${pr.other || 0} other · ${pr.bad || 0} non-Pioneer${pr.last_seen ? ` · last ${esc(pr.last_type)} from ${esc(pr.last_from)} ${fmtAge(now - pr.last_seen)} ago` : ''}<br><span class="mute">follow:</span> ${S.prodj_follow ? 'deck ' + S.prodj_follow : 'auto'}`;
+    if (n === 'auto') extra = `<br><span class="mute">drifting:</span> ${PARAMS.filter(p => S.auto[p.key]).map(p => p.key).join(', ') || 'none'} · depth ${(+S.auto_depth).toFixed(2)} · rate ${(+S.auto_rate).toFixed(3)}`;
+    return [`<span class="${dot}">●</span> ${SOURCE_META[n].label}`, `${st.enabled ? (st.ok ? '<span class="ok">linked</span>' : '<span class="warn">waiting</span>') : '<span class="mute">off</span>'} · ${esc(st.detail || '')}${extra}`];
+  });
+  let prodjHint = '';
+  if (S.live && sr.prodj && sr.prodj.enabled && !sr.prodj.ok) {
+    prodjHint = pr.packets ? (pr.beats ? '<div class="hint">Beat packets are arriving but no lock — check the deck is <b>playing</b> and follow-mode isn\'t pinned to a silent deck.</div>'
+      : '<div class="hint">Pioneer traffic seen but <b>no beat packets</b> (type 0x28). Status/keep-alive only means the deck is idle, or beats are on another port/segment.</div>')
+      : '<div class="hint"><b>No Pioneer packets at all</b> on udp/50001. Same switch as the LINK port? Same subnet (169.254.x.x vs DHCP)? Try <code>sudo tcpdump -ni any udp port 50001</code> on the master.</div>';
+  }
+  cards.push(['Sources — detail', kv(srcRows) + prodjHint, true]);
+
+  // ---- decks
+  const decks = Object.entries(S.decks || {});
+  if (decks.length) cards.push(['Pro DJ Link decks', `<div class="tablewrap"><table><thead><tr><th>deck</th><th>bpm</th><th>beat</th><th>ip</th><th>last beat</th></tr></thead><tbody>${decks.map(([k, x]) => `<tr><td>${esc(k)}</td><td>${x.bpm}</td><td>${x.beat}</td><td>${esc(x.ip || '')}</td><td class="${now - x.seen > 5 ? 'warn' : 'ok'}">${fmtAge(now - x.seen)} ago</td></tr>`).join('')}</tbody></table></div>`]);
+
+  // ---- fleet detail
+  cards.push(['Renderers — detail', fl.length ? `<div style="overflow-x:auto"><table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>pkts</th><th>lost</th><th>temp</th><th>projectM</th><th>audio</th><th>hb</th><th>age</th><th>ver</th></tr></thead><tbody>${fl.map(([n, h]) => `<tr><td>${esc(n)}</td><td>${esc(h.ip)}</td><td class="${h.fps < 45 ? 'bad' : h.fps < 55 ? 'warn' : 'ok'}">${h.fps.toFixed(0)}</td><td>${esc(h.res)}</td><td>${esc(h.tile)}</td><td>${h.packets}</td><td class="${h.lost ? 'warn' : ''}">${h.lost}</td><td class="${h.temp > 75 ? 'bad' : h.temp > 65 ? 'warn' : ''}">${h.temp != null && h.temp > 0 ? h.temp + '°' : '—'}</td><td class="${h.pm_presets === -1 ? 'mute' : (S.pm && h.pm_presets != null && h.pm_presets !== S.pm.count) ? 'warn' : ''}">${h.pm_presets == null ? '—' : h.pm_presets === -1 ? 'not built' : h.pm_presets + ' presets' + (h.pm_current >= 0 ? ' · #' + h.pm_current : '')}</td><td>${h.audio_packets == null ? '—' : h.audio_packets ? h.audio_packets + ' pkts' : 'synth'}</td><td>${h.hb || ''}</td><td class="${h.age > 3 ? 'bad' : ''}">${h.age}s</td><td>${esc(h.version)}${d.app && h.version !== d.app ? ' <span class="warn">≠</span>' : ''}</td></tr>`).join('')}</tbody></table></div><div class="hint">fps &lt; 45 = lower <code>--scale</code> or iterations · lost &gt; 0 = network drops (Wi-Fi? IGMP snooping?) · temp &gt; 75° = add a fan/heatsink · ver ≠ = that Pi needs <code>git pull &amp;&amp; make</code> · projectM preset count ≠ master = packs differ (preset numbers won't match!) · audio 'synth' = no PCM stream from master, Pi is feeding projectM a beat-locked synthetic signal</div>`
+    : `<div class="hint">${S.live ? 'No heartbeats yet. On a Pi: <code>journalctl -fu fractal-renderer</code> should show "[net] master acquired". If not: same subnet? <code>--iface</code>? IGMP snooping on the switch?' : 'Demo mode — no fleet.'}</div>`, true]);
+
+  // ---- projectM
+  if (S.live) { const pm = S.pm || {}; const au = pm.audio || {};
+    cards.push(['projectM', kv([
+      ['Preset dir', esc(pm.dir || '')], ['Presets on master', pm.count ? pm.count : '<span class="warn">0 — run setup/install-projectm.sh</span>'],
+      ['Current', pm.count ? `#${pm.index} · ${esc(pm.name || '')}` : null],
+      ['Auto-cycle', pm.cycle_bars ? `every ${pm.cycle_bars} bars · ${pm.shuffle ? 'shuffle' : 'sequential'}` : 'off'],
+      ['PCM stream to Pis', pm.audio ? `${au.packets} pkts → ${esc(au.dest)} @ ${au.rate} Hz · last ${au.last_age}s ago` : '<span class="mute">off (audio input not running) — Pis synthesize a beat-locked signal</span>'],
+      ['Renderers with projectM', fl.filter(([, h]) => h.pm_presets > 0).length + ' / ' + fl.length],
+    ])]); }
+
+  // ---- config + log
+  if (S.live) cards.push(['Master config (effective)', `<pre class="diag">${esc(JSON.stringify(cfg, null, 1))}</pre>`]);
+  cards.push(['Log (last 60)', `<pre class="diag">${(S.log || []).slice().reverse().map(esc).join('\n') || '—'}</pre>`]);
+  cards.push(['Self-test on a Pi', `<pre class="diag">cd ~/fractal-rig &amp;&amp; bash setup/selftest.sh
+sudo bash setup/install-projectm.sh   # optional: add Milkdrop presets (scene 8)</pre><div class="hint">Checks build, groups, SDL/GLES, multicast reception + rate, master IP, Pro DJ Link traffic, MIDI &amp; audio devices, temperature/throttling, service status and recent fps — pass/fail per line.</div>`]);
+
+  $('st-grid').innerHTML = cards.map(([title, html, wide]) => `<div class="card${wide ? ' wide' : ''}"><h2>${title}</h2>${html}</div>`).join('');
+}
+$('diag-copy').onclick = async () => {
+  const blob = {when: new Date().toISOString(), live: S.live, browser: BR, state: {t: S.t, seq: S.seq, bpm: S.bpm, tempo_source: S.tempo_source, tick_hz: S.tick_hz, tick_gap_ms: S.tick_gap_ms, packets_sent: S.packets_sent, uptime: S.uptime, out: S.out, auto: S.auto}, sources: S.sources, prodj_raw: S.prodj_raw, decks: S.decks, fleet: S.fleet, diag: S.diag, log: S.log};
+  try { await navigator.clipboard.writeText(JSON.stringify(blob, null, 1)); $('diag-copy').textContent = 'Copied ✓'; } catch (e) { $('diag-copy').textContent = 'Copy failed'; }
+  setTimeout(() => $('diag-copy').textContent = 'Copy diagnostics JSON', 1500);
+};
+$('diag-refresh').onclick = () => { renderStatus(); };
 
 // ------------------------------------------------------------ views
 $('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
   $('nav').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
-  const info = b.dataset.view === 'info';
-  document.querySelector('main').hidden = info; $('info').hidden = !info;
+  const v = b.dataset.view;
+  document.querySelector('main').hidden = v !== 'control'; $('info').hidden = v !== 'info'; $('status').hidden = v !== 'status';
+  if (v === 'status') renderStatus();
   try { localStorage.setItem('frx.view', b.dataset.view); } catch (e) {}
   if (!info) window.scrollTo(0, 0);
 });
-try { if (localStorage.getItem('frx.view') === 'info') $('nav').querySelector('[data-view=info]').click(); } catch (e) {}
+try { const sv = localStorage.getItem('frx.view'); if (sv && sv !== 'control') $('nav').querySelector(`[data-view=${sv}]`).click(); } catch (e) {}
 
 // ------------------------------------------------------------ boot
 buildControls();

@@ -24,7 +24,7 @@ from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
 import inputs
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.4.0"
 
 
 def load_config(args):
@@ -63,6 +63,7 @@ async def broadcaster(engine, cfg):
         pkt = engine.tick()
         try:
             s.sendto(pkt, dest)
+            engine.packets_sent += 1
         except OSError as ex:
             engine.event(f"send failed: {ex}")
             await asyncio.sleep(1)
@@ -82,6 +83,81 @@ class HeartbeatProto(asyncio.DatagramProtocol):
         self.engine.heartbeat(addr, data.decode("ascii", "replace"))
 
 
+# ------------------------------------------------------------------ diagnostics (slow, every 2 s)
+def _read(path):
+    try:
+        return open(path).read().strip()
+    except Exception:
+        return None
+
+
+def _run(cmd):
+    import subprocess
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout.strip()
+    except Exception:
+        return None
+
+
+def _ips():
+    out = []
+    try:
+        import subprocess, json as _j
+        data = _j.loads(subprocess.run(["ip", "-j", "-4", "addr"], capture_output=True, text=True, timeout=2).stdout)
+        for itf in data:
+            for a in itf.get("addr_info", []):
+                if itf["ifname"] != "lo":
+                    out.append(f"{itf['ifname']} {a['local']}/{a['prefixlen']}")
+    except Exception:
+        out.append(local_ip())
+    return out
+
+
+async def diag_task(engine, cfg):
+    import platform, shutil
+    static = dict(
+        host=platform.node(), python=platform.python_version(), machine=platform.machine(),
+        os=(_read("/etc/os-release") or "").split("PRETTY_NAME=")[-1].split("\n")[0].strip('"'),
+        pi_model=(_read("/proc/device-tree/model") or "").replace("\x00", "") or None,
+        app=APP_VERSION, config=dict(cfg), pid=os.getpid(),
+        has_vcgencmd=bool(shutil.which("vcgencmd")), has_tcpdump=bool(shutil.which("tcpdump")),
+    )
+    while True:
+        try:
+            d = dict(static)
+            d["ips"] = _ips()
+            d["time"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            d["uptime_s"] = float((_read("/proc/uptime") or "0 0").split()[0])
+            d["load"] = _read("/proc/loadavg")
+            temp = _read("/sys/class/thermal/thermal_zone0/temp")
+            d["cpu_temp"] = round(int(temp) / 1000, 1) if temp and temp.isdigit() else None
+            d["throttled"] = _run(["vcgencmd", "get_throttled"]) if static["has_vcgencmd"] else None
+            mem = _read("/proc/meminfo") or ""
+            try:
+                tot = int(mem.split("MemTotal:")[1].split()[0]); avail = int(mem.split("MemAvailable:")[1].split()[0])
+                d["mem"] = f"{(tot - avail) // 1024} / {tot // 1024} MB"
+            except Exception:
+                d["mem"] = None
+            d["midi_ports"] = inputs.Audio.midi_ports()
+            d["audio_devices"] = inputs.Audio.devices()
+            octs = cfg["multicast_group"].split(".")
+            hexs = ("".join(f"{int(o):02X}" for o in reversed(octs)), "".join(f"{int(o):02X}" for o in octs))
+            d["igmp_joined"] = [l.split()[0] if l.split() else l for l in (_read("/proc/net/igmp") or "").splitlines() if any(h in l.upper() for h in hexs)]
+            d["igmp_joined"] = len(d["igmp_joined"])
+            d["ws_clients"] = engine.sources["web"].get("clients", 0)
+            engine.diag = d
+        except Exception as ex:
+            engine.diag = dict(error=str(ex))
+        await asyncio.sleep(2)
+
+
+def inputs_pm_scan(engine):
+    from pm import scan_presets
+    lst = scan_presets(engine.pm_dir)
+    engine.event(f"projectM: {len(lst)} presets in {engine.pm_dir}")
+    return lst
+
+
 # ------------------------------------------------------------------ web + websocket
 async def web_app(engine, cfg):
     from aiohttp import web, WSMsgType
@@ -93,7 +169,7 @@ async def web_app(engine, cfg):
         clients.add(ws)
         await ws.send_json(dict(type="hello", version=APP_VERSION, params=[
             dict(key=p[0], label=p[1], min=p[2], max=p[3], def_=p[4], kind=p[5], auto=p[6], group=p[7], tip=p[8])
-            for p in PARAMS]))
+            for p in PARAMS], pm_presets=engine.pm_presets))
         try:
             async for msg in ws:
                 if msg.type != WSMsgType.TEXT:
@@ -110,6 +186,19 @@ async def web_app(engine, cfg):
                         engine.set_auto(k, v)
                 if "tap" in m:
                     engine.tap()
+                if "beat1" in m:
+                    engine.beat_one()
+                if "pm" in m:
+                    q = m["pm"]
+                    if "index" in q: engine.pm_set(q["index"])
+                    if q.get("next"): engine.pm_step(1)
+                    if q.get("prev"): engine.pm_step(-1)
+                    if q.get("random"): engine.pm_random()
+                    if "cycle_bars" in q: engine.pm_cycle_bars = max(0, int(q["cycle_bars"]))
+                    if "shuffle" in q: engine.pm_shuffle = bool(q["shuffle"])
+                    if q.get("rescan"):
+                        engine.pm_presets = inputs_pm_scan(engine)
+                        await ws.send_json(dict(type="pm_presets", pm_presets=engine.pm_presets))
                 if "bpm" in m:
                     engine.set_bpm(m["bpm"])
                 if "clock_speed" in m:
@@ -147,6 +236,9 @@ async def web_app(engine, cfg):
                             engine.prodj_decks.clear()
                             if engine.tempo_source == "prodj":
                                 engine.tempo_source = "tap" if engine.bpm else "none"
+                if "ping" in m:
+                    await ws.send_json(dict(type="pong", ping=m["ping"], t=time.time()))
+                    continue
                 if "midi_learn" in m:
                     cc = getattr(engine, "last_cc", None)
                     if cc is not None:
@@ -183,10 +275,15 @@ async def web_app(engine, cfg):
     async def api_state(request):
         return web.json_response(engine.snapshot())
 
+    async def api_diag(request):
+        return web.json_response(dict(diag=engine.diag, sources=engine.sources, fleet=engine.fleet,
+                                      prodj_raw=engine.prodj_raw, log=[m for _, m in engine.log]))
+
     app = web.Application()
     app.router.add_get("/", index)
     app.router.add_get("/ws", ws_handler)
     app.router.add_get("/api/state", api_state)
+    app.router.add_get("/api/diag", api_diag)
     app.router.add_get("/params.js", lambda r: web.FileResponse(os.path.join(WEB, "params.js")))
     app.router.add_static("/web/", WEB)
     app.router.add_static("/shaders/", os.path.join(ROOT, "renderer", "shaders"))
@@ -224,11 +321,14 @@ async def main():
     engine = Engine(cfg)
     engine.verbose = not args.quiet
     engine.event(f"Fractal Rig master v{APP_VERSION} — {len(KEYS)} params")
+    engine.event(f"projectM: {len(engine.pm_presets)} presets in {engine.pm_dir}" if engine.pm_presets else
+                 f"projectM: no presets in {engine.pm_dir} (run setup/install-projectm.sh) — scene 8 shows plasma")
 
     loop = asyncio.get_running_loop()
     await loop.create_datagram_endpoint(lambda: HeartbeatProto(engine),
                                         local_addr=("0.0.0.0", int(cfg.get("heartbeat_port", 5006))))
     await web_app(engine, cfg)
+    asyncio.create_task(diag_task(engine, cfg))
     if cfg.get("prodj_enabled", True):
         await inputs.ProDJLink.start(engine, cfg)
     if cfg.get("osc_enabled", True):

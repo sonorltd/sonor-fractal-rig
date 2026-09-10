@@ -43,6 +43,12 @@
   "audio_gain": 1.0,
   "audio_drive_params": true,
 
+  "pm_preset_dir": "/usr/local/share/projectM/presets",
+  "pm_audio_port": 5007,
+  "pm_audio_stream": true,
+  "pm_cycle_bars": 16,
+  "pm_shuffle": true,
+
   "clock_speed": 1.0,
   "auto_depth": 0.35,
   "auto_rate": 0.05

@@ -8,6 +8,8 @@ broadcaster calls engine.tick(); the web UI reads engine.snapshot().
 """
 import json, math, os, time
 from params import PARAMS, KEYS, INDEX, DEFAULTS, NPARAMS, pack, FLAG_BEAT, FLAG_PRODJ, FLAG_AUDIO
+import random
+from pm import scan_presets
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(HERE, "state.json")
@@ -63,6 +65,23 @@ class Engine:
             "auto":  dict(enabled=True,  ok=True,  detail="drifting"),
         }
         self.audio_stream = None
+        self.diag = {}                                  # slow-changing diagnostics, refreshed by master.diag_task
+        self.started = time.time()
+        self.packets_sent = 0
+        self.tick_gap_max = 0.0                         # worst tick interval in the current window (s)
+        self.tick_count = 0
+        self.tick_hz = 0.0
+        self._tick_win = time.monotonic()
+        self.prodj_raw = dict(packets=0, beats=0, other=0, last_type=None, last_from=None, last_seen=0.0, bad=0)
+        # projectM (scene 8)
+        self.pm_dir = cfg.get("pm_preset_dir", "")
+        self.pm_presets = scan_presets(self.pm_dir)
+        self.pm_cycle_bars = int(cfg.get("pm_cycle_bars", 0) or 0)
+        self.pm_shuffle = bool(cfg.get("pm_shuffle", True))
+        self.pm_history = []
+        self._pm_last_bar = None
+        self._pm_last_switch = 0.0
+        self.audio_stream = None                        # pm.AudioStream when audio is running
         # fleet
         self.fleet = {}                                 # name -> heartbeat dict
         self.log = []                                   # recent events for the UI
@@ -132,16 +151,88 @@ class Engine:
         self.tempo_seen = now
         self._beat_flag = True
 
+    def beat_one(self):
+        """Mark NOW as beat 1 of the bar without touching BPM (manual bar resync)."""
+        self.beat_t = self.t
+        self.bar_beat = 1.0
+        if self.tempo_source == "none" and self.bpm == 0:
+            return
+        if self.tempo_source == "prodj":
+            self.tempo_source = "tap"          # a human override wins until the next Pioneer beat
+        self.tempo_seen = time.monotonic()
+        self._beat_flag = True
+        self.event("bar resync: beat 1")
+
     def set_bpm(self, bpm):
         self.bpm = clamp(float(bpm), 0, 300)
         if self.bpm == 0:
             self.tempo_source = "none"
+        elif self.tempo_source in ("none", "audio"):
+            self.tempo_source = "tap"
+            if not self.beat_t:
+                self.beat_t = self.t
+
+    # ------------------------------------------------------------ projectM
+    def pm_count(self):
+        return len(self.pm_presets)
+
+    def pm_index(self):
+        return int(self.base[INDEX["pm_preset"]])
+
+    def pm_name(self, i=None):
+        i = self.pm_index() if i is None else i
+        return self.pm_presets[i % len(self.pm_presets)] if self.pm_presets else None
+
+    def pm_set(self, i, why="ui"):
+        if not self.pm_presets:
+            return
+        i = int(i) % len(self.pm_presets)
+        self.set("pm_preset", i, why)
+        self.pm_history = (self.pm_history + [i])[-50:]
+        self._pm_last_switch = time.monotonic()
+        self.event(f"projectM preset {i}: {self.pm_presets[i]} ({why})")
+
+    def pm_step(self, d=1, why="ui"):
+        self.pm_set(self.pm_index() + d, why)
+
+    def pm_random(self, why="ui"):
+        if len(self.pm_presets) > 1:
+            choices = [i for i in range(len(self.pm_presets)) if i not in self.pm_history[-10:]]
+            self.pm_set(random.choice(choices or range(len(self.pm_presets))), why)
+
+    def pm_find(self, text):
+        t = text.lower()
+        return [i for i, n in enumerate(self.pm_presets) if t in n.lower()][:50]
+
+    def _pm_autocycle(self, now):
+        """Switch preset every N bars (or every ~N*2 s without a tempo) while scene 8 is showing."""
+        if not self.pm_cycle_bars or int(self.out[INDEX["mode"]]) != 8 or not self.pm_presets:
+            return
+        if self.bpm > 0:
+            bars = math.floor((self.t - self.beat_t) * self.bpm / 60.0 / 4.0)
+            if self._pm_last_bar is None:
+                self._pm_last_bar = bars
+            if bars - self._pm_last_bar >= self.pm_cycle_bars:
+                self._pm_last_bar = bars
+                (self.pm_random if self.pm_shuffle else self.pm_step)(why="auto-cycle")
+        elif now - self._pm_last_switch > self.pm_cycle_bars * 2.0:
+            (self.pm_random if self.pm_shuffle else self.pm_step)(why="auto-cycle")
 
     # ------------------------------------------------------------ tick
     def tick(self):
         now = time.monotonic()
-        dt = min(now - self.last_tick, 0.25)
+        raw_dt = now - self.last_tick
+        dt = min(raw_dt, 0.25)
         self.last_tick = now
+        self.tick_count += 1
+        if raw_dt > self.tick_gap_max:
+            self.tick_gap_max = raw_dt
+        if now - self._tick_win >= 1.0:
+            self.tick_hz = self.tick_count / (now - self._tick_win)
+            self.tick_count = 0
+            self._tick_win = now
+            self._tick_gap_last = self.tick_gap_max
+            self.tick_gap_max = 0.0
         self.t += dt * self.clock_speed
 
         # keep beat_t within float32 comfort by re-anchoring to a predicted beat
@@ -170,6 +261,8 @@ class Engine:
         if self.audio_ok and self.sources["audio"]["enabled"] and self.cfg.get("audio_drive_params", True):
             self.out[INDEX["energy"]] = self.audio_energy
             self.out[INDEX["bass"]] = self.audio_bass
+
+        self._pm_autocycle(now)
 
         self.prodj_ok = (self.tempo_source == "prodj" and now - self.tempo_seen < 5.0)
         src = self.sources
@@ -202,8 +295,15 @@ class Engine:
             if parts[0] != "HB":
                 return
             _, ver, name, fps, res, tc, tr, tx, ty, pk, lost, appver = parts[:12]
+            temp = float(parts[12]) if len(parts) > 12 else None
+            pm_n = int(parts[13]) if len(parts) > 13 else None       # -1 = renderer built without projectM
+            pm_cur = int(parts[14]) if len(parts) > 14 else None
+            audio_pk = int(parts[15]) if len(parts) > 15 else None
+            prev = self.fleet.get(name, {})
             self.fleet[name] = dict(ip=addr[0], fps=float(fps), res=res, tile=f"{tx},{ty} of {tc}x{tr}",
-                                    packets=int(pk), lost=int(lost), version=appver, seen=time.time())
+                                    packets=int(pk), lost=int(lost), version=appver, seen=time.time(),
+                                    temp=temp, first_seen=prev.get("first_seen", time.time()), hb=prev.get("hb", 0) + 1,
+                                    pm_presets=pm_n, pm_current=pm_cur, audio_packets=audio_pk)
         except Exception:
             pass
 
@@ -289,8 +389,13 @@ class Engine:
             tempo_source=self.tempo_source, prodj=self.prodj_ok, audio=self.audio_ok,
             decks=self.prodj_decks, clock_speed=self.clock_speed, auto_depth=self.auto_depth,
             auto_rate=self.auto_rate, auto_enabled=self.auto_enabled, presets=list(self.presets.keys()), fleet=fleet,
-            sources=self.sources,
-            log=[m for _, m in self.log[-12:]],
+            sources=self.sources, diag=self.diag, packets_sent=self.packets_sent, tick_hz=round(self.tick_hz, 1),
+            tick_gap_ms=round(getattr(self, "_tick_gap_last", 0.0) * 1000, 1), uptime=round(time.time() - self.started),
+            prodj_raw=self.prodj_raw,
+            pm=dict(count=len(self.pm_presets), dir=self.pm_dir, index=self.pm_index(), name=self.pm_name(),
+                    cycle_bars=self.pm_cycle_bars, shuffle=self.pm_shuffle,
+                    audio=self.audio_stream.stats() if self.audio_stream else None),
+            log=[m for _, m in self.log],
         )
 
 
