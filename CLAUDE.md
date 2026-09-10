@@ -1,6 +1,6 @@
-# STUDIO - Fractal Rig (v0.4.0)
+# STUDIO - Fractal Rig (v0.4.1)
 
-> Current version: 0.4.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.4.1 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
 Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 136-byte UDP multicast
@@ -57,6 +57,10 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   (`FRXA`) with synthetic beat-locked fallback on the Pis, auto-cycle every N bars, UI card with
   search/prev/next/random, heartbeat v3 (preset count / current / audio pkts), `install-projectm.sh`.
   libprojectM 4.1 always presents to framebuffer 0 → renderer lets it, then blits fb0 → pm_tex.
+- 2026-09-10 v0.4.1 — in-browser projectM simulation: vendored Butterchurn (Milkdrop 2 in WebGL,
+  `web/vendor/`, ~2 MB, lazy-loaded on scene 8) fed the same synthetic beat audio as the Pis; preset
+  matched by name to the Pi's current preset (exact / closest / stand-in, labelled). Master serves
+  `/vendor/`. Not a pixel copy of the Pis — a simulation.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

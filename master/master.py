@@ -24,7 +24,7 @@ from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
 import inputs
 
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.4.1"
 
 
 def load_config(args):
@@ -286,6 +286,7 @@ async def web_app(engine, cfg):
     app.router.add_get("/api/diag", api_diag)
     app.router.add_get("/params.js", lambda r: web.FileResponse(os.path.join(WEB, "params.js")))
     app.router.add_static("/web/", WEB)
+    app.router.add_static("/vendor/", os.path.join(WEB, "vendor"))
     app.router.add_static("/shaders/", os.path.join(ROOT, "renderer", "shaders"))
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()

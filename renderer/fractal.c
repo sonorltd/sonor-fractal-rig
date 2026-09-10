@@ -38,7 +38,7 @@
 #include "params.h"
 #include "pm_bridge.h"
 
-#define APP_VERSION "0.4.0"
+#define APP_VERSION "0.4.1"
 #define FREEWHEEL_AFTER 3.0      /* s without packets before we run on our own clock */
 #define SMOOTH_TAU 0.06          /* s — exponential smoothing of continuous params */
 #define TAU_D 6.283185307179586

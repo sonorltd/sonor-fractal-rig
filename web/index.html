@@ -198,7 +198,7 @@
   <span class="pill" id="pill-tempo"><i class="dot" id="tempo-dot"></i><span id="tempo-label">no tempo</span></span>
   <div class="spacer"></div>
   <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
-  <span class="pill" id="pill-ver">v0.4.0</span>
+  <span class="pill" id="pill-ver">v0.4.1</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
@@ -225,10 +225,10 @@
       <h2>Live preview <span class="spacer"></span><span class="pill" id="pill-fps">— fps</span><span class="pill" id="pill-t">t 0.0</span></h2>
       <div class="previewwrap">
         <canvas id="preview" width="960" height="540"></canvas>
-        <div id="pm-overlay" hidden style="position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:rgba(11,12,16,.55);border-radius:8px;padding:20px">
-          <div><div style="font-weight:700;letter-spacing:.1em;font-size:12px;color:var(--accent2)">PROJECTM ON THE PIs</div>
-          <div style="font-family:var(--mono);font-size:13px;margin-top:6px" id="pm-overlay-name">—</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:6px">Milkdrop presets render on each Pi, not in the browser — plasma stand-in shown here.</div></div>
+        <canvas id="pm-canvas" hidden style="position:absolute;inset:0;width:100%;height:100%;border-radius:8px;background:#000"></canvas>
+        <div id="pm-overlay" hidden style="position:absolute;left:10px;top:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;pointer-events:none">
+          <span class="pill" style="background:rgba(11,12,16,.75)"><i class="dot" id="pm-sim-dot"></i><span id="pm-sim-label">projectM · browser simulation</span></span>
+          <span class="pill" id="pm-overlay-name" style="background:rgba(11,12,16,.75);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
         </div>
         <div class="overlay">
           <div class="beat" id="beat1">1</div><div class="beat" id="beat2">2</div><div class="beat" id="beat3">3</div><div class="beat" id="beat4">4</div>
@@ -387,6 +387,7 @@
     <p>Each Pi runs <a href="https://github.com/projectM-visualizer/projectm" target="_blank" rel="noopener">libprojectM 4</a> (built for GLES by <code>setup/install-projectm.sh</code>) and renders the real <code>.milk</code> preset files — the original Winamp Milkdrop pack (~550) and optionally Cream of the Crop (~10,000). The <b>master</b> owns preset selection: the current preset's index in the sorted list rides in the packet as <code>pm_preset</code>, so every Pi loads the same file on the same frame, with a <code>pm_blend</code>-second crossfade. Prev / next / random / search / auto-cycle every N bars live in the projectM card; OSC <code>/frx/pm_next|pm_prev|pm_random</code>; MIDI notes 33 / 32.</p>
     <p><b>Audio:</b> projectM needs a waveform. When the master's audio input is running it multicasts the PCM to the Pis (udp/5007, ~700 kbit/s) so every preset reacts to the room. Without it, each Pi synthesises an identical beat-locked kick + hat from the shared clock and BPM — presets still pump on the beat, and because the signal is derived from the same numbers it is the same on every Pi.</p>
     <p><b>Honesty about sync:</b> Milkdrop presets use their own frame timing and random numbers, so two Pis on the same preset with the same audio look <em>alike</em> — same preset, same colours, same beat reaction — but are not pixel-identical, and they drift apart over minutes until the next preset change re-aligns them. That is fine for "same vibe on every projector" and for the family-of-variations layout; it is wrong for a seamless tiled wall (you'll see the seams move). Use scenes 0–7 for tiled walls. <code>pm_mix</code> runs projectM's frame through our post-pass so kaleidoscope, rotation, zoom, hue shift and beat pulse still apply.</p>
+    <p><b>Browser preview:</b> the Live preview runs <a href="https://github.com/jberg/butterchurn" target="_blank" rel="noopener">Butterchurn</a> (Milkdrop 2 in WebGL, vendored so it works on the gig LAN with no internet) fed the same beat-locked synthetic audio the Pis use. Where the browser pack contains the same-named preset as the Pis (most of the original Milkdrop pack) you see the real preset; otherwise the closest name, labelled as such. It's a simulation of what the wall is doing, not a pixel copy.</p>
     <p><b>Install (every Pi + master, ~15 min each):</b> <code>sudo bash setup/install-projectm.sh</code> (add <code>--cream</code> for the big pack). The preset <em>count</em> must be identical on all Pis and the master — the Renderers table flags any Pi whose count differs, because preset numbers would then point at different files. Pi 5 renders most presets at 1080p/0.6 scale comfortably; Pi 4 is happier at scale 0.5.</p>
     <h4>Cheat-sheet</h4>
     <table><tbody>
@@ -521,6 +522,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
+      <tr><td>v0.4.1</td><td>In-browser projectM simulation in the Live preview (Butterchurn — Milkdrop 2 in WebGL, vendored, offline-capable), matched by preset name to what the Pis are showing.</td></tr>
       <tr><td>v0.4.0</td><td>projectM scene 8: libprojectM 4 built with GLES on each Pi, master-owned preset selection with search / prev / next / random / auto-cycle every N bars, PCM multicast stream with beat-locked synthetic fallback, kaleido/zoom/hue post-pass via <code>pm_mix</code>, <code>install-projectm.sh</code>, heartbeat v3 (preset count / current / audio).</td></tr>
     </tbody></table>
     <p>Source, issues and the Pages demo: <a href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">github.com/sonorltd/sonor-fractal-rig</a>.</p>
@@ -784,8 +786,7 @@ function renderPm() {
   $('pm-shuffle').className = 'btn small' + (pm.shuffle ? ' active' : '');
   const on8 = Math.round(S.base.mode) === 8;
   $('pm-card').style.borderColor = on8 ? 'var(--accent)' : '';
-  $('pm-overlay').hidden = !on8;
-  $('pm-overlay-name').textContent = list.length ? `#${pm.index} · ${name}` : 'no presets on the master yet';
+  if (!on8) $('pm-overlay').hidden = true;
 }
 $('tap').onclick = () => send({tap: 1});
 $('beat1').onclick = () => send({beat1: 1});
@@ -823,6 +824,7 @@ function frame(now) {
   const dt = Math.min((now - lastF) / 1000, 0.25); lastF = now;
   // preview clock follows the master's clock exactly like a Pi does: anchor + extrapolate
   const t = S.t + (now - S.tRecv) / 1000 * (S.live ? S.clock_speed : 0);
+  if (bcFrame(now, t)) { if (++fpsN >= 30) { BR.previewFps = Math.round(fpsN / ((now - fpsT) / 1000)); $('pill-fps').textContent = BR.previewFps + ' fps'; fpsN = 0; fpsT = now; } $('pill-t').textContent = 't ' + t.toFixed(1); return; }
   const target = PARAMS.map(p => S.out[p.key]);
   if (!cur) cur = target.slice();
   const a = 1 - Math.exp(-dt / 0.06);
@@ -979,6 +981,72 @@ $('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
   if (!info) window.scrollTo(0, 0);
 });
 try { const sv = localStorage.getItem('frx.view'); if (sv && sv !== 'control') $('nav').querySelector(`[data-view=${sv}]`).click(); } catch (e) {}
+
+
+// ------------------------------------------------------------ projectM browser simulation (Butterchurn = Milkdrop 2 in WebGL)
+// The Pis run libprojectM; the browser runs Butterchurn with the SAME-NAMED preset where the packs overlap,
+// otherwise the closest name. It is a simulation of what the wall is doing, not a pixel copy.
+const BC = {state: 'idle', viz: null, presets: null, keys: [], norm: [], current: null, currentKey: null, exact: false, ctx: null, last: 0, lastIdx: -1, w: 0, h: 0, tba: null};
+const bcCanvas = $('pm-canvas');
+const normName = n => n.replace(/^.*\//, '').replace(/\.(milk|prjm)$/i, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function loadScript(src) { return new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('failed ' + src)); document.head.appendChild(el); }); }
+async function bcInit() {
+  if (BC.state !== 'idle') return; BC.state = 'loading'; $('pm-sim-label').textContent = 'loading Milkdrop engine…';
+  try {
+    for (const f of ['butterchurn.min.js', 'butterchurnPresetsMD1.min.js', 'butterchurnPresets.min.js', 'butterchurnPresetsExtra.min.js']) await loadScript('vendor/' + f);
+    const lib = window.butterchurn.default || window.butterchurn; const gp = m => (m.default || m).getPresets();
+    BC.presets = Object.assign({}, gp(window.butterchurnPresetsMD1), gp(window.butterchurnPresets), gp(window.butterchurnPresetsExtra));
+    BC.keys = Object.keys(BC.presets); BC.norm = BC.keys.map(normName);
+    BC.ctx = new (window.AudioContext || window.webkitAudioContext)();   // only used to build analysers; we feed samples by hand
+    BC.w = 640; BC.h = 360; bcCanvas.width = BC.w; bcCanvas.height = BC.h;
+    BC.viz = lib.createVisualizer(BC.ctx, bcCanvas, {width: BC.w, height: BC.h, pixelRatio: 1, textureRatio: 1});
+    BC.tba = {timeByteArray: new Uint8Array(1024), timeByteArrayL: new Uint8Array(1024), timeByteArrayR: new Uint8Array(1024)};
+    BC.state = 'ready'; BC.lastIdx = -1;
+    logLocal(`browser Milkdrop sim ready: ${BC.keys.length} presets (Butterchurn)`);
+  } catch (e) { BC.state = 'failed'; $('pm-sim-label').textContent = 'browser sim unavailable: ' + e.message; console.error(e); }
+}
+function bcMatch(name) {
+  if (!name || !BC.keys.length) return null;
+  const q = normName(name); let i = BC.norm.indexOf(q); if (i >= 0) return {key: BC.keys[i], exact: true};
+  // closest: word overlap, author (first token) weighted
+  const qw = q.split(' '), qa = qw[0]; let best = -1, bs = 0;
+  BC.norm.forEach((n, k) => { const nw = n.split(' '); let sc = 0; qw.forEach(w => { if (w.length > 2 && nw.includes(w)) sc += w.length; }); if (nw[0] === qa) sc += 6; if (sc > bs) { bs = sc; best = k; } });
+  if (best < 0 || bs < 4) { let h = 0; for (const c of q) h = (h * 31 + c.charCodeAt(0)) >>> 0; best = h % BC.keys.length; return {key: BC.keys[best], exact: false, weak: true}; }
+  return {key: BC.keys[best], exact: false};
+}
+function bcSynthAudio(t) {
+  // same idea as the Pi fallback: kick + hat locked to the shared beat grid, plus energy
+  const a = BC.tba.timeByteArray, per = S.bpm > 1 ? 60 / S.bpm : 0.5, amp = 0.4 + 0.6 * (S.out.energy || 0);
+  for (let i = 0; i < 1024; i++) {
+    const tt = t + i / 44100; let ph = (tt - S.beat_t) % per; if (ph < 0) ph += per;
+    const kick = Math.sin(2 * Math.PI * 55 * ph) * Math.exp(-ph * 9);
+    const hph = (ph + per / 2) % per; const hat = (Math.random() * 2 - 1) * 0.12 * Math.exp(-hph * 25);
+    const v = (kick * 0.85 + hat) * amp; a[i] = Math.max(0, Math.min(255, 128 + v * 120));
+  }
+  BC.tba.timeByteArrayL.set(a); BC.tba.timeByteArrayR.set(a);
+}
+function bcFrame(now, t) {
+  const on8 = Math.round(S.base.mode) === 8;
+  bcCanvas.hidden = !on8; $('pm-overlay').hidden = !on8;
+  if (!on8) return false;
+  if (BC.state === 'idle') bcInit();
+  if (BC.state !== 'ready') return false;
+  const list = S.pm_presets || [], idx = S.pm.index || 0, name = list[idx];
+  if (idx !== BC.lastIdx || (name && name !== BC.current)) {
+    BC.lastIdx = idx; BC.current = name;
+    const m = name ? bcMatch(name) : {key: BC.keys[idx % BC.keys.length], exact: false};
+    if (m && m.key !== BC.currentKey) { BC.currentKey = m.key; BC.exact = !!m.exact; try { BC.viz.loadPreset(BC.presets[m.key], Math.min(5, +S.base.pm_blend || 0)); } catch (e) { console.warn(e); } }
+    $('pm-sim-dot').className = 'dot ' + (m.exact ? 'ok' : m.weak ? 'warn' : 'warn');
+    $('pm-sim-label').textContent = 'projectM · browser sim' + (m.exact ? ' · same preset' : m.weak ? ' · no close match, showing a stand-in' : ' · closest match');
+    $('pm-overlay-name').textContent = (name ? '#' + idx + ' ' + name.replace(/^.*\//, '').replace(/\.milk$/i, '') : '—') + (m.exact ? '' : '  →  ' + m.key);
+  }
+  const w = Math.min(640, Math.round(bcCanvas.clientWidth)), h = Math.round(w * 9 / 16);
+  if (w && (w !== BC.w || h !== BC.h)) { BC.w = w; BC.h = h; bcCanvas.width = w; bcCanvas.height = h; BC.viz.setRendererSize(w, h); }
+  const dt = BC.last ? (now - BC.last) / 1000 : 1 / 60; BC.last = now;
+  bcSynthAudio(t);
+  try { BC.viz.render({elapsedTime: dt, audioLevels: BC.tba}); } catch (e) { console.warn(e); }
+  return true;
+}
 
 // ------------------------------------------------------------ boot
 buildControls();
