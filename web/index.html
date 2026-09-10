@@ -342,7 +342,7 @@
     <h3>Fractal Rig — how it all fits together</h3>
     <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master renders too, so it is projector #1). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 20 parameters — in one 120-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet.</p>
     <div class="toc">
-      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-trouble">Troubleshooting</a>
+      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
     </div>
   </div>
 
@@ -360,10 +360,10 @@
     <p>Optional. Any class-compliant USB audio input on the master (USB interface, the XDJ's USB audio, or a mic pointed at the room). ~40× a second the master computes overall loudness and a 30–150 Hz bass band, auto-gained so they sit mid-range whatever the volume, and writes them to <code>energy</code> (brightness / saturation lift) and <code>bass</code> (warmth + punch). A crude onset detector supplies beats <em>only</em> when Pro DJ Link is not locked — expect it to wander on breakdowns. Pick the input device in the Sources panel; needs <code>libportaudio2</code> + <code>sounddevice numpy</code> (installer adds them on the master).</p>
 
     <h4>MIDI</h4>
-    <p>Any class-compliant controller on the master's USB. CC → parameter via <code>midi_map</code> in <code>config.json</code>; defaults: CC1 zoom, CC2 rotation, CC3 hue, CC4 hue spread, CC5 warp, CC6 glow, CC7 brightness, CC8 contrast, CC9/10 Julia re/im, CC11 beat pulse, CC12 kaleidoscope. Notes 36+ recall presets in order, note 35 = tap, note 34 = set beat 1. "Map last CC →" on the Control tab learns a knob for this session (copy into config to keep). Reconnects automatically. Tip: the XDJ-RX2 is itself a USB MIDI controller when not in rekordbox mode.</p>
+    <p>Any class-compliant controller on the master's USB. CC → parameter via <code>midi_map</code> in <code>config.json</code>; defaults: CC1 zoom, CC2 rotation, CC3 hue, CC4 hue spread, CC5 warp, CC6 glow, CC7 brightness, CC8 contrast, CC9/10 Julia re/im, CC11 beat pulse, CC12 kaleidoscope. Notes 36+ recall presets in order, note 35 = tap, note 34 = set beat 1, notes 33 / 32 = next / previous projectM preset. "Map last CC →" on the Control tab learns a knob for this session (copy into config to keep). Reconnects automatically. Tip: the XDJ-RX2 is itself a USB MIDI controller when not in rekordbox mode.</p>
 
     <h4>OSC</h4>
-    <p>UDP 9000. <code>/frx/&lt;param&gt; f</code> (e.g. <code>/frx/hue 0.5</code>), <code>/frx/tap</code>, <code>/frx/beat1</code>, <code>/frx/bpm f</code>, <code>/frx/preset s|i</code>, <code>/frx/auto_&lt;param&gt; 0|1</code>. TouchOSC, Lemur, Ableton (Max for Live / OSC plugins), Resolume, QLab and Beat Link Trigger all speak this — it is the bolt-on route for anything not built in.</p>
+    <p>UDP 9000. <code>/frx/&lt;param&gt; f</code> (e.g. <code>/frx/hue 0.5</code>), <code>/frx/tap</code>, <code>/frx/beat1</code>, <code>/frx/bpm f</code>, <code>/frx/preset s|i</code>, <code>/frx/auto_&lt;param&gt; 0|1</code>, <code>/frx/pm_next</code> · <code>/frx/pm_prev</code> · <code>/frx/pm_random</code>. TouchOSC, Lemur, Ableton (Max for Live / OSC plugins), Resolume, QLab and Beat Link Trigger all speak this — it is the bolt-on route for anything not built in.</p>
 
     <h4>Autonomous</h4>
     <p>Parameters with the pink toggle wander on smooth noise around wherever you left their slider. "Auto depth" is how far, "Auto rate" how fast; zoom drifts deliberately shallower. The Sources toggle pauses all drift at once without losing which params were selected. With nothing else plugged in the rig runs itself indefinitely.</p>
@@ -463,6 +463,42 @@ sudo bash setup/install.sh master</pre>
     <p>Packet: magic <code>FRX1</code>, version, param count, sequence, flags, <code>t</code> (master clock, f64), <code>beat_t</code> (clock time of the last beat, f64), <code>bpm</code>, <code>bar_beat</code>, then 20 floats in the order of <code>master/params.py</code>. Renderers store <code>(t, arrival)</code> and render at <code>t + (now − arrival)</code> — re-anchored 60× a second, so there is no drift to correct. Continuous params are smoothed (τ 60 ms) identically on every Pi; discrete ones (scene, iterations, kaleido) snap. Beats are never sent as a phase — the shader computes <code>fract((t − beat_t)·bpm/60)</code> itself, so it can't wrap mid-interpolation. Lose the master for 3 s and a Pi freewheels on its own clock, then re-locks silently. HDMI outputs are not genlocked, so adjacent projectors can be up to one frame (16 ms) apart — invisible at normal speeds. Full detail in <code>PROTOCOL.md</code>.</p>
   </div>
 
+  <div class="card" id="i-status">
+    <h3>Status &amp; debugging tab</h3>
+    <p>The <b>Status</b> tab is the rig's own instrument panel, refreshed live. The line at the top flags problems automatically: master tick rate low or a tick gap over 50 ms, master Pi throttled / under-voltage, CPU over 75 °C (master or any Pi), a renderer under 45 fps, packet loss, a heartbeat older than 3 s, no renderers heard, Pro DJ Link enabled but not locked, UI round-trip over 100 ms. Cards below:</p>
+    <ul>
+      <li><b>This browser &amp; link</b> — live/demo, WebSocket URL, round-trip ms (pinged every 2 s), clock skew, snapshot rate, preview fps, WebGL renderer, page errors, and whether this page's version matches the master's.</li>
+      <li><b>Master system</b> — Pi model, OS, every IP, uptimes, load, CPU temp, <code>vcgencmd get_throttled</code> decoded into words (under-voltage now / occurred, frequency capped, soft temp limit), memory.</li>
+      <li><b>Clock &amp; broadcast</b> — animation clock, measured tick rate vs target, worst tick gap in the last second, packets sent, sequence, multicast group/port/interface, whether the group is actually joined (IGMP), heartbeat port, web clients, current tempo.</li>
+      <li><b>Sources — detail</b> — for each source: linked / waiting / off, the live detail line, plus raw counters: Pro DJ Link packets vs beat packets vs non-Pioneer traffic with last type and sender (and a hint that changes depending on which is zero), MIDI ports found and last CC, audio devices and live levels, last OSC message, which params are drifting.</li>
+      <li><b>Pro DJ Link decks</b> — each deck heard with BPM, beat and age.</li>
+      <li><b>Renderers — detail</b> — per Pi: fps, resolution, tile, packets, lost, temperature, projectM preset count (flagged if it differs from the master) and current preset, whether it is on the master's PCM stream or synthesising, heartbeat count, age, version (flagged if it differs).</li>
+      <li><b>projectM</b> — preset dir and count, current preset, auto-cycle setting, PCM stream stats, how many renderers have projectM built in.</li>
+      <li><b>Master config (effective)</b>, <b>Log (last 60)</b>, and <b>Copy diagnostics JSON</b> — one tap puts the whole picture on the clipboard to paste into a message.</li>
+    </ul>
+    <h4>On-Pi self-test</h4>
+    <pre>cd ~/fractal-rig &amp;&amp; bash setup/selftest.sh</pre>
+    <p>Pass / warn / fail per line: Pi model, IP, wired link up, throttling and temperature, renderer built, shader/param tables in sync, SDL version (warns below 2.30 on Pi 5), video/render groups, DRM device present, no desktop compositor stealing the display, libprojectM + preset count, service status and last logged fps — then it actually listens: 4 s on the multicast group (rate, loss, master IP, protocol version, BPM) and 4 s on udp/50001 for Pioneer traffic (each deck heard with BPM and beat), and enumerates MIDI and audio devices.</p>
+  </div>
+
+  <div class="card" id="i-ready">
+    <h3>What's been tested — and what hasn't</h3>
+    <p>Everything below was exercised in a Linux sandbox with Mesa's software GLES driver, a real master process, the real compiled renderer and a real browser. No physical Pi, projector, XDJ or MIDI controller has been connected yet, so treat the right-hand column as the bench plan for the first evening.</p>
+    <table><tbody>
+      <tr><td>Master → renderer multicast</td><td><span class="ok">Tested</span> end-to-end: clock lock, smoothing, sequence/loss counting, freewheel. Pure sockets — nothing Pi-specific.</td></tr>
+      <tr><td>Heartbeats / fleet table</td><td><span class="ok">Tested</span>.</td></tr>
+      <tr><td>Web UI, WebSocket, Status tab, mobile layout</td><td><span class="ok">Tested</span> live and in demo mode, desktop and 390 px viewport.</td></tr>
+      <tr><td>OSC</td><td><span class="ok">Tested</span> with a real OSC client.</td></tr>
+      <tr><td>All 8 shader scenes</td><td><span class="ok">Rendered</span> through the real renderer binary.</td></tr>
+      <tr><td>projectM scene</td><td><span class="ok">Tested</span>: libprojectM 4.1.4 built with GLES, real Milkdrop presets rendered through the full pipeline, master-owned preset switching, auto-cycle, post-pass. <span class="warn">Not yet</span> measured on Pi GPU — expect to lower <code>--scale</code> for heavy presets.</td></tr>
+      <tr><td>Pro DJ Link</td><td><span class="warn">Parser tested with a synthetic packet</span> built from Deep Symmetry's documented layout (device 0x21, pitch 0x54, BPM 0x5A, beat 0x5C). A real XDJ-RX2 packet has not been captured — first thing to check with <code>journalctl -fu fractal-master</code> while a deck plays. If the numbers look wrong the parser is 30 lines in <code>master/inputs.py</code>.</td></tr>
+      <tr><td>MIDI</td><td><span class="warn">Code path not run</span> — no controller in the sandbox. Standard mido usage; the risk is <code>python-rtmidi</code> needing to compile on the Pi if no wheel matches.</td></tr>
+      <tr><td>Audio in / PCM stream</td><td><span class="warn">Code path not run</span> — no sound device in the sandbox. Simple maths; the risk is PortAudio device selection on Pi OS Lite.</td></tr>
+      <tr><td>KMSDRM on the Pi</td><td><span class="warn">Not run on a Pi</span>. Same Mesa driver family; Pi 5 wants SDL2 ≥ 2.30 (<code>apt full-upgrade</code>) or run under the desktop compositor instead.</td></tr>
+    </tbody></table>
+    <p>Suggested bench order: one Pi + monitor (KMSDRM comes up, real fps at <code>--scale 0.6</code>) → second Pi (sync, heartbeats) → XDJ LINK cable (deck appears in Sources) → MIDI / audio interface → <code>install-projectm.sh</code> on all Pis.</p>
+  </div>
+
   <div class="card" id="i-trouble">
     <h3>Troubleshooting</h3>
     <table><tbody>
@@ -474,7 +510,20 @@ sudo bash setup/install.sh master</pre>
       <tr><td>Audio never goes green</td><td><code>arecord -l</code> must list the device; add the user to <code>audio</code>; master needs <code>libportaudio2</code>. Pick the device in the Sources panel.</td></tr>
       <tr><td>MIDI never goes green</td><td><code>aconnect -l</code> lists the controller? Set <code>midi_port_contains</code> in config if several ports exist.</td></tr>
       <tr><td>Blank between tiles / seams</td><td>Tiling assumes edge-to-edge, same-resolution projectors. Edge-blend feathering is on the roadmap.</td></tr>
+      <tr><td>projectM preset numbers don't match between Pis</td><td>Preset packs differ. Run <code>install-projectm.sh</code> (same flags) on every Pi and the master; the Renderers table flags any count mismatch.</td></tr>
+      <tr><td>projectM slow on a Pi</td><td>Heavy presets are heavy everywhere. Lower <code>--scale</code> to 0.5, avoid Cream-of-the-Crop's shader-heavy ones, or keep auto-cycle on so a slow preset never lasts long.</td></tr>
     </tbody></table>
+  </div>
+
+  <div class="card" id="i-history">
+    <h3>Version history</h3>
+    <table><tbody>
+      <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
+      <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
+      <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
+      <tr><td>v0.4.0</td><td>projectM scene 8: libprojectM 4 built with GLES on each Pi, master-owned preset selection with search / prev / next / random / auto-cycle every N bars, PCM multicast stream with beat-locked synthetic fallback, kaleido/zoom/hue post-pass via <code>pm_mix</code>, <code>install-projectm.sh</code>, heartbeat v3 (preset count / current / audio).</td></tr>
+    </tbody></table>
+    <p>Source, issues and the Pages demo: <a href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">github.com/sonorltd/sonor-fractal-rig</a>.</p>
   </div>
 </section>
 
