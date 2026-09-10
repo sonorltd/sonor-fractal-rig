@@ -1,6 +1,6 @@
-# STUDIO - Fractal Rig (v0.4.1)
+# STUDIO - Fractal Rig (v0.4.2)
 
-> Current version: 0.4.1 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.4.2 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
 Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 136-byte UDP multicast
@@ -61,6 +61,10 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   `web/vendor/`, ~2 MB, lazy-loaded on scene 8) fed the same synthetic beat audio as the Pis; preset
   matched by name to the Pi's current preset (exact / closest / stand-in, labelled). Master serves
   `/vendor/`. Not a pixel copy of the Pis — a simulation.
+- 2026-09-10 v0.4.2 — Engine switch card (Shader scenes ⇄ projectM) at the top of Control; extended
+  projectM UI when active (big preset name, PREV/RANDOM/NEXT, filterable browse list with ★ favourites
+  in localStorage, recent chips, hold, auto-cycle); card reorders under the preview; params tab jumps
+  to projectM. Pages demo seeds the preset list from Butterchurn's packs and auto-cycles locally.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

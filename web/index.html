@@ -145,6 +145,32 @@
   #info td { color: #cfd2db; font-family: var(--font); font-size: 13px; vertical-align: top; }
   #info td:first-child { font-family: var(--mono); white-space: nowrap; color: var(--text); }
   #info .toc { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* engine switch + extended projectM UI */
+  .engine { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .engine button { border: 1px solid var(--line); background: var(--panel2); border-radius: 10px; padding: 12px 14px; text-align: left; color: var(--text); display: grid; gap: 3px; }
+  .engine button b { font-size: 14px; letter-spacing: .04em; }
+  .engine button small { color: var(--muted); font-size: 11px; }
+  .engine button.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.18), rgba(128,88,161,.18)); }
+  .engine button.active b { color: var(--accent2); }
+  #pm-card.expanded .pm-ext { display: block; }
+  #pm-card.expanded #pm-select { display: none; }
+  .pm-ext { display: none; }
+  .pm-big { font-family: var(--mono); font-size: 18px; color: var(--text); line-height: 1.25; margin: 4px 0 10px; word-break: break-word; }
+  .pm-big small { display: block; color: var(--muted); font-size: 11px; font-family: var(--font); margin-top: 3px; }
+  .pm-nav { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .pm-nav .btn { padding: 14px 10px; font-weight: 700; font-size: 14px; }
+  .pm-list { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); font-family: var(--mono); font-size: 12px; }
+  .pm-list div { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; }
+  .pm-list div:hover { background: rgba(75,185,211,.08); }
+  .pm-list div.cur { background: rgba(128,88,161,.25); color: #fff; }
+  .pm-list .n { color: var(--muted); min-width: 42px; }
+  .pm-list .fav { margin-left: auto; color: var(--muted); }
+  .pm-list .fav.on { color: var(--warn); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chips .btn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.pm-mode .modes button:not([data-mode="8"]) { opacity: .45; }
+  @media (max-width: 700px) { .engine button { padding: 10px; } .pm-nav .btn { padding: 12px 6px; font-size: 13px; } .pm-big { font-size: 15px; } }
+
   /* ---- mobile ---- */
   .card .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   @media (max-width: 700px) {
@@ -198,7 +224,7 @@
   <span class="pill" id="pill-tempo"><i class="dot" id="tempo-dot"></i><span id="tempo-label">no tempo</span></span>
   <div class="spacer"></div>
   <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
-  <span class="pill" id="pill-ver">v0.4.1</span>
+  <span class="pill" id="pill-ver">v0.4.2</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
@@ -214,6 +240,14 @@
         <input class="text" id="master-url" placeholder="ws://fractal-master.local:8080/ws">
         <button class="btn small" id="master-connect">Connect to a master</button>
       </span>
+    </div>
+
+    <div class="card">
+      <h2>Engine <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">what every projector is running right now</span></h2>
+      <div class="engine">
+        <button id="eng-shader"><b>SHADER SCENES</b><small id="eng-shader-sub">fractals · plasma · tunnel · starfield · waves — pixel-synced</small></button>
+        <button id="eng-pm"><b>PROJECTM · MILKDROP</b><small id="eng-pm-sub">real .milk presets on every Pi</small></button>
+      </div>
     </div>
 
     <div class="card">
@@ -262,24 +296,34 @@
 
     <div class="card" id="pm-card">
       <h2>projectM · Milkdrop presets <span class="spacer"></span><span class="pill" id="pm-count">—</span></h2>
-      <div class="row" style="margin-bottom:8px">
-        <button class="btn small" id="pm-prev">◀ prev</button>
-        <button class="btn small primary" id="pm-random">random</button>
-        <button class="btn small" id="pm-next">next ▶</button>
-        <span style="flex:1;min-width:120px;font-family:var(--mono);font-size:12px;color:var(--accent2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="pm-name">—</span>
+      <div class="pm-ext">
+        <div class="pm-big"><span id="pm-big-name">—</span><small id="pm-big-sub"></small></div>
+        <div class="pm-nav">
+          <button class="btn" id="pm-prev">◀ PREV</button>
+          <button class="btn primary" id="pm-random">RANDOM</button>
+          <button class="btn" id="pm-next">NEXT ▶</button>
+        </div>
       </div>
       <div class="row" style="margin-bottom:8px">
-        <input class="text" id="pm-search" placeholder="search presets… (type, then pick)" list="pm-list" autocomplete="off">
-        <datalist id="pm-list"></datalist>
-        <select id="pm-select" class="btn small" style="max-width:260px"></select>
+        <span class="pm-ext" style="display:none"></span>
+        <input class="text" id="pm-search" placeholder="filter presets… (name, author)" autocomplete="off">
+        <button class="btn small" id="pm-favonly" title="show favourites only">★ favs</button>
+        <button class="btn small" id="pm-favtoggle" title="favourite the current preset">☆</button>
+        <select id="pm-select" class="btn small pm-collapsed" style="max-width:260px"></select>
       </div>
-      <div class="row">
+      <div class="pm-ext">
+        <div class="pm-list" id="pm-browse"></div>
+        <div class="chips" id="pm-history"></div>
+      </div>
+      <div class="row" style="margin-top:8px">
         <label style="font-size:12px;color:var(--muted)">auto-cycle every</label>
         <input class="text" id="pm-cycle" type="number" min="0" max="256" step="1" style="flex:0 0 80px"> <span style="font-size:12px;color:var(--muted)">bars (0 = off)</span>
         <button class="btn small" id="pm-shuffle">shuffle</button>
+        <button class="btn small" id="pm-hold" title="pause auto-cycle on this preset">hold</button>
         <button class="btn small" id="pm-rescan" title="re-read the preset folder on the master">rescan</button>
         <span class="hint" id="pm-hint" style="margin:0"></span>
       </div>
+      <div class="hint pm-ext">Blend, beat sensitivity and shader-mix sliders are in the <b>projectM</b> parameter tab on the right. Presets marked ★ are favourites (saved in this browser). In projectM mode the kaleidoscope / rotation / zoom / hue controls apply through <code>Shader mix</code>.</div>
     </div>
 
     <div class="card">
@@ -522,6 +566,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
+      <tr><td>v0.4.2</td><td>Engine switch (Shader scenes ⇄ projectM) and the extended projectM panel: big preset name, PREV / RANDOM / NEXT, filterable browse list with ★ favourites, recent chips, hold, auto-cycle; works in the Pages demo too.</td></tr>
       <tr><td>v0.4.1</td><td>In-browser projectM simulation in the Live preview (Butterchurn — Milkdrop 2 in WebGL, vendored, offline-capable), matched by preset name to what the Pis are showing.</td></tr>
       <tr><td>v0.4.0</td><td>projectM scene 8: libprojectM 4 built with GLES on each Pi, master-owned preset selection with search / prev / next / random / auto-cycle every N bars, PCM multicast stream with beat-locked synthetic fallback, kaleido/zoom/hue post-pass via <code>pm_mix</code>, <code>install-projectm.sh</code>, heartbeat v3 (preset count / current / audio).</td></tr>
     </tbody></table>
@@ -617,6 +662,11 @@ function demoTick() {
   const now = performance.now(), dt = Math.min((now - lastDemo) / 1000, 0.25); lastDemo = now;
   S.t += dt * S.clock_speed; S.tRecv = now;
   if (S.bpm > 0 && S.t - S.beat_t > 60) { const per = 60 / S.bpm, n = Math.floor((S.t - S.beat_t) / per); S.beat_t += n * per; if (S.bar_beat) S.bar_beat = ((S.bar_beat - 1 + n) % 4) + 1; }
+  if (Math.round(S.base.mode) === 8 && S.pm.cycle_bars > 0 && (S.pm_presets || []).length > 1) {   // demo auto-cycle, same rule as engine.py
+    const bars = S.bpm > 0 ? Math.floor((S.t - S.beat_t) * S.bpm / 60 / 4) : Math.floor(S.t / (S.pm.cycle_bars * 2)) * S.pm.cycle_bars;
+    if (S._pmBar == null) S._pmBar = bars;
+    if (bars - S._pmBar >= S.pm.cycle_bars) { S._pmBar = bars; const n = S.pm_presets.length; S.pm.index = S.pm.shuffle ? Math.floor(Math.random() * n) : (S.pm.index + 1) % n; S.base.pm_preset = S.pm.index; logLocal('preset ' + S.pm.index + ' (auto-cycle)'); renderControls(); }
+  }
   const x = S.t * S.auto_rate;
   PARAMS.forEach((p, i) => {
     let v = S.base[p.key];
@@ -666,7 +716,7 @@ let activeGroup = 'shape';
 function buildControls() {
   $('modes').innerHTML = MODE_NAMES.map((n, i) => `<button class="btn small" data-mode="${i}">${n}</button>`).join('');
   $('modes').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {mode: +b.dataset.mode}}));
-  $('tabs').innerHTML = GROUPS.map(g => `<button data-g="${g}" class="${g === activeGroup ? 'active' : ''}">${g}</button>`).join('');
+  $('tabs').innerHTML = GROUPS.map(g => `<button data-g="${g}" class="${g === activeGroup ? 'active' : ''}">${g === 'projectm' ? 'projectM' : g}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => { activeGroup = b.dataset.g; buildControls(); });
   $('params').innerHTML = PARAMS.filter(p => p.group === activeGroup && p.key !== 'mode').map(p => `
     <div class="param" data-key="${p.key}">
@@ -760,16 +810,28 @@ function buildPmList() {
   sel.onchange = () => send({pm: {index: +sel.value}});
   $('pm-hint').innerHTML = list.length ? '' : (S.live ? 'Master has no presets in <code>pm_preset_dir</code>. Run <code>sudo bash setup/install-projectm.sh</code> on every Pi (master included), then rescan.' : 'Demo mode — preset list comes from the master.');
 }
-let pmSearchT = null;
-$('pm-search').oninput = () => {
-  clearTimeout(pmSearchT);
-  pmSearchT = setTimeout(() => {
-    const q = $('pm-search').value.toLowerCase(); if (q.length < 2) return;
-    const hits = []; (S.pm_presets || []).forEach((n, i) => { if (hits.length < 40 && n.toLowerCase().includes(q)) hits.push([i, n]); });
-    $('pm-list').innerHTML = hits.map(([i, n]) => `<option value="${i} · ${esc(n.replace(/\.milk$|\.prjm$/i, ''))}">`).join('');
-  }, 120);
-};
-$('pm-search').onchange = () => { const m = /^(\d+)\s·/.exec($('pm-search').value); if (m) { send({pm: {index: +m[1]}}); $('pm-search').value = ''; } };
+let pmSearchT = null, pmFavOnly = false, pmHeld = 0;
+const pmFavs = (() => { try { return new Set(JSON.parse(localStorage.getItem('frx.pmfav') || '[]')); } catch (e) { return new Set(); } })();
+const saveFavs = () => { try { localStorage.setItem('frx.pmfav', JSON.stringify([...pmFavs])); } catch (e) {} };
+const shortName = n => (n || '').replace(/^.*\//, '').replace(/\.(milk|prjm)$/i, '');
+$('pm-search').oninput = () => { clearTimeout(pmSearchT); pmSearchT = setTimeout(renderPmList, 120); };
+$('pm-favonly').onclick = () => { pmFavOnly = !pmFavOnly; $('pm-favonly').className = 'btn small' + (pmFavOnly ? ' active' : ''); renderPmList(); };
+$('pm-favtoggle').onclick = () => { const n = (S.pm_presets || [])[S.pm.index]; if (!n) return; if (pmFavs.has(n)) pmFavs.delete(n); else pmFavs.add(n); saveFavs(); renderPm(); renderPmList(); };
+$('pm-hold').onclick = () => { if (S.pm.cycle_bars > 0) { pmHeld = S.pm.cycle_bars; send({pm: {cycle_bars: 0}}); } else if (pmHeld) { send({pm: {cycle_bars: pmHeld}}); pmHeld = 0; } };
+let pmListSig = '';
+function renderPmList() {
+  const list = S.pm_presets || [], q = $('pm-search').value.trim().toLowerCase();
+  const rows = []; const MAX = 400;
+  list.forEach((n, i) => { if (rows.length >= MAX) return; if (pmFavOnly && !pmFavs.has(n)) return; if (q && !n.toLowerCase().includes(q)) return; rows.push(i); });
+  const sig = rows.join(',') + '|' + S.pm.index + '|' + [...pmFavs].length;
+  if (sig === pmListSig) return; pmListSig = sig;
+  $('pm-browse').innerHTML = rows.map(i => `<div data-i="${i}" class="${i === S.pm.index ? 'cur' : ''}"><span class="n">#${i}</span><span>${esc(shortName(list[i]))}</span><span class="fav ${pmFavs.has(list[i]) ? 'on' : ''}" data-fav="${i}">★</span></div>`).join('') || `<div style="color:var(--muted)">${list.length ? 'no matches' : 'no presets'}</div>` + (list.length > MAX && rows.length >= MAX ? `<div style="color:var(--muted)">showing first ${MAX} — type to filter</div>` : '');
+  $('pm-browse').querySelectorAll('div[data-i]').forEach(d => d.onclick = e => { if (e.target.dataset.fav != null) { const n = list[+e.target.dataset.fav]; if (pmFavs.has(n)) pmFavs.delete(n); else pmFavs.add(n); saveFavs(); pmListSig = ''; renderPmList(); return; } send({pm: {index: +d.dataset.i}}); });
+  const cur = $('pm-browse').querySelector('.cur'); if (cur && !$('pm-browse').matches(':hover')) cur.scrollIntoView({block: 'nearest'});
+}
+let pmHist = [];
+let wasOn8 = null, lastShaderMode = (() => { try { return +localStorage.getItem('frx.lastShader') || 0; } catch (e) { return 0; } })();
+
 $('pm-prev').onclick = () => send({pm: {prev: 1}});
 $('pm-next').onclick = () => send({pm: {next: 1}});
 $('pm-random').onclick = () => send({pm: {random: 1}});
@@ -779,15 +841,33 @@ $('pm-shuffle').onclick = () => send({pm: {shuffle: !S.pm.shuffle}});
 function renderPm() {
   const pm = S.pm || {}; const list = S.pm_presets || [];
   const name = list[pm.index] || pm.name || '—';
-  $('pm-name').textContent = list.length ? `#${pm.index} · ${name.replace(/\.milk$|\.prjm$/i, '')}` : '—';
-  $('pm-name').title = name;
   if (document.activeElement !== $('pm-select')) $('pm-select').value = String(pm.index || 0);
   if (document.activeElement !== $('pm-cycle')) $('pm-cycle').value = pm.cycle_bars == null ? 16 : pm.cycle_bars;
   $('pm-shuffle').className = 'btn small' + (pm.shuffle ? ' active' : '');
   const on8 = Math.round(S.base.mode) === 8;
   $('pm-card').style.borderColor = on8 ? 'var(--accent)' : '';
+  $('pm-card').classList.toggle('expanded', on8);
+  document.body.classList.toggle('pm-mode', on8);
+  $('eng-shader').className = on8 ? '' : 'active'; $('eng-pm').className = on8 ? 'active' : '';
+  $('eng-shader-sub').textContent = on8 ? 'switch back to ' + MODE_NAMES[lastShaderMode] : MODE_NAMES[Math.round(S.base.mode)] + ' · fractals · plasma · tunnel · starfield · waves — pixel-synced';
+  $('eng-pm-sub').textContent = list.length ? `${list.length} presets · ${pm.cycle_bars ? 'auto-cycle ' + pm.cycle_bars + ' bars' : 'manual'}` : 'real .milk presets on every Pi';
+  $('pm-big-name').textContent = list.length ? shortName(name) : '—';
+  $('pm-big-sub').textContent = list.length ? `#${pm.index} of ${list.length} · ${name.includes('/') ? name.split('/')[0] + ' pack' : ''}${pmFavs.has(name) ? ' · ★ favourite' : ''}` : '';
+  $('pm-favtoggle').textContent = pmFavs.has(name) ? '★' : '☆';
+  $('pm-hold').className = 'btn small' + (pm.cycle_bars === 0 && pmHeld ? ' active' : '');
+  $('pm-hold').textContent = pm.cycle_bars === 0 && pmHeld ? 'held' : 'hold';
+  if (list.length && (pmHist[0] !== pm.index)) { pmHist = [pm.index].concat(pmHist.filter(i => i !== pm.index)).slice(0, 8); $('pm-history').innerHTML = pmHist.length > 1 ? '<span style="font-size:11px;color:var(--muted);align-self:center">recent:</span>' + pmHist.slice(1).map(i => `<button class="btn small" data-h="${i}" title="${esc(list[i] || '')}">#${i} ${esc(shortName(list[i] || '').slice(0, 28))}</button>`).join('') : ''; $('pm-history').querySelectorAll('[data-h]').forEach(b => b.onclick = () => send({pm: {index: +b.dataset.h}})); }
+  if (on8) renderPmList();
+  // in projectM mode the card sits right under the preview
+  const previewCard = document.querySelector('.previewwrap').closest('.card'), pmCard = $('pm-card');
+  if (on8 && pmCard.previousElementSibling !== previewCard) previewCard.after(pmCard);
+  if (!on8 && pmCard.previousElementSibling === previewCard) document.querySelector('#fleet').closest('.card').before(pmCard);
   if (!on8) $('pm-overlay').hidden = true;
+  if (on8 !== wasOn8) { wasOn8 = on8; if (on8) { activeGroup = 'projectm'; buildControls(); } else if (activeGroup === 'projectm') { activeGroup = 'shape'; buildControls(); } }
+  if (!on8 && Math.round(S.base.mode) !== lastShaderMode) { lastShaderMode = Math.round(S.base.mode); try { localStorage.setItem('frx.lastShader', lastShaderMode); } catch (e) {} }
 }
+$('eng-pm').onclick = () => send({set: {mode: 8}});
+$('eng-shader').onclick = () => send({set: {mode: lastShaderMode}});
 $('tap').onclick = () => send({tap: 1});
 $('beat1').onclick = () => send({beat1: 1});
 $('bpm-set').onclick = () => send({bpm: +$('bpm-in').value});
@@ -1002,6 +1082,7 @@ async function bcInit() {
     BC.viz = lib.createVisualizer(BC.ctx, bcCanvas, {width: BC.w, height: BC.h, pixelRatio: 1, textureRatio: 1});
     BC.tba = {timeByteArray: new Uint8Array(1024), timeByteArrayL: new Uint8Array(1024), timeByteArrayR: new Uint8Array(1024)};
     BC.state = 'ready'; BC.lastIdx = -1;
+    if (!S.live) { S.pm_presets = BC.keys.map(k => 'butterchurn/' + k + '.milk'); S.pm.count = S.pm_presets.length; buildPmList(); renderPm(); }   // Pages demo: browse the real browser pack
     logLocal(`browser Milkdrop sim ready: ${BC.keys.length} presets (Butterchurn)`);
   } catch (e) { BC.state = 'failed'; $('pm-sim-label').textContent = 'browser sim unavailable: ' + e.message; console.error(e); }
 }

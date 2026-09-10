@@ -24,7 +24,7 @@ from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
 import inputs
 
-APP_VERSION = "0.4.1"
+APP_VERSION = "0.4.2"
 
 
 def load_config(args):
