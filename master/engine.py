@@ -63,7 +63,12 @@ class Engine:
             "midi":  dict(enabled=bool(cfg.get("midi_enabled", True)),  ok=False, detail="no controller"),
             "osc":   dict(enabled=bool(cfg.get("osc_enabled", True)),   ok=False, detail="udp/%d" % int(cfg.get("osc_port", 9000))),
             "auto":  dict(enabled=True,  ok=True,  detail="drifting"),
+            "link":  dict(enabled=bool(cfg.get("link_enabled", True)), ok=False, detail="Ableton Link (Resolume / Ableton)"),
+            # outputs (shown in the Outputs tab, same status shape)
+            "resolume": dict(enabled=bool((cfg.get("osc_out") or {}).get("enabled", False)), ok=False, detail="OSC out"),
+            "led":   dict(enabled=bool((cfg.get("led") or {}).get("enabled", False)), ok=False, detail="pixel output"),
         }
+        self.hooks = dict(tempo=[], beat1=[], scene=[], params=[])    # outputs subscribe here
         self.audio_stream = None
         self.diag = {}                                  # slow-changing diagnostics, refreshed by master.diag_task
         self.started = time.time()
@@ -99,6 +104,8 @@ class Engine:
         v = clamp(float(value), p[2], p[3])
         if p[5] == 'i':
             v = float(round(v))
+        if key == "mode" and v != self.base[i]:
+            self._fire("scene", v)
         self.base[i] = v
         self._dirty = True
         return True
@@ -128,8 +135,17 @@ class Engine:
             print(time.strftime("%H:%M:%S"), msg, flush=True)
 
     # ------------------------------------------------------------ tempo
+    def _fire(self, name, *a):
+        for h in self.hooks.get(name, []):
+            try:
+                h(*a)
+            except Exception as ex:
+                self.event(f"hook {name} failed: {ex}")
+
     def beat(self, bpm, bar_beat=0, source="prodj", device=None):
         """An external beat happened NOW."""
+        if abs(float(bpm) - self.bpm) > 0.01:
+            self._fire("tempo", float(bpm))
         self.bpm = float(bpm)
         self.beat_t = self.t
         self.bar_beat = float(bar_beat or 0)
@@ -150,6 +166,7 @@ class Engine:
         self.tempo_source = "tap"
         self.tempo_seen = now
         self._beat_flag = True
+        self._fire("tempo", self.bpm)
 
     def beat_one(self):
         """Mark NOW as beat 1 of the bar without touching BPM (manual bar resync)."""
@@ -162,9 +179,11 @@ class Engine:
         self.tempo_seen = time.monotonic()
         self._beat_flag = True
         self.event("bar resync: beat 1")
+        self._fire("beat1")
 
     def set_bpm(self, bpm):
         self.bpm = clamp(float(bpm), 0, 300)
+        self._fire("tempo", self.bpm)
         if self.bpm == 0:
             self.tempo_source = "none"
         elif self.tempo_source in ("none", "audio"):
@@ -263,6 +282,9 @@ class Engine:
             self.out[INDEX["bass"]] = self.audio_bass
 
         self._pm_autocycle(now)
+        if now - getattr(self, "_params_hook_t", 0) > 0.05:
+            self._params_hook_t = now
+            self._fire("params", KEYS, self.base, self.out)
 
         self.prodj_ok = (self.tempo_source == "prodj" and now - self.tempo_seen < 5.0)
         src = self.sources
@@ -299,11 +321,12 @@ class Engine:
             pm_n = int(parts[13]) if len(parts) > 13 else None       # -1 = renderer built without projectM
             pm_cur = int(parts[14]) if len(parts) > 14 else None
             audio_pk = int(parts[15]) if len(parts) > 15 else None
+            ndi = parts[16] if len(parts) > 16 else None                 # v4: "ndi:on" / "ndi:off" / "ndi:none"
             prev = self.fleet.get(name, {})
             self.fleet[name] = dict(ip=addr[0], fps=float(fps), res=res, tile=f"{tx},{ty} of {tc}x{tr}",
                                     packets=int(pk), lost=int(lost), version=appver, seen=time.time(),
                                     temp=temp, first_seen=prev.get("first_seen", time.time()), hb=prev.get("hb", 0) + 1,
-                                    pm_presets=pm_n, pm_current=pm_cur, audio_packets=audio_pk)
+                                    pm_presets=pm_n, pm_current=pm_cur, audio_packets=audio_pk, ndi=ndi)
         except Exception:
             pass
 

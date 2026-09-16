@@ -71,10 +71,18 @@ offset  type   field       meaning
 libprojectM; if no FRXA packet arrives for 1 s they synthesise a beat-locked
 kick/hat from `t`, `beat_t` and `bpm` instead — identical on every Pi.
 
+## Live thumbnail (renderer → master, udp/5008)
+
+```
+4s 'FRXT'  u16 w  u16 h  u32 seq  u32 t_ms  16s name   then RGB8 rows top-to-bottom (80×45 = 10.8 KB)
+```
+
+20 per second per renderer. Shown in the Outputs tab and used as the LED sampling source.
+
 ## Heartbeat (renderer → master)
 
 ```
-HB 3 <name> <fps> <WxH> <cols> <rows> <x> <y> <packets> <lost> <version> <cpuTempC> <pmPresets> <pmCurrent> <audioPkts>
+HB 4 <name> <fps> <WxH> <cols> <rows> <x> <y> <packets> <lost> <version> <cpuTempC> <pmPresets> <pmCurrent> <audioPkts> ndi:<off|on|live|unavailable>
 ```
 
 `pmPresets` = −1 when the renderer was built without libprojectM. v1/v2

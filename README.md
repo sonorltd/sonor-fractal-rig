@@ -36,10 +36,10 @@ drifts on its own.
 |---|---|---|
 | `renderer/` | `fractal.c` — C/SDL2/GLES3 fullscreen renderer. Multicast in, HDMI out, tiling, freewheel, heartbeat. `pm_bridge.c` + `shaders/post.frag` — optional libprojectM 4 scene with PCM stream + post-pass. | every Pi |
 | `renderer/shaders/fractal.frag` | **The** shader: 8 scenes — Mandelbrot / Julia / Burning Ship / Tricorn fractals plus Plasma / Tunnel / Starfield / Waves (the Winamp-AVS end of things) — orbit-trap glow, kaleidoscope, domain warp, beat pulse, bar sway. Byte-identical on Pis and in the web preview. | GPU |
-| `master/` | `master.py` + `engine.py` + `inputs.py` — asyncio param engine, 60 Hz broadcaster, web UI + WebSocket, Pro DJ Link / MIDI / OSC / audio inputs, presets, fleet heartbeat. | master Pi (or a laptop) |
+| `master/` | `master.py` + `engine.py` + `inputs.py` + `outputs.py` — asyncio param engine, Ableton Link, OSC→Resolume, LED (DDP/Art-Net/sACN), thumbnail receiver, 60 Hz broadcaster, web UI + WebSocket, Pro DJ Link / MIDI / OSC / audio inputs, presets, fleet heartbeat. | master Pi (or a laptop) |
 | `master/params.py` | Single source of truth for the parameter table → generates `params.h`, `params.glsl`, `params.js`. | — |
 | `web/` | `index.html` — phone-friendly control surface: Sources panel (live link status + on/off for Pro DJ Link, audio, MIDI, OSC, auto-drift), all params, presets, fleet, and an **Info** tab with the full manual. Live WebGL2 preview. Live when served by the master, demo mode on GitHub Pages. | browser |
-| `setup/` | `install.sh` (role = master or slave), `selftest.sh` (pass/fail bring-up checker), systemd units, host naming examples. | Pi |
+| `setup/` | `install.sh` (role = master or slave), `selftest.sh` (pass/fail bring-up checker), `install-projectm.sh`, `install-ndi.sh`, `install-kiosk.sh` (touchscreen console), systemd units, host naming examples. | Pi |
 | `PROTOCOL.md` | The wire format and the sync reasoning. | — |
 
 ## Hardware
@@ -53,6 +53,7 @@ drifts on its own.
 * **Wired gigabit switch.** Multicast over Wi-Fi works but jitters; a £15 8-port switch and
   five patch leads is the single biggest reliability win.
 * Official 27 W (Pi 5) / 15 W (Pi 4) PSUs. Under-powered Pis throttle the GPU.
+* 2 GB Pi 5 is enough for renderer or master; 4 GB if that Pi also runs the touchscreen kiosk. 32 GB card minimum, 64 GB comfortable (A2-rated).
 * Master extras: the Pi's own USB for a MIDI controller; a USB audio interface or the XDJ's
   USB audio for live energy (optional); an Ethernet path to the **XDJ-RX2 LINK port**.
 
@@ -115,6 +116,15 @@ Scenes 0–7 share one shader, so kaleidoscope, rotation, palette and beat contr
 ### projectM (scene 8)
 
 `setup/install-projectm.sh` builds libprojectM 4 with GLES from source on each Pi (~15 min), pulls the original Milkdrop preset pack (`--cream` adds Cream of the Crop, ~10k presets) and the texture pack, and rebuilds the renderer with `HAVE_PROJECTM`. The master owns preset selection (`pm_preset` index into the byte-sorted preset list — identical on every Pi as long as the packs are identical; the Renderers table flags mismatches), prev/next/random/search/auto-cycle-every-N-bars in the UI, OSC `/frx/pm_next|pm_prev|pm_random`, MIDI notes 33/32. The master multicasts its audio input as PCM (udp/5007) so presets react to the room; without audio every Pi synthesises the same beat-locked kick from the shared clock. `pm_mix` runs projectM's output through our post-pass (kaleido, rotation, zoom, hue, beat pulse). The web UI's Live preview simulates scene 8 in the browser with [Butterchurn](https://github.com/jberg/butterchurn) (Milkdrop 2 in WebGL, vendored in `web/vendor/`), showing the same-named preset where the packs overlap. **Sync caveat:** Milkdrop presets use their own timing and randomness — Pis look alike (same preset, same audio, same switch frame) but are not pixel-identical, so use scenes 0–7 for seamless tiled walls and projectM for identical-image or family layouts.
+
+## Outputs (v0.5)
+
+| output | how |
+|---|---|
+| **Resolume** | Picture in via HDMI capture card (recommended) or NDI. Tempo + bar phase via **Ableton Link** (follow or lead). **OSC out**: tempo (normalised), resync on SET BEAT 1, scene → column, any param → any Resolume address. Resolume OSC out → `/frx/<param>` works too. |
+| **NDI** | `setup/install-ndi.sh <SDK tar.gz>` on a Pi, then `--ndi`. Source "Fractal Rig (pi-name)" at render scale, 30 fps cap. |
+| **LED pixel strips** | Master samples every renderer's 80×45 live thumbnail (udp/5008) along strip lines on the shared canvas and sends **DDP** (WLED), **Art-Net** or **sACN/E1.31** at 40 fps with gamma/brightness. Layout editor, matrix builder, test patterns and live canvas preview in the Outputs tab; persists in `config.local.json`. |
+| **Perform mode** | `▶ PERFORM` / key `P` / `?perf=1`: big touch controls in swipeable pages (Show, Presets, Feel, Colour). `setup/install-kiosk.sh` turns a Pi + touchscreen into a boot-to-UI console. |
 
 ## Controlling it
 

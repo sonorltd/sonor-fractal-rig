@@ -37,8 +37,9 @@
 #include <time.h>
 #include "params.h"
 #include "pm_bridge.h"
+#include "ndi_out.h"
 
-#define APP_VERSION "0.4.2"
+#define APP_VERSION "0.5.0"
 #define FREEWHEEL_AFTER 3.0      /* s without packets before we run on our own clock */
 #define SMOOTH_TAU 0.06          /* s — exponential smoothing of continuous params */
 #define TAU_D 6.283185307179586
@@ -56,8 +57,11 @@ static struct {
     char shader_dir[512];
     int max_frames; char dump[512];
     char preset_dir[512]; char texture_dir[512]; int audio_port; int no_pm;
+    int thumb_port; int thumb_hz; int no_thumb;
+    int ndi; char ndi_name[64]; int ndi_fps; int display;
 } cfg = { 0, 0, 0, 1, 0.6f, 1, 1, 0, 0, 0, 0, 0, "239.255.42.1", 5005, 5006, "", "", "", 0, "",
-          "/usr/local/share/projectM/presets", "/usr/local/share/projectM/textures", 5007, 0 };
+          "/usr/local/share/projectM/presets", "/usr/local/share/projectM/textures", 5007, 0,
+          5008, 20, 0, 0, "Fractal Rig", 30, 0 };
 
 /* ---------------------------------------------------------------- packet */
 #pragma pack(push, 1)
@@ -94,10 +98,15 @@ static void usage(void) {
            "  --name STR          heartbeat name (default hostname)\n"
            "  --shaders DIR       shader directory (default ./shaders next to binary)\n"
            "  --novsync           don't wait for vblank\n"
+           "  --display N         which display to go fullscreen on (desktop/Wayland mode; e.g. HDMI while a touchscreen shows the UI)\n"
            "  --presets DIR       projectM preset directory (default /usr/local/share/projectM/presets)\n"
            "  --textures DIR      projectM texture directory\n"
            "  --audio-port N      multicast port for the master's PCM stream (default 5007)\n"
            "  --no-pm             disable projectM even if built in\n"
+           "  --thumb-hz N        live thumbnail rate to the master (default 20, 0 = off)\n"
+           "  --ndi               publish this renderer's picture as an NDI source (needs HAVE_NDI build)\n"
+           "  --ndi-name STR      NDI source name (default 'Fractal Rig'; the Pi name is appended)\n"
+           "  --ndi-fps N         NDI frame rate cap (default 30)\n"
            "  --version           print version + features and exit\n"
            "  --frames N          quit after N frames (testing)\n"
            "  --dump FILE.ppm     write the last frame to a PPM (testing)\n");
@@ -117,12 +126,22 @@ static void parse_args(int argc, char **argv) {
         else if (!strcmp(a, "--name"))  strncpy(cfg.name, NEXT(), 63);
         else if (!strcmp(a, "--shaders")) strncpy(cfg.shader_dir, NEXT(), 511);
         else if (!strcmp(a, "--novsync")) cfg.vsync = 0;
+        else if (!strcmp(a, "--display")) cfg.display = atoi(NEXT());
         else if (!strcmp(a, "--presets")) strncpy(cfg.preset_dir, NEXT(), 511);
         else if (!strcmp(a, "--textures")) strncpy(cfg.texture_dir, NEXT(), 511);
         else if (!strcmp(a, "--audio-port")) cfg.audio_port = atoi(NEXT());
         else if (!strcmp(a, "--no-pm")) cfg.no_pm = 1;
-        else if (!strcmp(a, "--version")) { printf("fractal %s protocol %d params %d projectM: %s\n", APP_VERSION, FRX_PROTOCOL_VERSION, FRX_NPARAMS,
+        else if (!strcmp(a, "--thumb-hz")) { cfg.thumb_hz = atoi(NEXT()); cfg.no_thumb = cfg.thumb_hz <= 0; }
+        else if (!strcmp(a, "--ndi")) cfg.ndi = 1;
+        else if (!strcmp(a, "--ndi-name")) strncpy(cfg.ndi_name, NEXT(), 63);
+        else if (!strcmp(a, "--ndi-fps")) cfg.ndi_fps = atoi(NEXT());
+        else if (!strcmp(a, "--version")) { printf("fractal %s protocol %d params %d projectM: %s NDI: %s\n", APP_VERSION, FRX_PROTOCOL_VERSION, FRX_NPARAMS,
 #ifdef HAVE_PROJECTM
+            "built in",
+#else
+            "not built in",
+#endif
+#ifdef HAVE_NDI
             "built in"
 #else
             "not built in"
@@ -235,11 +254,28 @@ static float cpu_temp(void) {
 static void send_heartbeat(int s, float fps, int w, int h) {
     if (!have_master_addr) return;
     char buf[256];
-    snprintf(buf, sizeof buf, "HB 3 %s %.1f %dx%d %d %d %d %d %u %u %s %.1f %d %d %u",
+    snprintf(buf, sizeof buf, "HB 4 %s %.1f %dx%d %d %d %d %d %u %u %s %.1f %d %d %u ndi:%s",
              cfg.name, fps, w, h, cfg.tile_cols, cfg.tile_rows, cfg.tile_x, cfg.tile_y, pkt_count, pkt_lost, APP_VERSION, cpu_temp(),
-             pm_available() ? pm_preset_count() : -1, pm_current(), audio_pkts);
+             pm_available() ? pm_preset_count() : -1, pm_current(), audio_pkts,
+             ndi_available() ? (ndi_connections() > 0 ? "live" : "on") : (cfg.ndi ? "unavailable" : "off"));
     struct sockaddr_in to = master_addr; to.sin_port = htons(cfg.hb_port);
     sendto(s, buf, strlen(buf), 0, (struct sockaddr*)&to, sizeof to);
+}
+
+/* ---- live thumbnail to the master (FRXT): tiny RGB frame, used for the UI and LED sampling */
+#pragma pack(push, 1)
+typedef struct { char magic[4]; uint16_t w, h; uint32_t seq, t_ms; char name[16]; } frxt_hdr;
+#pragma pack(pop)
+static uint32_t thumb_seq = 0;
+static void send_thumb(int s, const unsigned char *rgba, int w, int h, double t) {
+    if (!have_master_addr) return;
+    static unsigned char buf[32 + 320 * 180 * 3];
+    frxt_hdr *hd = (frxt_hdr*)buf; memcpy(hd->magic, "FRXT", 4); hd->w = w; hd->h = h; hd->seq = thumb_seq++; hd->t_ms = (uint32_t)(t * 1000.0);
+    memset(hd->name, 0, 16); strncpy(hd->name, cfg.name, 15);
+    unsigned char *p = buf + sizeof(frxt_hdr);
+    for (int y = h - 1; y >= 0; y--) for (int x = 0; x < w; x++) { const unsigned char *q = rgba + (y * w + x) * 4; *p++ = q[0]; *p++ = q[1]; *p++ = q[2]; }   /* flip to top-left origin */
+    struct sockaddr_in to = master_addr; to.sin_port = htons(cfg.thumb_port);
+    sendto(s, buf, sizeof(frxt_hdr) + w * h * 3, 0, (struct sockaddr*)&to, sizeof to);
 }
 
 /* ---------------------------------------------------------------- GL */
@@ -301,7 +337,7 @@ int main(int argc, char **argv) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     Uint32 flags = SDL_WINDOW_OPENGL | (cfg.windowed ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
-    SDL_Window *win = SDL_CreateWindow("Fractal Rig", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    SDL_Window *win = SDL_CreateWindow("Fractal Rig", SDL_WINDOWPOS_CENTERED_DISPLAY(cfg.display), SDL_WINDOWPOS_CENTERED_DISPLAY(cfg.display),
                                        cfg.windowed ? cfg.win_w : 1920, cfg.windowed ? cfg.win_h : 1080, flags);
     if (!win) { fprintf(stderr, "window: %s\n", SDL_GetError()); return 1; }
     SDL_GLContext ctx = SDL_GL_CreateContext(win);
@@ -333,6 +369,14 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[pm] %s%s\n", pm_ok ? "ready · " : "scene 8 falls back to plasma · ", pm_version());
     int asock = pm_ok ? open_audio_socket() : -1;
     glBindVertexArray(vao);   /* projectM init may have changed GL state */
+
+    /* thumbnail FBO (80x45) + optional NDI */
+    const int tw = 80, th = 45; GLuint th_tex; GLuint th_fbo = make_fbo(tw, th, &th_tex);
+    static unsigned char th_px[80 * 45 * 4];
+    double thumb_last = 0, thumb_period = cfg.thumb_hz > 0 ? 1.0 / cfg.thumb_hz : 0;
+    int ndi_ok = 0; double ndi_last = 0;
+    if (cfg.ndi) { char nm[128]; snprintf(nm, sizeof nm, "%s (%s)", cfg.ndi_name, cfg.name); ndi_ok = ndi_init(nm, rw, rh, cfg.ndi_fps > 0 ? cfg.ndi_fps : 30);
+        if (!ndi_ok) fprintf(stderr, "[ndi] requested but not available — build with NDI SDK (setup/install-ndi.sh)\n"); }
 
     int sock = open_multicast();
     float tile[4] = { (float)cfg.tile_x / cfg.tile_cols, (float)(cfg.tile_rows - 1 - cfg.tile_y) / cfg.tile_rows,
@@ -395,6 +439,25 @@ int main(int argc, char **argv) {
         glDrawArrays(GL_TRIANGLES, 0, 3);
         }
 
+        /* live thumbnail + NDI, both from the low-res fbo */
+        if (!cfg.no_thumb && sock >= 0 && now - thumb_last >= thumb_period) {
+            thumb_last = now;
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, th_fbo);
+            glBlitFramebuffer(0, 0, rw, rh, 0, 0, tw, th, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+            glBindFramebuffer(GL_FRAMEBUFFER, th_fbo); glReadPixels(0, 0, tw, th, GL_RGBA, GL_UNSIGNED_BYTE, th_px);
+            send_thumb(sock, th_px, tw, th, anim_t);
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        }
+        if (ndi_ok && now - ndi_last >= 1.0 / (cfg.ndi_fps > 0 ? cfg.ndi_fps : 30)) {
+            ndi_last = now;
+            unsigned char *nb = ndi_buffer();
+            if (nb) { glBindFramebuffer(GL_FRAMEBUFFER, fbo); glReadPixels(0, 0, rw, rh, GL_RGBA, GL_UNSIGNED_BYTE, nb);
+                /* GL gives bottom-up rows; flip in place */
+                for (int y = 0; y < rh / 2; y++) { unsigned char tmp[4096 * 4]; int rowb = rw * 4; if (rowb > (int)sizeof tmp) break;
+                    memcpy(tmp, nb + y * rowb, rowb); memcpy(nb + y * rowb, nb + (rh - 1 - y) * rowb, rowb); memcpy(nb + (rh - 1 - y) * rowb, tmp, rowb); }
+                ndi_send(); }
+        }
+
         if (cfg.max_frames && frames + 1 >= cfg.max_frames) {
             running = 0;
             if (cfg.dump[0]) {
@@ -418,7 +481,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[fps] %.1f  t=%.1f  bpm=%.1f  pkts=%u lost=%u %s\n", fps, anim_t, bpm, pkt_count, pkt_lost, have_master ? "" : "(freewheel)"); }
         if (now - hb_last >= 1.0 && sock >= 0) { send_heartbeat(sock, fps, W, H); hb_last = now; }
     }
-    pm_shutdown();
+    pm_shutdown(); ndi_shutdown();
     SDL_GL_DeleteContext(ctx); SDL_DestroyWindow(win); SDL_Quit();
     return 0;
 }

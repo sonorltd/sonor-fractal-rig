@@ -1,6 +1,6 @@
-# STUDIO - Fractal Rig (v0.4.2)
+# STUDIO - Fractal Rig (v0.5.0)
 
-> Current version: 0.4.2 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.5.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
 Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 136-byte UDP multicast
@@ -29,7 +29,8 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
 - Upstream: Pro DJ Link beat packets (udp/50001, passive), MIDI CC/notes, OSC (udp/9000),
   audio input, web UI WebSocket.
 - Downstream: multicast `239.255.42.1:5005` → every renderer; renderer heartbeats → master
-  udp/5006. Persisted locally only: `master/state.json`, `master/presets.json` (gitignored).
+  udp/5006; renderer thumbnails → master udp/5008; master → Resolume OSC (udp, configurable), Ableton
+  Link (udp 20808 multicast), LED controllers (DDP 4048 / Art-Net 6454 / sACN 5568); renderer → NDI (opt). Persisted locally only: `master/state.json`, `master/presets.json` (gitignored).
 - No Supabase. No Xero. No outbound email. No customer data.
 
 ## Single source of truth
@@ -65,6 +66,14 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   projectM UI when active (big preset name, PREV/RANDOM/NEXT, filterable browse list with ★ favourites
   in localStorage, recent chips, hold, auto-cycle); card reorders under the preview; params tab jumps
   to projectM. Pages demo seeds the preset list from Butterchurn's packs and auto-cycles locally.
+- 2026-09-16 v0.5.0 — Outputs: `master/outputs.py` (OscOut→Resolume with normalised tempo/resync/
+  scene-column/param map; ThumbReceiver FRXT udp/5008; LedOutput DDP/Art-Net/sACN sampling the
+  thumbnails along strip lines, gamma LUT, test patterns), `inputs.AbletonLink` (aalink, follow/lead,
+  force_beat on SET BEAT 1), engine hooks (tempo/beat1/scene/params), `config.local.json` persistence
+  via `save_local_config`. Renderer: FRXT thumbnail sender, `ndi_out.c` behind HAVE_NDI (SDK not
+  vendored; `install-ndi.sh`), heartbeat v4 with ndi state, `--display`. Web: Outputs tab (thumbnails,
+  Resolume/Link, NDI, LED strip editor + matrix builder + canvas preview), Perform mode (`#perf`,
+  swipeable big-button pages, `?perf=1`, key P/Esc), `install-kiosk.sh` (cage or desktop autostart).
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.
@@ -72,6 +81,10 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   renderer must always build and run without it.
 - Preset list ordering is a cross-language contract: `master/pm.py scan_presets` and
   `renderer/pm_bridge.c pm_scan_presets` (recursive, relative path, byte order). Change both or neither.
+- Rendering-side outputs must never block the frame loop: thumbnails/NDI are readbacks of the low-res
+  fbo on a timer; LED sampling and all network sending happen on the master in Python.
+- UI rule (learned v0.5.0): never rebuild input-bearing DOM on every snapshot — signature-check
+  (strips, maps, columns) or clobbered inputs and stolen focus follow.
 - Never send anything TO the Pioneer network (no virtual CDJ) without an explicit decision.
 - Version sites: `renderer/fractal.c APP_VERSION`, `master/master.py APP_VERSION`,
   `web/index.html #pill-ver`, this banner. Bump all four together.

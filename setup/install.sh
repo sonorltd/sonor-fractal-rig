@@ -58,3 +58,4 @@ if [ "$ROLE" = "master" ]; then echo "   journalctl -fu fractal-master        # 
 if [ "$ROLE" = "master" ]; then echo "   web UI:  http://$(hostname -I | awk '{print $1}'):8080/"; fi
 echo "   change renderer args:  sudo systemctl edit fractal-renderer  (or re-run this script)"
 echo "   Milkdrop presets (scene 8, optional, ~15 min):  sudo bash setup/install-projectm.sh"
+echo "   NDI source for Resolume/OBS (optional):          sudo bash setup/install-ndi.sh <NDI SDK tar.gz>, then add --ndi to the renderer args"

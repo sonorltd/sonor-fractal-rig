@@ -49,6 +49,37 @@
   "pm_cycle_bars": 16,
   "pm_shuffle": true,
 
+  "thumb_port": 5008,
+
+  "link_enabled": true,
+  "link_mode": "follow",
+
+  "osc_out": {
+    "_comment": "OSC to Resolume (Arena/Avenue: Preferences > OSC > enable input, note the port). Range params are sent normalised 0..1.",
+    "enabled": false,
+    "host": "192.168.1.20",
+    "port": 7000,
+    "send_tempo": true,
+    "resync_on_beat1": true,
+    "scene_columns": {},
+    "params": {}
+  },
+
+  "ndi": { "name": "Fractal Rig", "fps": 30 },
+
+  "led": {
+    "_comment": "Pixel output. Coordinates are canvas UV 0..1, origin top-left. protocol: ddp (WLED) | artnet | sacn.",
+    "enabled": false,
+    "fps": 40,
+    "brightness": 0.8,
+    "gamma": 2.2,
+    "source": "",
+    "test": "off",
+    "strips": [
+      { "name": "booth-front", "ip": "192.168.1.50", "protocol": "ddp", "universe": 0, "order": "GRB", "count": 150, "x0": 0.0, "y0": 0.97, "x1": 1.0, "y1": 0.97, "enabled": true }
+    ]
+  },
+
   "clock_speed": 1.0,
   "auto_depth": 0.35,
   "auto_rate": 0.05

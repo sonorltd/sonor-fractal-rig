@@ -195,6 +195,84 @@ async def osc_start(engine, cfg):
         engine.source("osc", enabled=False, ok=False, detail=f"failed: {ex}")
 
 
+# ============================================================ Ableton Link (Resolume, Ableton, Traktor, …)
+class AbletonLink:
+    """
+    mode 'follow': the rig's tempo + bar phase come from the Link session (Resolume/Ableton lead).
+    mode 'lead'  : the rig pushes its tempo (from Pro DJ Link / tap) INTO the Link session and forces
+                   the bar phase on SET BEAT 1 — so Resolume follows the CDJs via us.
+    Uses aalink (pip). Degrades to a disabled source if it is not installed.
+    """
+    def __init__(self, engine, cfg):
+        self.e = engine
+        self.cfg = cfg
+        self.link = None
+        self.mode = (cfg.get("link_mode") or "follow")
+        self.enabled = bool(cfg.get("link_enabled", True))
+        self._last_beat_int = None
+        self._last_push_bpm = None
+
+    async def start(self):
+        try:
+            import aalink
+        except ImportError:
+            self.e.source("link", enabled=False, ok=False, detail="aalink not installed (pip install aalink)")
+            self.e.event("Ableton Link disabled: pip install aalink")
+            return
+        try:
+            self.link = aalink.Link(self.e.bpm or 120.0, asyncio.get_running_loop())
+            self.link.quantum = 4
+            self.link.enabled = self.enabled
+            self.e.source("link", enabled=self.enabled, ok=False, detail="waiting for peers")
+            self.e.event("Ableton Link ready (%s)" % self.mode)
+            asyncio.create_task(self._loop())
+        except Exception as ex:
+            self.e.source("link", enabled=False, ok=False, detail=f"failed: {ex}")
+
+    def set_enabled(self, on):
+        self.enabled = bool(on); self.cfg["link_enabled"] = self.enabled
+        if self.link: self.link.enabled = self.enabled
+        self.e.source("link", enabled=self.enabled)
+
+    def set_mode(self, mode):
+        self.mode = "lead" if mode == "lead" else "follow"; self.cfg["link_mode"] = self.mode
+        self.e.event(f"Ableton Link mode: {self.mode}")
+
+    def push_beat1(self):
+        """SET BEAT 1 pressed / Pro DJ Link bar 1 while leading: force Link's bar phase to 0 now."""
+        if self.link and self.enabled and self.mode == "lead":
+            try:
+                self.link.force_beat(0.0)
+            except Exception:
+                pass
+
+    async def _loop(self):
+        e = self.e
+        while True:
+            try:
+                if self.link and self.enabled:
+                    peers = self.link.num_peers
+                    tempo = float(self.link.tempo)
+                    beat = float(self.link.beat)
+                    phase = float(self.link.phase)          # 0..quantum
+                    e.source("link", ok=peers > 0, detail=f"{peers} peer{'s' if peers != 1 else ''} · {tempo:.2f} BPM · {self.mode}" + ("" if peers else " — no peers yet"), peers=peers, tempo=round(tempo, 2), phase=round(phase, 2), mode=self.mode)
+                    if self.mode == "follow" and peers > 0:
+                        # emit a beat to the engine each time Link crosses an integer beat; bar_beat from phase
+                        b = int(math.floor(beat))
+                        if self._last_beat_int is None or b != self._last_beat_int:
+                            self._last_beat_int = b
+                            e.beat(tempo, int(math.floor(phase)) % 4 + 1, source="link")
+                    elif self.mode == "lead" and e.bpm > 0:
+                        if self._last_push_bpm is None or abs(e.bpm - self._last_push_bpm) > 0.01:
+                            self._last_push_bpm = e.bpm
+                            self.link.tempo = float(e.bpm)
+                else:
+                    e.source("link", ok=False, detail="off" if not self.enabled else "not started")
+            except Exception as ex:
+                e.source("link", ok=False, detail=f"error: {ex}")
+            await asyncio.sleep(0.02)
+
+
 # ============================================================ Audio
 class Audio:
     """Runs in sounddevice's callback thread; publishes smoothed levels to the engine."""

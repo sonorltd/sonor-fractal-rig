@@ -13,7 +13,7 @@ or on a laptop on the same LAN. One asyncio loop:
     15 Hz  state snapshot -> every WebSocket client (phone / laptop UI)
     inputs: Pro DJ Link beats, MIDI, OSC, audio, web UI
 """
-import argparse, asyncio, json, os, socket, sys, time
+import argparse, asyncio, json, os, socket, struct, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -22,14 +22,30 @@ sys.path.insert(0, HERE)
 
 from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
-import inputs
+import inputs, outputs
 
-APP_VERSION = "0.4.2"
+APP_VERSION = "0.5.0"
+osc_out = led = thumbs = link = None
+
+
+LOCAL_CFG = os.path.join(HERE, "config.local.json")
+
+
+def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device")):
+    """Persist the UI-editable parts of the config to config.local.json (config.json stays pristine in git)."""
+    try:
+        cur = json.load(open(LOCAL_CFG)) if os.path.exists(LOCAL_CFG) else {}
+        for k in keys:
+            if k in cfg:
+                cur[k] = cfg[k]
+        json.dump(cur, open(LOCAL_CFG, "w"), indent=1)
+    except Exception as ex:
+        print("config save failed:", ex)
 
 
 def load_config(args):
     cfg = json.load(open(os.path.join(HERE, "config.json")))
-    local = os.path.join(HERE, "config.local.json")
+    local = LOCAL_CFG
     if os.path.exists(local):
         cfg.update(json.load(open(local)))
     if args.port:
@@ -226,6 +242,18 @@ async def web_app(engine, cfg):
                             inputs.Audio.stop(engine)
                     elif name == "auto":
                         engine.auto_enabled = on
+                    elif name == "link":
+                        if link: link.set_enabled(on)
+                        if m["source"].get("mode") and link: link.set_mode(m["source"]["mode"])
+                        save_local_config(cfg)
+                    elif name == "resolume":
+                        osc_out.reconfigure(host=m["source"].get("host"), port=m["source"].get("port"), enabled=on)
+                        for k in ("send_tempo", "resync_on_beat1", "params", "scene_columns"):
+                            if k in m["source"]: osc_out.cfg[k] = m["source"][k]
+                        cfg["osc_out"] = osc_out.cfg; save_local_config(cfg)
+                        if on: osc_out.last_bpm = None; osc_out.on_tempo(engine.bpm)
+                    elif name == "led":
+                        led.cfg["enabled"] = on; engine.source("led", enabled=on); save_local_config(cfg)
                     elif name == "prodj" and "follow" in m["source"]:
                         cfg["prodj_follow_device"] = int(m["source"]["follow"] or 0)
                         engine.event(f"Pro DJ Link: follow deck {cfg['prodj_follow_device'] or 'auto'}")
@@ -239,6 +267,20 @@ async def web_app(engine, cfg):
                 if "ping" in m:
                     await ws.send_json(dict(type="pong", ping=m["ping"], t=time.time()))
                     continue
+                if "led" in m:
+                    q = m["led"]
+                    for k in ("fps", "brightness", "gamma", "source", "test"):
+                        if k in q: led.cfg[k] = q[k]
+                    if "strips" in q and isinstance(q["strips"], list):
+                        led.cfg["strips"] = [dict(name=str(x.get("name", f"strip{i+1}"))[:32], ip=str(x.get("ip", "")), protocol=str(x.get("protocol", "ddp")), universe=int(x.get("universe", 0) or 0),
+                                                  order=str(x.get("order", "GRB")).upper(), count=max(1, min(4096, int(x.get("count", 1) or 1))), start_channel=int(x.get("start_channel", 0) or 0),
+                                                  x0=float(x.get("x0", 0)), y0=float(x.get("y0", 0.5)), x1=float(x.get("x1", 1)), y1=float(x.get("y1", 0.5)), enabled=bool(x.get("enabled", True)))
+                                             for i, x in enumerate(q["strips"])]
+                        led.last_colors.clear()
+                    if "enabled" in q: led.cfg["enabled"] = bool(q["enabled"]); engine.source("led", enabled=led.cfg["enabled"])
+                    save_local_config(cfg)
+                if "resolume_test" in m:
+                    osc_out.send(m["resolume_test"].get("address", "/composition/tempocontroller/resync"), m["resolume_test"].get("value", 1))
                 if "midi_learn" in m:
                     cc = getattr(engine, "last_cc", None)
                     if cc is not None:
@@ -260,6 +302,9 @@ async def web_app(engine, cfg):
                     dev_cache.update(t=time.monotonic(), list=inputs.Audio.devices())
                 snap["audio_devices"] = dev_cache["list"]
                 snap["prodj_follow"] = int(cfg.get("prodj_follow_device", 0) or 0)
+                snap["outputs"] = dict(resolume=osc_out.stats(), led=led.stats(), thumbs=thumbs.summary(),
+                                       link=dict(mode=link.mode if link else None, available=bool(link and link.link), enabled=bool(link and link.enabled)),
+                                       ndi=dict(name=cfg.get("ndi", {}).get("name", "Fractal Rig"), renderers={n: h.get("ndi") for n, h in engine.fleet.items()}))
                 snap["audio_device"] = cfg.get("audio_device")
                 data = json.dumps(snap)
                 for ws in list(clients):
@@ -284,6 +329,14 @@ async def web_app(engine, cfg):
     app.router.add_get("/ws", ws_handler)
     app.router.add_get("/api/state", api_state)
     app.router.add_get("/api/diag", api_diag)
+
+    async def api_thumb(request):
+        f = thumbs.get(request.match_info.get("name") or None)
+        if not f:
+            raise web.HTTPNotFound()
+        return web.Response(body=_png(f["w"], f["h"], f["rgb"]), content_type="image/png", headers={"Cache-Control": "no-store"})
+    app.router.add_get("/thumb/{name}", api_thumb)
+    app.router.add_get("/thumb", api_thumb)
     app.router.add_get("/params.js", lambda r: web.FileResponse(os.path.join(WEB, "params.js")))
     app.router.add_static("/web/", WEB)
     app.router.add_static("/vendor/", os.path.join(WEB, "vendor"))
@@ -294,6 +347,16 @@ async def web_app(engine, cfg):
     await site.start()
     engine.event(f"web UI on http://{local_ip()}:{cfg.get('http_port', 8080)}/")
     asyncio.create_task(pusher())
+
+
+def _png(w, h, rgb):
+    """Minimal PNG encoder (pure python) for the tiny renderer thumbnails."""
+    import zlib
+    raw = b"".join(b"\x00" + rgb[y * w * 3:(y + 1) * w * 3] for y in range(h))
+    def chunk(t, d):
+        c = struct.pack(">I", len(d)) + t + d
+        return c + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b"")
 
 
 def local_ip():
@@ -328,6 +391,19 @@ async def main():
     loop = asyncio.get_running_loop()
     await loop.create_datagram_endpoint(lambda: HeartbeatProto(engine),
                                         local_addr=("0.0.0.0", int(cfg.get("heartbeat_port", 5006))))
+    # ---- outputs
+    global osc_out, led, thumbs, link
+    thumbs = outputs.ThumbReceiver(engine)
+    await loop.create_datagram_endpoint(lambda: thumbs, local_addr=("0.0.0.0", int(cfg.get("thumb_port", 5008))))
+    osc_out = outputs.OscOut(engine, cfg)
+    engine.hooks["tempo"].append(osc_out.on_tempo); engine.hooks["beat1"].append(osc_out.on_beat1)
+    engine.hooks["scene"].append(osc_out.on_scene); engine.hooks["params"].append(osc_out.on_params)
+    led = outputs.LedOutput(engine, cfg, thumbs)
+    asyncio.create_task(led.run())
+    link = inputs.AbletonLink(engine, cfg)
+    await link.start()
+    engine.hooks["beat1"].append(link.push_beat1)
+    engine.event(f"outputs: OSC→Resolume {'on' if osc_out.enabled else 'off'} ({osc_out.host}:{osc_out.port}) · LED {'on' if led.cfg.get('enabled') else 'off'} ({len(led.cfg.get('strips', []))} strips) · thumbs udp/{cfg.get('thumb_port', 5008)}")
     await web_app(engine, cfg)
     asyncio.create_task(diag_task(engine, cfg))
     if cfg.get("prodj_enabled", True):

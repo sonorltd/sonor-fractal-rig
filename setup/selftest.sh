@@ -53,6 +53,25 @@ if [ -x "$REPO/renderer/fractal" ]; then "$REPO/renderer/fractal" --version | gr
 PMDIR=$(python3 -c "import json;print(json.load(open('$CFG')).get('pm_preset_dir',''))" 2>/dev/null)
 if [ -d "$PMDIR" ]; then NPM=$(find "$PMDIR" -name '*.milk' -o -name '*.prjm' | wc -l); [ "$NPM" -gt 0 ] && pass "$NPM presets in $PMDIR  (must match every other Pi + master)" || warn "preset dir $PMDIR is empty"; else note "no preset dir at $PMDIR"; fi
 
+hdr "NDI (optional)"
+[ -f /usr/local/include/Processing.NDI.Lib.h ] && pass "NDI SDK headers present" || note "NDI SDK not installed (setup/install-ndi.sh) — renderer cannot publish NDI"
+[ -x "$REPO/renderer/fractal" ] && { "$REPO/renderer/fractal" --version | grep -q "NDI: built in" && pass "renderer built with NDI" || note "renderer built without NDI"; }
+
+hdr "Ableton Link / Resolume / LED (master only)"
+"$REPO/master/.venv/bin/python" -c "import aalink" 2>/dev/null && pass "aalink (Ableton Link) importable in master venv" || note "aalink not in master venv — pip install aalink (only matters on the master)"
+python3 - "$CFG" <<'EOF2' 2>/dev/null
+import json, sys, socket
+c = json.load(open(sys.argv[1])); G='\033[32m'; Y='\033[33m'; D='\033[2m'; N='\033[0m'
+o = c.get("osc_out", {}); print(f"  {D}      OSC→Resolume: {'enabled' if o.get('enabled') else 'disabled'} → {o.get('host')}:{o.get('port')}{N}")
+l = c.get("led", {}); strips = l.get("strips", []); print(f"  {D}      LED: {'enabled' if l.get('enabled') else 'disabled'} · {len(strips)} strips · {sum(int(s.get('count',0)) for s in strips)} pixels{N}")
+for s in strips:
+    ip = s.get("ip"); 
+    if not ip: continue
+    try:
+        socket.setdefaulttimeout(1); sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); sk.connect((ip, 80)); print(f"  {G}PASS{N}  strip '{s.get('name')}' → {ip} routable")
+    except Exception as e: print(f"  {Y}WARN{N}  strip '{s.get('name')}' → {ip}: {e}")
+EOF2
+
 hdr "Services"
 for svc in fractal-renderer fractal-master; do
   if systemctl list-unit-files 2>/dev/null | grep -q "^$svc.service"; then

@@ -130,6 +130,65 @@
   .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; line-height: 1.5; }
   .hint b { color: var(--warn); }
 
+  /* performance mode — big touch controls, swipeable pages */
+  #perf { position: fixed; inset: 0; background: var(--bg); z-index: 50; display: flex; flex-direction: column; }
+  #perf[hidden] { display: none; }
+  body.perf { overflow: hidden; }
+  .perf-top { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .perf-top .bpm { font-size: 28px; }
+  .perf-top .tabs { border: 0; margin: 0; }
+  .perf-top .tabs button { font-size: 14px; padding: 8px 12px; }
+  .perf-pages { flex: 1; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .perf-pages::-webkit-scrollbar { display: none; }
+  .ppage { flex: 0 0 100%; scroll-snap-align: start; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  .pgrid { display: grid; gap: 10px; }
+  .pgrid.c2 { grid-template-columns: 1fr 1fr; } .pgrid.c3 { grid-template-columns: repeat(3, 1fr); } .pgrid.c4 { grid-template-columns: repeat(4, 1fr); }
+  .pbtn { min-height: 72px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; font-weight: 700; letter-spacing: .03em; display: grid; place-items: center; gap: 2px; padding: 10px; text-align: center; }
+  .pbtn small { font-weight: 400; font-size: 11px; color: var(--muted); letter-spacing: 0; }
+  .pbtn.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.22), rgba(128,88,161,.22)); color: #fff; }
+  .pbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pbtn.huge { min-height: 120px; font-size: 26px; }
+  .pbtn.danger.active { background: rgba(236,96,97,.25); border-color: var(--bad); }
+  .pbtn:active { transform: scale(.97); }
+  .plabel { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 4px 0 -6px; }
+  .pslider { display: grid; grid-template-columns: 120px 1fr 64px; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .pslider label { font-size: 16px; font-weight: 500; }
+  .pslider .v { font-family: var(--mono); font-size: 16px; text-align: right; color: var(--accent2); }
+  .pslider input[type=range] { width: 100%; height: 44px; accent-color: var(--accent2); }
+  .pstep { display: grid; grid-template-columns: 72px 1fr 72px; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+  .pstep .pbtn { min-height: 60px; font-size: 26px; }
+  .pstep .mid { text-align: center; } .pstep .mid b { display: block; font-size: 16px; } .pstep .mid span { font-family: var(--mono); color: var(--accent2); font-size: 18px; }
+  .pdots { display: flex; justify-content: center; gap: 8px; padding: 8px; border-top: 1px solid var(--line); background: var(--panel); }
+  .pdots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); } .pdots i.on { background: var(--accent2); }
+  .pm-tile { min-height: 64px; font-size: 14px; font-weight: 500; }
+  @media (max-width: 500px) { .pgrid.c3 { grid-template-columns: 1fr 1fr; } .pgrid.c4 { grid-template-columns: 1fr 1fr; } .pslider { grid-template-columns: 90px 1fr 56px; } .pbtn { font-size: 16px; min-height: 64px; } .perf-top .tabs button { padding: 8px 8px; font-size: 13px; } }
+
+  /* outputs tab */
+  #outputs { display: block; max-width: 1200px; margin: 0 auto; padding: 16px; }
+  #outputs[hidden] { display: none; }
+  #outputs .card { margin-bottom: 16px; }
+  #outputs h2 .sub { color: var(--muted); font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .field { display: grid; grid-template-columns: 130px 1fr; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+  .field:last-child { border-bottom: 0; }
+  .field label { color: var(--muted); }
+  .field input.text, .field select { max-width: 320px; }
+  .field .row { gap: 6px; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .thumbs figure { margin: 0; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .thumbs img { width: 100%; aspect-ratio: 16/9; display: block; image-rendering: auto; background: #000; }
+  .thumbs figcaption { font-family: var(--mono); font-size: 11px; color: var(--muted); padding: 5px 8px; display: flex; justify-content: space-between; }
+  .striptable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .striptable th, .striptable td { padding: 4px 4px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  .striptable input, .striptable select { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; color: var(--text); width: 100%; min-width: 0; }
+  .striptable input[type=number] { width: 64px; } .striptable input.ip { width: 120px; } .striptable input.nm { width: 110px; } .striptable input.uv { width: 54px; }
+  .striptable td.univ { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  #led-canvas { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; border: 1px solid var(--line); display: block; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 1px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { background: var(--panel2); border: 0; padding: 6px 12px; color: var(--muted); font-size: 12px; }
+  .seg button.active { background: var(--accent); color: #fff; }
+  @media (max-width: 700px) { .field { grid-template-columns: 1fr; gap: 4px; } .striptable { font-size: 11px; } }
+
   /* info tab */
   #info { display: block; max-width: 900px; margin: 0 auto; padding: 16px; }
   #info[hidden], main[hidden] { display: none; }
@@ -223,8 +282,9 @@
   <span class="pill" id="pill-fleet">0 projectors</span>
   <span class="pill" id="pill-tempo"><i class="dot" id="tempo-dot"></i><span id="tempo-label">no tempo</span></span>
   <div class="spacer"></div>
-  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
-  <span class="pill" id="pill-ver">v0.4.2</span>
+  <button class="btn small primary" id="perf-enter" title="big-button touch mode">▶ PERFORM</button>
+  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="outputs">Outputs</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
+  <span class="pill" id="pill-ver">v0.5.0</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
@@ -370,6 +430,54 @@
   </aside>
 </main>
 
+<section id="outputs" hidden>
+  <div class="card">
+    <h2>Outputs <span class="spacer"></span><span class="sub">where the rig's picture and tempo go, besides the projectors</span></h2>
+    <div class="toc" style="display:flex;gap:6px;flex-wrap:wrap">
+      <a class="btn small" href="#o-live">Live from projectors</a><a class="btn small" href="#o-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#o-ndi">NDI video</a><a class="btn small" href="#o-led">LED pixel strips</a>
+    </div>
+  </div>
+
+  <div class="card" id="o-live">
+    <h2>Live from projectors <span class="spacer"></span><span class="sub">80×45 thumbnails, 20/s from every renderer · also the LED sampling source</span></h2>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+
+  <div class="card" id="o-resolume">
+    <h2>Resolume &amp; Ableton Link <span class="spacer"></span><span class="pill"><i class="dot" id="res-dot"></i><span id="res-label">OSC out</span></span><span class="pill"><i class="dot" id="link-dot"></i><span id="link-label">Link</span></span></h2>
+    <h4 style="margin:6px 0;color:var(--accent2);font-size:13px">Ableton Link — shared tempo &amp; bar phase with Resolume / Ableton / Traktor</h4>
+    <div class="field"><label>Link</label><div class="row"><button class="toggle" id="link-toggle"></button><span class="seg"><button data-lm="follow" id="lm-follow">follow session</button><button data-lm="lead" id="lm-lead">lead (push CDJ tempo)</button></span><span style="font-size:12px;color:var(--muted)" id="link-status"></span></div></div>
+    <div class="hint">Enable Link in Resolume (Preferences → Tempo → Ableton Link) and it appears as a peer. <b>Follow</b>: the rig takes tempo and bar phase from the session. <b>Lead</b>: the rig pushes its tempo (Pro DJ Link / tap) into the session and forces bar 1 on SET BEAT 1 — so Resolume follows the decks via us.</div>
+    <h4 style="margin:14px 0 6px;color:var(--accent2);font-size:13px">OSC to Resolume — tempo, bar resync, scene → column, parameter map</h4>
+    <div class="field"><label>Send OSC</label><div class="row"><button class="toggle" id="res-toggle"></button><input class="text" id="res-host" placeholder="Resolume PC IP" style="max-width:160px"><input class="text" id="res-port" type="number" placeholder="7000" style="max-width:90px"><button class="btn small" id="res-apply">apply</button></div></div>
+    <div class="field"><label>Options</label><div class="row"><label style="font-size:12px"><input type="checkbox" id="res-tempo"> send tempo (normalised, 20–500 BPM)</label><label style="font-size:12px"><input type="checkbox" id="res-resync"> resync on SET BEAT 1</label></div></div>
+    <div class="field"><label>Test</label><div class="row"><button class="btn small" id="res-test-resync">send resync</button><button class="btn small" id="res-test-tempo">send tempo now</button><button class="btn small" id="res-test-col">connect column 1</button><span style="font-family:var(--mono);font-size:11px;color:var(--muted)" id="res-stats"></span></div></div>
+    <div class="field"><label>Scene → column</label><div class="row" id="res-cols"></div></div>
+    <div class="field"><label>Param → OSC</label><div style="min-width:0"><div id="res-map"></div><div class="row" style="margin-top:6px"><select id="res-map-param" class="btn small"></select><input class="text" id="res-map-addr" placeholder="/composition/layers/1/video/effects/hue/effect/hue"><button class="btn small" id="res-map-add">add</button></div><div class="hint">Values go out normalised 0–1 whenever the parameter changes (max 20/s). Any Resolume parameter's OSC address is shown in its shortcut panel (Shortcuts → OSC → edit). Resolume can also send OSC back to <code>/frx/&lt;param&gt;</code> on udp/9000.</div></div></div>
+  </div>
+
+  <div class="card" id="o-ndi">
+    <h2>NDI video <span class="spacer"></span><span class="sub">publish a Pi's picture as an NDI source for Resolume / OBS / vMix</span></h2>
+    <div id="ndi-status"></div>
+    <div class="hint">Simplest, most robust path into Resolume is still an <b>HDMI capture card</b> (Cam Link 4K, Magewell) on any Pi's second HDMI port — zero software. NDI is the network alternative: install the NDI SDK on a Pi with <code>setup/install-ndi.sh &lt;tar.gz&gt;</code>, add <code>--ndi</code> to that renderer's arguments, and "Fractal Rig (pi-name)" appears in Resolume's Sources → NDI. A Pi 5 does 1080p at scale 0.6 / 30 fps comfortably.</div>
+  </div>
+
+  <div class="card" id="o-led">
+    <h2>LED pixel strips <span class="spacer"></span><span class="pill"><i class="dot" id="led-dot"></i><span id="led-label">off</span></span></h2>
+    <div class="field"><label>Output</label><div class="row"><button class="toggle" id="led-toggle"></button><span style="font-size:12px;color:var(--muted)">sample from</span><select id="led-source" class="btn small"><option value="">freshest renderer</option></select><span style="font-size:12px;color:var(--muted)">at</span><input class="text" id="led-fps" type="number" min="1" max="60" style="max-width:70px"><span style="font-size:12px;color:var(--muted)">fps</span></div></div>
+    <div class="field"><label>Brightness / gamma</label><div class="row"><input type="range" id="led-bri" min="0" max="1" step="0.01" style="flex:1;max-width:220px;accent-color:var(--accent2)"><span class="val" id="led-bri-v" style="font-family:var(--mono);font-size:12px;width:40px"></span><input type="range" id="led-gam" min="1" max="3" step="0.05" style="flex:1;max-width:220px;accent-color:var(--accent2)"><span class="val" id="led-gam-v" style="font-family:var(--mono);font-size:12px;width:40px"></span></div></div>
+    <div class="field"><label>Test pattern</label><div class="row"><span class="seg" id="led-test"><button data-t="off">off</button><button data-t="white">white</button><button data-t="rgb">R/G/B</button><button data-t="chase">chase</button></span><span style="font-family:var(--mono);font-size:11px;color:var(--muted)" id="led-stats"></span></div></div>
+    <canvas id="led-canvas" width="960" height="540"></canvas>
+    <div class="hint">Canvas = the same picture the projectors show. Each strip is a straight line from (x0,y0) to (x1,y1) in canvas coordinates 0–1, origin top-left; pixels are spaced evenly along it and sample the live frame. Stack strips for a matrix. Colours shown on the lines are what is being sent right now.</div>
+    <div class="tablewrap" style="margin-top:10px">
+      <table class="striptable"><thead><tr><th>on</th><th>name</th><th>controller IP</th><th>protocol</th><th>universe</th><th>start ch</th><th>order</th><th>pixels</th><th>x0</th><th>y0</th><th>x1</th><th>y1</th><th>universes used</th><th></th></tr></thead><tbody id="strips"></tbody></table>
+    </div>
+    <div class="row" style="margin-top:8px"><button class="btn small" id="strip-add">+ add strip</button><button class="btn small" id="strip-matrix">+ add matrix…</button><button class="btn small primary" id="strips-apply">apply to master</button><span class="hint" id="strips-msg" style="margin:0"></span></div>
+    <div class="hint" id="led-errors"></div>
+    <div class="hint"><b>Protocols:</b> <b>DDP</b> (udp 4048) for WLED — one strip = one WLED device, universes ignored. <b>Art-Net</b> (udp 6454) for Advatek / PixLite / Falcon / Art-Net WLED — 170 RGB pixels per universe, a long strip automatically uses consecutive universes from the one you set. <b>sACN / E1.31</b> (udp 5568) — same universe rule; set IP to <code>multicast</code> to use the standard 239.255.x.y groups. <b>Order</b>: WS2812/WS2815 are GRB, SK6812 RGBW is not supported (use RGB mode on the controller), APA102 usually BGR.</div>
+  </div>
+</section>
+
 <section id="status" hidden>
   <div class="card wide" style="margin-bottom:16px">
     <h2>Status &amp; debugging <span class="spacer"></span>
@@ -386,7 +494,7 @@
     <h3>Fractal Rig — how it all fits together</h3>
     <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master renders too, so it is projector #1). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 20 parameters — in one 120-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet.</p>
     <div class="toc">
-      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
+      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
     </div>
   </div>
 
@@ -408,6 +516,9 @@
 
     <h4>OSC</h4>
     <p>UDP 9000. <code>/frx/&lt;param&gt; f</code> (e.g. <code>/frx/hue 0.5</code>), <code>/frx/tap</code>, <code>/frx/beat1</code>, <code>/frx/bpm f</code>, <code>/frx/preset s|i</code>, <code>/frx/auto_&lt;param&gt; 0|1</code>, <code>/frx/pm_next</code> · <code>/frx/pm_prev</code> · <code>/frx/pm_random</code>. TouchOSC, Lemur, Ableton (Max for Live / OSC plugins), Resolume, QLab and Beat Link Trigger all speak this — it is the bolt-on route for anything not built in.</p>
+
+    <h4>Ableton Link</h4>
+    <p>A tempo source <em>and</em> an output: follow a Link session (Resolume / Ableton / Traktor) or lead it with the CDJ grid. See the Resolume section.</p>
 
     <h4>Autonomous</h4>
     <p>Parameters with the pink toggle wander on smooth noise around wherever you left their slider. "Auto depth" is how far, "Auto rate" how fast; zoom drifts deliberately shallower. The Sources toggle pauses all drift at once without losing which params were selected. With nothing else plugged in the rig runs itself indefinitely.</p>
@@ -450,6 +561,7 @@
     <h4>Shopping list</h4>
     <ul>
       <li><b>Raspberry Pi 5</b> (best) or Pi 4, one per projector. Pi 5 does 1080p ≈ 60 fps at the default render scale 0.6 with 150–300 iterations; Pi 4 use scale 0.5 / ~120 iterations. Pi Zero 2 W works at scale 0.35 for simpler scenes.</li>
+      <li><b>RAM:</b> the 2 GB Pi 5 is fine for a renderer and for the master (renderer ≈ 60 MB, master ≈ 80 MB, projectM adds ~150 MB, and the projectM build script drops to 2 jobs on 2 GB boards). Go 4 GB only if the <em>same</em> Pi will also run the Chromium touchscreen kiosk. <b>Storage:</b> a 32 GB card is enough, 64 GB is comfortable (OS ≈ 5 GB, projectM source + build ≈ 1 GB, Cream-of-the-Crop presets ≈ 100 MB); use an A2-rated card or an NVMe HAT on the master for faster boots.</li>
       <li>Official PSU per Pi (27 W for Pi 5, 15 W for Pi 4) — under-powered Pis throttle the GPU. micro-HDMI → HDMI cable per projector.</li>
       <li>A cheap <b>gigabit switch</b> and patch leads. Wired beats Wi-Fi: multicast on Wi-Fi jitters 20–50 ms and gets dropped under load; wired is &lt;1 ms.</li>
       <li>Master extras: a small router/DHCP if the XDJ is on the same switch, a MIDI controller and/or USB audio input if you want them.</li>
@@ -508,6 +620,57 @@ sudo bash setup/install.sh master</pre>
     <p>Packet: magic <code>FRX1</code>, version, param count, sequence, flags, <code>t</code> (master clock, f64), <code>beat_t</code> (clock time of the last beat, f64), <code>bpm</code>, <code>bar_beat</code>, then 20 floats in the order of <code>master/params.py</code>. Renderers store <code>(t, arrival)</code> and render at <code>t + (now − arrival)</code> — re-anchored 60× a second, so there is no drift to correct. Continuous params are smoothed (τ 60 ms) identically on every Pi; discrete ones (scene, iterations, kaleido) snap. Beats are never sent as a phase — the shader computes <code>fract((t − beat_t)·bpm/60)</code> itself, so it can't wrap mid-interpolation. Lose the master for 3 s and a Pi freewheels on its own clock, then re-locks silently. HDMI outputs are not genlocked, so adjacent projectors can be up to one frame (16 ms) apart — invisible at normal speeds. Full detail in <code>PROTOCOL.md</code>.</p>
   </div>
 
+
+  <div class="card" id="i-perform">
+    <h3>Perform mode &amp; touchscreen console</h3>
+    <p><b>▶ PERFORM</b> (header button, key <kbd>P</kbd>, or open <code>?perf=1</code>) replaces the whole page with big touch controls in four swipeable pages — <b>Show</b> (TAP, SET BEAT 1, engine, scenes, blackout / freeze / auto), <b>Presets</b> (shader presets, projectM prev / random / next / hold, your ★ favourites as tiles), <b>Feel</b> (brightness, contrast, glow, beat pulse, bar swing, warp, speed, auto depth, zoom / kaleidoscope / detail steppers) and <b>Colour</b> (hue swatches and sliders). Swipe or tap the page names; <b>✕ EXIT</b> (or <kbd>Esc</kbd>) returns to the full GUI with every micro-control. The mode is remembered per browser.</p>
+    <h4>Raspberry Pi touchscreen</h4>
+    <p>Yes — the official 7" Touch Display (800×480), Touch Display 2 (720×1280) or any HDMI touch monitor works as a dedicated console: it is just Chromium showing this page. <code>sudo bash setup/install-kiosk.sh http://fractal-master.local:8080/?perf=1</code> on a Pi does the whole thing — on Pi OS Lite it installs <b>cage</b> (one-window Wayland kiosk) + Chromium and boots straight into Perform mode; on Pi OS Desktop it adds an autostart entry instead. Touch works out of the box under Wayland.</p>
+    <ul>
+      <li><b>Best:</b> a separate console Pi (Pi 4 2 GB is plenty) with the touchscreen, on the same switch. The master keeps running headless with KMSDRM on its projector.</li>
+      <li><b>Same Pi as a projector:</b> KMSDRM can't share the GPU with a compositor, so use Pi OS Desktop on that Pi, remove <code>SDL_VIDEODRIVER=KMSDRM</code> from <code>fractal-renderer.service</code> and add <code>--display 1</code> so the renderer goes fullscreen on the HDMI output while the kiosk owns the touchscreen.</li>
+      <li>Any phone or tablet does the same job with no install — the layout is fully mobile-adaptive.</li>
+    </ul>
+  </div>
+
+  <div class="card" id="i-resolume">
+    <h3>Resolume &amp; Ableton Link</h3>
+    <p>Everything lives in the <b>Outputs</b> tab. Three separate integrations, use any combination:</p>
+    <h4>1 · Getting the rig's picture into Resolume</h4>
+    <p><b>HDMI capture card</b> (Cam Link 4K, Magewell USB Capture, ~£90–£300) on any Pi's HDMI — zero software, ~2 frames latency, never crashes. The rig appears in Resolume as a live source you can layer, mask, effect and pixel-map. This is the recommended route. Alternatively <b>NDI</b> over the network — see the NDI section.</p>
+    <h4>2 · Tempo &amp; bar lock — Ableton Link</h4>
+    <p>Enable Link in Resolume (Preferences → Tempo → <i>Ableton Link</i>); the rig shows it as a peer. <b>Follow</b>: the rig takes tempo and bar phase from the Link session (Resolume, Ableton, Traktor, anything on the LAN can be the leader). <b>Lead</b>: the rig pushes its own tempo — from the XDJ's Pro DJ Link grid or tap — into the session and forces bar 1 on SET BEAT 1, so Resolume's beat-synced effects follow the CDJs through us. Tempo priority on the master when several sources are live: Pro DJ Link, then Link (follow), then tap / typed BPM, then audio onset. Needs <code>aalink</code> in the master venv (<code>install.sh master</code> adds it).</p>
+    <h4>3 · OSC to Resolume — tempo, resync, scenes, parameters</h4>
+    <p>In Resolume: Preferences → OSC → enable <i>OSC Input</i>, note the port (7000 default) and the PC's IP; enter both in the Outputs tab and switch on. The rig then sends the tempo whenever it changes (<code>/composition/tempocontroller/tempo</code>, normalised over Resolume's 20–500 BPM range), a <code>resync</code> on every SET BEAT 1, optionally <code>/composition/columns/N/connect</code> when a scene is selected (Scene → column map), and any rig parameter you map to a Resolume address (values 0–1, max 20/s). Find any Resolume parameter's OSC address in its Shortcuts → OSC panel. The reverse works too: Resolume's OSC <i>Output</i> can drive <code>/frx/&lt;param&gt;</code> on udp/9000, so a Resolume dashboard fader can move the rig.</p>
+    <h4>4 · Resolume driving the LEDs instead</h4>
+    <p>If you have <b>Arena</b>, its Advanced Output already pixel-maps Art-Net from any layer — with the rig's video in Resolume via capture card, Resolume can drive the strips and you can skip the LED section. Avenue can't, hence ours.</p>
+  </div>
+
+  <div class="card" id="i-ndi">
+    <h3>NDI video</h3>
+    <p>NDI publishes a Pi's picture as a network video source for Resolume, OBS, vMix, TouchDesigner… The NDI SDK is a free licence-click download, so it can't ship in the repo: download <i>NDI SDK for Linux</i> from ndi.video, then on the Pi <code>sudo bash setup/install-ndi.sh ~/Install_NDI_SDK_v6_Linux.tar.gz</code> (installs headers + libndi, rebuilds the renderer with NDI), and add <code>--ndi</code> to that renderer's arguments (<code>sudo systemctl edit fractal-renderer</code>). The source appears as <b>"Fractal Rig (pi-name)"</b>. Frames are sent at the render scale (1080p × 0.6 = 1152×648) at up to <code>--ndi-fps</code> (30 default) — a Pi 5 is comfortable there; ~40 Mbit/s on the LAN. The Outputs tab shows per-Pi NDI state (off / publishing / receiver connected). Use a wired switch; NDI over Wi-Fi is not a good evening.</p>
+  </div>
+
+  <div class="card" id="i-led">
+    <h3>LED pixel strips</h3>
+    <p>An LED strip is treated as a very thin, very low-resolution projector: a straight line of sample points on the <em>same canvas</em> the projectors show. Each renderer streams an 80×45 thumbnail of its frame to the master 20× a second; the master samples the strip positions, applies gamma and brightness, and sends the pixel data to your controllers at the LED frame rate (40 fps default). Because the sample comes from the same packet-driven frame, the LEDs kick on the exact same beat as the projectors. All of it is configured in <b>Outputs → LED pixel strips</b>.</p>
+    <h4>Controllers</h4>
+    <table><tbody>
+      <tr><td>WLED (ESP32)</td><td>Best value: a £10 ESP32 board flashed from install.wled.me, a level shifter (74AHCT125) for 5 V data, up to ~800 WS2812 pixels per board. In WLED: Config → LED Preferences (count, type, colour order), Config → Sync → enable <b>DDP</b> (Realtime) — then use protocol <b>ddp</b> here. One WLED device = one strip line (or split its pixels across several lines with start pixel via multiple entries — coming). E1.31/Art-Net also work if you prefer.</td></tr>
+      <tr><td>Advatek / PixLite / Falcon / ECG-P2</td><td>Pro pixel controllers speak <b>Art-Net</b> and <b>sACN</b>: set the controller's first universe per output, then give each strip line here the same universe; a strip longer than 170 pixels automatically continues into the next universes. sACN with IP <code>multicast</code> uses the standard 239.255.x.y groups (switch must pass multicast — same as our own sync).</td></tr>
+      <tr><td>Strip type</td><td>WS2812B / WS2815 (12 V, better for long runs) = colour order GRB, 60 px/m typical. SK6812 RGBW: set the controller to RGB mode. APA102/SK9822: fast, usually BGR.</td></tr>
+    </tbody></table>
+    <h4>Layout</h4>
+    <p>Each row in the strip table is a run: name, controller IP, protocol, universe, start channel (Art-Net/sACN offset within the first universe), colour order, pixel count, and the start (x0,y0) and end (x1,y1) of the line in canvas coordinates 0–1 with origin top-left. The canvas preview shows every line with the colours being sent right now (blue dot = pixel 1, pink = last). <b>+ add matrix</b> builds a grid of rows for panels, with serpentine wiring if you ask. Press <b>apply to master</b> to save — the layout persists in <code>master/config.local.json</code>. Test patterns (white / R-G-B / chase) send regardless of the picture so you can check wiring and colour order.</p>
+    <h4>Power — the bit that actually bites</h4>
+    <ul>
+      <li>WS2812 at full white draws ~60 mA/pixel: 150 px ≈ 9 A at 5 V. Budget 20 mA/px average with our brightness cap of 0.8 and dark-friendly scenes, but size the PSU for the peak.</li>
+      <li><b>Inject power every 3–5 m</b> of 5 V strip (both ends of every 5 m reel); 12 V WS2815 tolerates 10 m. Voltage drop shows as the far end going orange — that's your cue.</li>
+      <li>Common ground between PSU, controller and strip; a 300–500 Ω resistor in the data line at the first pixel; keep the data lead short (&lt; 1 m) or use a level shifter.</li>
+      <li>Fuse each PSU output. Strips on aluminium channel run cooler and last longer.</li>
+    </ul>
+  </div>
+
   <div class="card" id="i-status">
     <h3>Status &amp; debugging tab</h3>
     <p>The <b>Status</b> tab is the rig's own instrument panel, refreshed live. The line at the top flags problems automatically: master tick rate low or a tick gap over 50 ms, master Pi throttled / under-voltage, CPU over 75 °C (master or any Pi), a renderer under 45 fps, packet loss, a heartbeat older than 3 s, no renderers heard, Pro DJ Link enabled but not locked, UI round-trip over 100 ms. Cards below:</p>
@@ -549,6 +712,9 @@ sudo bash setup/install.sh master</pre>
     <table><tbody>
       <tr><td>Projectors table empty</td><td>Renderers can't see the master's multicast. Same subnet? IGMP snooping? <code>journalctl -fu fractal-renderer</code> should say "master acquired". Try <code>--iface &lt;pi-ip&gt;</code> on multi-NIC Pis.</td></tr>
       <tr><td>"freewheel" in renderer log</td><td>Packets stopped for &gt;3 s. Master down, cable, or Wi-Fi drop. Picture keeps moving; it re-locks automatically.</td></tr>
+      <tr><td>Ableton Link shows no peers</td><td>Link uses UDP multicast on 20808 — same switch, no client isolation, multicast allowed. Enable Link in Resolume's Tempo preferences. Both ends need to be on the same subnet.</td></tr>
+      <tr><td>LEDs stay dark</td><td>Switch on a test pattern first: if that works, it's the layout/source; if not, it's network or controller. WLED: DDP must be enabled under Sync; Art-Net: universe numbers start at 0 in WLED/Advatek but at 1 in some sACN gear. Check the strip's IP is reachable (self-test pings each).</td></tr>
+      <tr><td>Resolume ignores OSC</td><td>Preferences → OSC → Input enabled, same port as here; Windows firewall must allow Resolume UDP in. Values are normalised 0–1 by design.</td></tr>
       <tr><td>Pro DJ Link stays amber</td><td>No beat packets reaching the master: LINK cable, subnet (169.254 vs DHCP), or a deck that isn't playing. <code>sudo tcpdump -ni eth0 udp port 50001</code> on the master shows them if they're there.</td></tr>
       <tr><td>Low fps on a Pi</td><td>Lower <code>--scale</code> (0.5 → 0.4) or iterations (150). Check <code>vcgencmd get_throttled</code> — 0x50000 means the PSU is weak.</td></tr>
       <tr><td>Garbage / black on Pi 5 with KMSDRM</td><td>Update: <code>sudo apt full-upgrade</code> (needs SDL ≥ 2.30). Or run under Pi OS Desktop without the KMSDRM line.</td></tr>
@@ -566,12 +732,67 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
+      <tr><td>v0.5.0</td><td><b>Outputs</b> tab: live thumbnails from every renderer; Ableton Link (follow / lead); OSC to Resolume (tempo, bar resync, scene → column, parameter map); NDI publishing (<code>install-ndi.sh</code> + <code>--ndi</code>); LED pixel output over DDP / Art-Net / sACN with a strip layout editor, matrix builder, test patterns and live canvas preview. <b>Perform mode</b> — big touch controls in swipeable pages — plus <code>install-kiosk.sh</code> for a Pi touchscreen console and <code>--display</code> on the renderer.</td></tr>
       <tr><td>v0.4.2</td><td>Engine switch (Shader scenes ⇄ projectM) and the extended projectM panel: big preset name, PREV / RANDOM / NEXT, filterable browse list with ★ favourites, recent chips, hold, auto-cycle; works in the Pages demo too.</td></tr>
       <tr><td>v0.4.1</td><td>In-browser projectM simulation in the Live preview (Butterchurn — Milkdrop 2 in WebGL, vendored, offline-capable), matched by preset name to what the Pis are showing.</td></tr>
       <tr><td>v0.4.0</td><td>projectM scene 8: libprojectM 4 built with GLES on each Pi, master-owned preset selection with search / prev / next / random / auto-cycle every N bars, PCM multicast stream with beat-locked synthetic fallback, kaleido/zoom/hue post-pass via <code>pm_mix</code>, <code>install-projectm.sh</code>, heartbeat v3 (preset count / current / audio).</td></tr>
     </tbody></table>
     <p>Source, issues and the Pages demo: <a href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">github.com/sonorltd/sonor-fractal-rig</a>.</p>
   </div>
+</section>
+
+<section id="perf" hidden>
+  <div class="perf-top">
+    <div class="bpm"><span id="pf-bpm">—</span><small>BPM</small></div>
+    <span class="pill" id="pf-src">no tempo</span>
+    <div class="spacer"></div>
+    <div class="tabs" id="pf-tabs"><button data-pg="0" class="active">Show</button><button data-pg="1">Presets</button><button data-pg="2">Feel</button><button data-pg="3">Colour</button></div>
+    <button class="btn small" id="perf-exit">✕ EXIT to full controls</button>
+  </div>
+  <div class="perf-pages" id="pf-pages">
+    <div class="ppage" data-pg="0">
+      <div class="pgrid c2"><button class="pbtn huge primary" id="pf-tap">TAP<small>space</small></button><button class="pbtn huge" id="pf-beat1">SET BEAT 1<small>re-align the bar</small></button></div>
+      <div class="plabel">Engine</div>
+      <div class="pgrid c2"><button class="pbtn" id="pf-eng-shader">SHADER SCENES</button><button class="pbtn" id="pf-eng-pm">PROJECTM</button></div>
+      <div class="plabel">Scene</div>
+      <div class="pgrid c3" id="pf-scenes"></div>
+      <div class="plabel">Safety</div>
+      <div class="pgrid c3"><button class="pbtn danger" id="pf-blackout">BLACKOUT<small>brightness → 0</small></button><button class="pbtn" id="pf-freeze">FREEZE<small>clock speed → 0</small></button><button class="pbtn" id="pf-autotoggle">AUTO DRIFT<small>on / off</small></button></div>
+    </div>
+    <div class="ppage" data-pg="1">
+      <div class="plabel">Shader presets</div>
+      <div class="pgrid c3" id="pf-presets"></div>
+      <div class="plabel">projectM</div>
+      <div style="font-family:var(--mono);font-size:16px;color:var(--accent2)" id="pf-pm-name">—</div>
+      <div class="pgrid c3"><button class="pbtn" id="pf-pm-prev">◀ PREV</button><button class="pbtn primary" id="pf-pm-random">RANDOM</button><button class="pbtn" id="pf-pm-next">NEXT ▶</button></div>
+      <div class="pgrid c2"><button class="pbtn" id="pf-pm-hold">HOLD<small>pause auto-cycle</small></button><button class="pbtn" id="pf-pm-fav">☆ FAVOURITE</button></div>
+      <div class="plabel">Favourite presets</div>
+      <div class="pgrid c2" id="pf-pm-favs"></div>
+    </div>
+    <div class="ppage" data-pg="2">
+      <div class="pslider"><label>Brightness</label><input type="range" data-pk="brightness" min="0" max="2" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Contrast</label><input type="range" data-pk="contrast" min="0.2" max="3" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Glow</label><input type="range" data-pk="glow" min="0" max="1" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Beat pulse</label><input type="range" data-pk="beat_pulse" min="0" max="1" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Bar swing</label><input type="range" data-pk="bar_swing" min="0" max="1" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Warp</label><input type="range" data-pk="warp" min="0" max="1" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Speed</label><input type="range" data-mk="clock_speed" min="0" max="3" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Auto depth</label><input type="range" data-mk="auto_depth" min="0" max="1" step="0.01"><span class="v"></span></div>
+      <div class="pstep"><button class="pbtn" data-nudge="zoom" data-d="-0.5">−</button><div class="mid"><b>Zoom</b><span data-show="zoom"></span></div><button class="pbtn" data-nudge="zoom" data-d="0.5">+</button></div>
+      <div class="pstep"><button class="pbtn" data-nudge="kaleido" data-d="-1">−</button><div class="mid"><b>Kaleidoscope</b><span data-show="kaleido"></span></div><button class="pbtn" data-nudge="kaleido" data-d="1">+</button></div>
+      <div class="pstep"><button class="pbtn" data-nudge="iterations" data-d="-40">−</button><div class="mid"><b>Detail</b><span data-show="iterations"></span></div><button class="pbtn" data-nudge="iterations" data-d="40">+</button></div>
+    </div>
+    <div class="ppage" data-pg="3">
+      <div class="plabel">Hue</div>
+      <div class="pgrid c4" id="pf-hues"></div>
+      <div class="pslider"><label>Hue</label><input type="range" data-pk="hue" min="0" max="1" step="0.005"><span class="v"></span></div>
+      <div class="pslider"><label>Hue spread</label><input type="range" data-pk="hue_spread" min="0" max="4" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Hue cycle</label><input type="range" data-pk="hue_speed" min="-1" max="1" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Rotation</label><input type="range" data-pk="rotation" min="0" max="6.2832" step="0.01"><span class="v"></span></div>
+      <div class="pslider"><label>Shader mix<small style="display:block;color:var(--muted);font-size:11px">projectM only</small></label><input type="range" data-pk="pm_mix" min="0" max="1" step="0.01"><span class="v"></span></div>
+    </div>
+  </div>
+  <div class="pdots" id="pf-dots"><i class="on"></i><i></i><i></i><i></i></div>
 </section>
 
 <footer>Fractal Rig · a Sonor side-project · one master, N synced Raspberry Pi projectors · <a href="https://github.com/sonorltd/sonor-fractal-rig">source</a></footer>
@@ -601,7 +822,10 @@ const S = {
     midi:  {enabled: true, ok: false, detail: 'needs the master (demo)'},
     osc:   {enabled: true, ok: false, detail: 'needs the master (demo)'},
     auto:  {enabled: true, ok: true, detail: 'drifting'},
+    link:  {enabled: true, ok: false, detail: 'needs the master (demo)'},
+    resolume: {enabled: false, ok: false, detail: 'OSC out'}, led: {enabled: false, ok: false, detail: 'pixel output'},
   },
+  outputs: {resolume: {}, led: {strips: []}, thumbs: {}, link: {}, ndi: {renderers: {}}},
 };
 const SOURCE_META = {
   web:   {label: 'Web UI',       sub: 'this page · phone / laptop'},
@@ -610,6 +834,7 @@ const SOURCE_META = {
   midi:  {label: 'MIDI',         sub: 'USB controller · CC → params'},
   osc:   {label: 'OSC',          sub: 'TouchOSC / Ableton · udp 9000'},
   auto:  {label: 'Autonomous',   sub: 'slow noise drift'},
+  link:  {label: 'Ableton Link',  sub: 'Resolume / Ableton tempo'},
 };
 PARAMS.forEach(p => { S.base[p.key] = p.def_; S.out[p.key] = p.def_; S.auto[p.key] = !!p.auto; });
 const DEMO_PRESETS = {
@@ -691,7 +916,7 @@ function connect(url) {
     Object.assign(S, {packets_sent: m.packets_sent, tick_hz: m.tick_hz, tick_gap_ms: m.tick_gap_ms, uptime: m.uptime, diag: m.diag || {}, prodj_raw: m.prodj_raw || {}, seq: m.seq});
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
       clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
-      auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, pm: m.pm || S.pm});
+      auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, pm: m.pm || S.pm, outputs: m.outputs || S.outputs});
     S.t = m.t; S.tRecv = performance.now();
     S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
     renderControls();
@@ -745,8 +970,8 @@ function renderControls() {
   $('modes').querySelectorAll('button').forEach(b => b.className = 'btn small' + (+b.dataset.mode === Math.round(S.base.mode) ? ' active' : ''));
   for (const k of ['clock_speed', 'auto_depth', 'auto_rate']) { if (document.activeElement !== $(k)) $(k).value = S[k]; $(k + '_v').textContent = (+S[k]).toFixed(2); }
   $('bpm').textContent = S.bpm ? S.bpm.toFixed(1) : '—';
-  const src = {none: 'no tempo', prodj: 'Pro DJ Link', tap: 'tap / manual', audio: 'audio onset'}[S.tempo_source] || S.tempo_source;
-  $('tempo-label').textContent = src; $('tempo-dot').className = 'dot ' + (S.tempo_source === 'prodj' ? 'ok' : S.bpm ? 'warn' : '');
+  const src = {none: 'no tempo', prodj: 'Pro DJ Link', tap: 'tap / manual', audio: 'audio onset', link: 'Ableton Link'}[S.tempo_source] || S.tempo_source;
+  $('tempo-label').textContent = src; $('tempo-dot').className = 'dot ' + (S.tempo_source === 'prodj' || S.tempo_source === 'link' ? 'ok' : S.bpm ? 'warn' : '');
   $('tempo-src').textContent = S.tempo_source === 'prodj' ? 'Locked to Pro DJ Link beat packets' : S.live ? 'Pro DJ Link: waiting for beat packets on udp/50001 · tap or type a BPM meanwhile' : 'Demo: tap or type a BPM';
   $('decks').innerHTML = Object.entries(S.decks || {}).map(([d, x]) => `<span class="pill">deck ${d} · ${x.bpm} · beat ${x.beat}</span>`).join('');
   $('presets').innerHTML = Object.keys(S.presets).map(n => `<span class="btn small" data-p="${esc(n)}">${esc(n)} <span class="x" data-del="${esc(n)}">✕</span></span>`).join('') || '<span style="color:var(--muted)">none yet</span>';
@@ -760,6 +985,8 @@ function renderControls() {
   renderPm();
   renderLog();
   if (!$('status').hidden) renderStatus();
+  if (!$('outputs').hidden) renderOutputs();
+  renderPerf();
 }
 let srcBuilt = '';
 function renderSources() {
@@ -771,6 +998,7 @@ function renderSources() {
       const meta = SOURCE_META[n];
       let extra = '';
       if (n === 'audio' && S.live) extra = `<select id="audio-dev"><option value="">default input</option>${(S.audio_devices || []).map(d => `<option value="${d.index}">${esc(d.name)}</option>`).join('')}</select>`;
+      if (n === 'link' && S.live) extra = `<select id="link-mode"><option value="follow">follow</option><option value="lead">lead</option></select>`;
       if (n === 'prodj' && S.live) extra = `<select id="prodj-follow"><option value="0">follow: auto</option><option value="1">deck 1</option><option value="2">deck 2</option><option value="3">deck 3</option><option value="4">deck 4</option></select>`;
       const toggle = n === 'web' ? '' : `<button class="toggle" data-src="${n}" title="enable / disable"></button>`;
       return `<div class="src" data-src="${n}"><i class="dot"></i><div class="name">${meta.label}<small>${meta.sub}</small></div><div class="detail"></div><div class="ctl">${extra}${toggle}</div></div>`;
@@ -782,6 +1010,7 @@ function renderSources() {
       send(msg);
     });
     const ad = $('audio-dev'); if (ad) { ad.value = S.audio_device == null ? '' : String(S.audio_device); ad.onchange = () => { if (S.sources.audio.enabled) send({source: {name: 'audio', enabled: true, device: ad.value === '' ? null : +ad.value}}); }; }
+    const lmS = $('link-mode'); if (lmS) { lmS.value = (S.outputs.link && S.outputs.link.mode) || 'follow'; lmS.onchange = () => send({source: {name: 'link', enabled: S.sources.link.enabled, mode: lmS.value}}); }
     const pf = $('prodj-follow'); if (pf) { pf.value = String(S.prodj_follow || 0); pf.onchange = () => send({source: {name: 'prodj', enabled: S.sources.prodj.enabled, follow: +pf.value}}); }
   }
   names.forEach(n => {
@@ -878,7 +1107,7 @@ $('auto-none').onclick = () => { const a = {}; PARAMS.forEach(p => a[p.key] = fa
 $('reset').onclick = () => { const s = {}; PARAMS.forEach(p => s[p.key] = p.def_); send({set: s}); };
 $('learn').onclick = () => send({midi_learn: $('learn-param').value});
 for (const k of ['clock_speed', 'auto_depth', 'auto_rate']) $(k).oninput = () => send({[k]: +$(k).value});
-document.addEventListener('keydown', e => { if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return; if (e.code === 'Space') { e.preventDefault(); send({tap: 1}); } if (e.key === '1') send({beat1: 1}); });
+document.addEventListener('keydown', e => { if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return; if (e.code === 'Space') { e.preventDefault(); send({tap: 1}); } if (e.key === '1') send({beat1: 1}); if (e.key === 'Escape' && perfOn) perfEnter(false); if (e.key.toLowerCase() === 'p' && !e.metaKey && !e.ctrlKey) perfEnter(!perfOn); });
 
 // ------------------------------------------------------------ WebGL2 preview — the real shader
 const canvas = $('preview');
@@ -902,6 +1131,7 @@ let lastF = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - lastF) / 1000, 0.25); lastF = now;
+  if (document.querySelector('main').hidden || document.hidden) return;   // preview only renders on the Control tab
   // preview clock follows the master's clock exactly like a Pi does: anchor + extrapolate
   const t = S.t + (now - S.tRecv) / 1000 * (S.live ? S.clock_speed : 0);
   if (bcFrame(now, t)) { if (++fpsN >= 30) { BR.previewFps = Math.round(fpsN / ((now - fpsT) / 1000)); $('pill-fps').textContent = BR.previewFps + ' fps'; fpsN = 0; fpsT = now; } $('pill-t').textContent = 't ' + t.toFixed(1); return; }
@@ -1036,6 +1266,16 @@ function renderStatus() {
       ['Renderers with projectM', fl.filter(([, h]) => h.pm_presets > 0).length + ' / ' + fl.length],
     ])]); }
 
+  // ---- outputs
+  if (S.live) { const o = S.outputs || {}, r = o.resolume || {}, l = o.led || {}, lk = S.sources.link || {};
+    cards.push(['Outputs', kv([
+      ['Ableton Link', lk.enabled ? `${lk.ok ? '<span class="ok">' + lk.peers + ' peers</span>' : '<span class="warn">no peers</span>'} · ${lk.tempo || '—'} BPM · ${(o.link || {}).mode}` : '<span class="mute">off</span>'],
+      ['OSC → Resolume', r.enabled ? `${esc(r.host)}:${r.port} · ${r.sent} sent · last ${esc(r.last || '—')}` : '<span class="mute">off</span>'],
+      ['LED output', l.enabled ? `${l.pixels} px · ${(l.strips || []).length} strips · ${l.fps} fps · ${l.packets} pkts · ${Object.keys(l.errors || {}).length ? '<span class="bad">errors</span>' : '<span class="ok">ok</span>'}` : '<span class="mute">off</span>'],
+      ['Thumbnails', Object.entries(o.thumbs || {}).map(([n, t]) => `${esc(n)} ${t.fps}fps`).join(' · ') || '<span class="mute">none</span>'],
+      ['NDI', fl.map(([n, h]) => `${esc(n)}: ${esc((h.ndi || 'ndi:none').replace('ndi:', ''))}`).join(' · ') || '—'],
+    ])]); }
+
   // ---- config + log
   if (S.live) cards.push(['Master config (effective)', `<pre class="diag">${esc(JSON.stringify(cfg, null, 1))}</pre>`]);
   cards.push(['Log (last 60)', `<pre class="diag">${(S.log || []).slice().reverse().map(esc).join('\n') || '—'}</pre>`]);
@@ -1051,16 +1291,203 @@ $('diag-copy').onclick = async () => {
 };
 $('diag-refresh').onclick = () => { renderStatus(); };
 
+
+// ------------------------------------------------------------ Outputs tab
+let stripsDraft = null, stripsDirty = false, thumbTimer = null, outBuilt = false;
+const PROTO_PORT = {ddp: 4048, artnet: 6454, sacn: 5568};
+function universesUsed(st) { const p = (st.protocol || 'ddp'); if (p === 'ddp') return '—'; const n = Math.ceil((+st.count || 1) / 170); const u = +st.universe || 0; return n === 1 ? String(u) : `${u}–${u + n - 1}`; }
+function stripRow(st, i) {
+  const opt = (v, cur, list) => list.map(o => `<option value="${o}" ${o === cur ? 'selected' : ''}>${o}</option>`).join('');
+  return `<tr data-i="${i}">
+    <td><input type="checkbox" data-k="enabled" ${st.enabled !== false ? 'checked' : ''}></td>
+    <td><input class="nm" data-k="name" value="${esc(st.name || '')}"></td>
+    <td><input class="ip" data-k="ip" value="${esc(st.ip || '')}" placeholder="192.168.1.50"></td>
+    <td><select data-k="protocol">${opt(0, st.protocol || 'ddp', ['ddp', 'artnet', 'sacn'])}</select></td>
+    <td><input type="number" data-k="universe" min="0" max="63999" value="${st.universe || 0}"></td>
+    <td><input type="number" data-k="start_channel" min="0" max="511" value="${st.start_channel || 0}"></td>
+    <td><select data-k="order">${opt(0, (st.order || 'GRB').toUpperCase(), ['RGB', 'GRB', 'BGR', 'BRG', 'RBG', 'GBR'])}</select></td>
+    <td><input type="number" data-k="count" min="1" max="4096" value="${st.count || 1}"></td>
+    <td><input class="uv" type="number" data-k="x0" min="0" max="1" step="0.01" value="${+st.x0 || 0}"></td>
+    <td><input class="uv" type="number" data-k="y0" min="0" max="1" step="0.01" value="${st.y0 == null ? 0.5 : +st.y0}"></td>
+    <td><input class="uv" type="number" data-k="x1" min="0" max="1" step="0.01" value="${st.x1 == null ? 1 : +st.x1}"></td>
+    <td><input class="uv" type="number" data-k="y1" min="0" max="1" step="0.01" value="${st.y1 == null ? 0.5 : +st.y1}"></td>
+    <td class="univ">${universesUsed(st)}</td>
+    <td><button class="btn small" data-del="${i}" title="remove">✕</button></td></tr>`;
+}
+function readStrips() {
+  return [...$('strips').querySelectorAll('tr')].map(tr => { const o = {}; tr.querySelectorAll('[data-k]').forEach(el => { const k = el.dataset.k; o[k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? +el.value : el.value); }); return o; });
+}
+let stripsSig = '';
+function renderStrips(force) {
+  const list = stripsDraft || ((S.outputs.led && S.outputs.led.strips) || []);
+  const sig = JSON.stringify(list); if (!force && sig === stripsSig) return; stripsSig = sig;
+  $('strips').innerHTML = list.map(stripRow).join('') || '<tr><td colspan="14" style="color:var(--muted)">no strips yet — add one</td></tr>';
+  $('strips').querySelectorAll('input,select').forEach(el => el.oninput = () => { stripsDraft = readStrips(); stripsDirty = true; $('strips-msg').innerHTML = '<b>unsaved</b> — press apply'; el.closest('tr').querySelector('.univ').textContent = universesUsed(stripsDraft[+el.closest('tr').dataset.i]); drawLed(); });
+  $('strips').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { stripsDraft = readStrips(); stripsDraft.splice(+b.dataset.del, 1); stripsDirty = true; renderStrips(true); $('strips-msg').innerHTML = '<b>unsaved</b> — press apply'; });
+}
+$('strip-add').onclick = () => { stripsDraft = readStrips(); const n = stripsDraft.length; stripsDraft.push({name: 'strip' + (n + 1), ip: '', protocol: 'ddp', universe: 0, start_channel: 0, order: 'GRB', count: 150, x0: 0, y0: Math.min(0.95, 0.1 + n * 0.12), x1: 1, y1: Math.min(0.95, 0.1 + n * 0.12), enabled: true}); stripsDirty = true; renderStrips(true); };
+$('strip-matrix').onclick = () => {
+  const cols = +prompt('Matrix: pixels per row (x)?', '32'); if (!cols) return; const rows = +prompt('Rows (y)?', '8'); if (!rows) return;
+  const ip = prompt('Controller IP?', '192.168.1.50') || ''; const serp = confirm('Serpentine wiring (every other row reversed)? OK = yes');
+  const proto = (prompt('Protocol: ddp / artnet / sacn', 'ddp') || 'ddp').toLowerCase(); let uni = +prompt('First universe (Art-Net/sACN only)', '0') || 0;
+  stripsDraft = readStrips(); const base = stripsDraft.length;
+  for (let r = 0; r < rows; r++) { const y = (r + 0.5) / rows; const rev = serp && r % 2 === 1; stripsDraft.push({name: `m${base ? base + '-' : ''}r${r + 1}`, ip, protocol: proto, universe: uni, start_channel: 0, order: 'GRB', count: cols, x0: rev ? 1 : 0, y0: y, x1: rev ? 0 : 1, y1: y, enabled: true}); if (proto !== 'ddp') uni += Math.ceil(cols / 170); }
+  stripsDirty = true; renderStrips(true);
+};
+$('strips-apply').onclick = () => { send({led: {strips: readStrips()}}); stripsDraft = null; stripsDirty = false; $('strips-msg').textContent = 'applied'; setTimeout(() => $('strips-msg').textContent = '', 1500); };
+$('led-toggle').onclick = () => send({led: {enabled: !(S.outputs.led && S.outputs.led.enabled)}});
+$('led-source').onchange = () => send({led: {source: $('led-source').value}});
+$('led-fps').onchange = () => send({led: {fps: +$('led-fps').value}});
+$('led-bri').oninput = () => { $('led-bri-v').textContent = (+$('led-bri').value).toFixed(2); send({led: {brightness: +$('led-bri').value}}); };
+$('led-gam').oninput = () => { $('led-gam-v').textContent = (+$('led-gam').value).toFixed(2); send({led: {gamma: +$('led-gam').value}}); };
+$('led-test').querySelectorAll('button').forEach(b => b.onclick = () => send({led: {test: b.dataset.t}}));
+// resolume
+let resDirty = false; $('res-host').oninput = $('res-port').oninput = () => { resDirty = true; };
+$('res-toggle').onclick = () => send({source: {name: 'resolume', enabled: !(S.outputs.resolume && S.outputs.resolume.enabled), host: $('res-host').value || undefined, port: +$('res-port').value || undefined}});
+$('res-apply').onclick = () => { resDirty = false; send({source: {name: 'resolume', enabled: !!(S.outputs.resolume && S.outputs.resolume.enabled), host: $('res-host').value, port: +$('res-port').value, send_tempo: $('res-tempo').checked, resync_on_beat1: $('res-resync').checked}}); };
+$('res-tempo').onchange = $('res-resync').onchange = () => send({source: {name: 'resolume', enabled: !!(S.outputs.resolume && S.outputs.resolume.enabled), send_tempo: $('res-tempo').checked, resync_on_beat1: $('res-resync').checked}});
+$('res-test-resync').onclick = () => send({resolume_test: {address: '/composition/tempocontroller/resync', value: 1}});
+$('res-test-tempo').onclick = () => send({resolume_test: {address: '/composition/tempocontroller/tempo', value: Math.max(0, Math.min(1, ((S.bpm || 120) - 20) / 480))}});
+$('res-test-col').onclick = () => send({resolume_test: {address: '/composition/columns/1/connect', value: 1}});
+$('res-map-add').onclick = () => { const m = Object.assign({}, (S.outputs.resolume && S.outputs.resolume.map) || {}); const a = $('res-map-addr').value.trim(); if (!a.startsWith('/')) return; m[$('res-map-param').value] = a; send({source: {name: 'resolume', enabled: !!(S.outputs.resolume && S.outputs.resolume.enabled), params: m}}); $('res-map-addr').value = ''; };
+$('link-toggle').onclick = () => send({source: {name: 'link', enabled: !(S.sources.link && S.sources.link.enabled)}});
+$('lm-follow').onclick = () => send({source: {name: 'link', enabled: !!(S.sources.link && S.sources.link.enabled), mode: 'follow'}});
+$('lm-lead').onclick = () => send({source: {name: 'link', enabled: !!(S.sources.link && S.sources.link.enabled), mode: 'lead'}});
+
+let thumbImgs = {};
+function renderOutputs(force) {
+  if ($('outputs').hidden && !force) return;
+  const o = S.outputs || {}, res = o.resolume || {}, led = o.led || {}, lk = S.sources.link || {}, ol = o.link || {};
+  // ---- thumbnails
+  const th = o.thumbs || {}; const names = Object.keys(th);
+  if (!S.live) $('thumbs').innerHTML = '<div class="hint">Demo mode — thumbnails come from live renderers.</div>';
+  else if (!names.length) $('thumbs').innerHTML = '<div class="hint">No renderer thumbnails yet. Renderers send them automatically (udp/5008) once they hear the master — check the Projectors table.</div>';
+  else {
+    if (names.join() !== Object.keys(thumbImgs).join()) { $('thumbs').innerHTML = names.map(n => `<figure><img id="th-${esc(n)}" alt="${esc(n)}"><figcaption><span>${esc(n)}</span><span id="thc-${esc(n)}"></span></figcaption></figure>`).join(''); thumbImgs = {}; names.forEach(n => thumbImgs[n] = 0); }
+    names.forEach(n => { const c = document.getElementById('thc-' + n); if (c) c.textContent = `${th[n].fps} fps · ${th[n].ip}${th[n].age > 2 ? ' · stale' : ''}`; });
+  }
+  if (!thumbTimer) thumbTimer = setInterval(() => { if ($('outputs').hidden || !S.live) return; Object.keys(thumbImgs).forEach(n => { const im = document.getElementById('th-' + n); if (im) im.src = `/thumb/${encodeURIComponent(n)}?t=${Date.now()}`; }); drawLed(); }, 400);
+  // ---- resolume / link
+  $('res-dot').className = 'dot ' + (S.sources.resolume ? (!S.sources.resolume.enabled ? '' : S.sources.resolume.ok ? 'ok' : 'warn') : '');
+  $('res-label').textContent = res.enabled ? `OSC → ${res.host}:${res.port} · ${res.sent || 0} sent` : 'OSC out off';
+  $('res-toggle').className = 'toggle' + (res.enabled ? ' on' : '');
+  if (!resDirty) { $('res-host').value = res.host || ''; $('res-port').value = res.port || 7000; }
+  $('res-tempo').checked = res.send_tempo !== false; $('res-resync').checked = res.resync_on_beat1 !== false;
+  $('res-stats').textContent = res.last ? `last: ${res.last} (${res.last_age}s ago)` : '';
+  const colsSig = JSON.stringify(res.scene_columns || {}); if ($('res-cols').dataset.sig !== colsSig) { $('res-cols').dataset.sig = colsSig;
+  $('res-cols').innerHTML = MODE_NAMES.map((n, i) => `<label style="font-size:11px;color:var(--muted)">${n} <input type="number" min="0" max="64" data-col="${i}" style="width:44px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--text);padding:2px 4px" value="${(res.scene_columns || {})[i] || ''}" placeholder="–"></label>`).join('');
+  $('res-cols').querySelectorAll('[data-col]').forEach(inp => inp.onchange = () => { const sc = {}; $('res-cols').querySelectorAll('[data-col]').forEach(x => { if (+x.value > 0) sc[x.dataset.col] = +x.value; }); send({source: {name: 'resolume', enabled: !!res.enabled, scene_columns: sc}}); }); }
+  const map = res.map || {};
+  const mapSig = JSON.stringify(map); if ($('res-map').dataset.sig !== mapSig) { $('res-map').dataset.sig = mapSig;
+  $('res-map').innerHTML = Object.keys(map).length ? Object.entries(map).map(([k, a]) => `<div class="row" style="font-family:var(--mono);font-size:11px;padding:2px 0"><span style="color:var(--accent2)">${esc(k)}</span> → <span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(a)}</span><button class="btn small" data-unmap="${esc(k)}">✕</button></div>`).join('') : '<span class="hint">no mappings</span>';
+  $('res-map').querySelectorAll('[data-unmap]').forEach(b => b.onclick = () => { const m = Object.assign({}, map); delete m[b.dataset.unmap]; send({source: {name: 'resolume', enabled: !!res.enabled, params: m}}); }); }
+  if (!$('res-map-param').options.length) $('res-map-param').innerHTML = PARAMS.map(p => `<option value="${p.key}">${p.label}</option>`).join('');
+  $('link-dot').className = 'dot ' + (!lk.enabled ? '' : lk.ok ? 'ok' : 'warn'); $('link-label').textContent = lk.enabled ? (lk.ok ? `Link · ${lk.peers} peers · ${lk.tempo} BPM` : 'Link · no peers') : 'Link off';
+  $('link-toggle').className = 'toggle' + (lk.enabled ? ' on' : ''); $('lm-follow').className = ol.mode === 'lead' ? '' : 'active'; $('lm-lead').className = ol.mode === 'lead' ? 'active' : '';
+  $('link-status').textContent = S.live ? (ol.available ? (lk.detail || '') : 'aalink not installed on the master — pip install aalink in master/.venv') : 'demo';
+  // ---- ndi
+  const nd = (o.ndi && o.ndi.renderers) || {}; const fl = Object.entries(S.fleet || {});
+  $('ndi-status').innerHTML = fl.length ? kv(fl.map(([n, h]) => { const v = (h.ndi || 'ndi:none').replace('ndi:', ''); return [n, v === 'live' ? '<span class="ok">publishing · receiver connected</span>' : v === 'on' ? '<span class="ok">publishing</span> — no receiver yet' : v === 'unavailable' ? '<span class="warn">--ndi requested but SDK not built in</span>' : v === 'off' ? '<span class="mute">off (start with --ndi)</span>' : '<span class="mute">renderer too old for NDI</span>']; })) : '<div class="hint">' + (S.live ? 'no renderers heard yet' : 'demo mode') + '</div>';
+  // ---- led
+  $('led-dot').className = 'dot ' + (!led.enabled ? '' : (led.frames > 0 && !Object.keys(led.errors || {}).length ? 'ok' : 'warn'));
+  $('led-label').textContent = led.enabled ? `${led.pixels || 0} px · ${(led.strips || []).length} strips · ${led.packets || 0} pkts` : 'off';
+  $('led-toggle').className = 'toggle' + (led.enabled ? ' on' : '');
+  const srcSel = $('led-source'); const want = ['<option value="">freshest renderer</option>'].concat(names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`)).join(''); if (srcSel.innerHTML !== want) srcSel.innerHTML = want; if (document.activeElement !== srcSel) srcSel.value = led.source || '';
+  if (document.activeElement !== $('led-fps')) $('led-fps').value = led.fps || 40;
+  if (document.activeElement !== $('led-bri')) { $('led-bri').value = led.brightness == null ? 0.8 : led.brightness; $('led-bri-v').textContent = (+$('led-bri').value).toFixed(2); }
+  if (document.activeElement !== $('led-gam')) { $('led-gam').value = led.gamma == null ? 2.2 : led.gamma; $('led-gam-v').textContent = (+$('led-gam').value).toFixed(2); }
+  $('led-test').querySelectorAll('button').forEach(b => b.className = b.dataset.t === (led.test || 'off') ? 'active' : '');
+  $('led-stats').textContent = led.enabled ? `${led.frames || 0} frames · ${led.packets || 0} packets · ${led.test && led.test !== 'off' ? 'TEST PATTERN ' + led.test : 'live'}` : '';
+  const errs = led.errors || {}; $('led-errors').innerHTML = Object.keys(errs).length ? '<b>errors:</b> ' + Object.entries(errs).map(([k, v]) => esc(k + ': ' + v)).join(' · ') : '';
+  if (!stripsDirty) { stripsDraft = null; renderStrips(); }
+  drawLed();
+}
+const ledCanvas = $('led-canvas'), lctx = ledCanvas.getContext('2d');
+let ledBg = new Image(); ledBg.onload = () => drawLed();
+function drawLed() {
+  const W = ledCanvas.width, H = ledCanvas.height; const led = S.outputs.led || {}; const strips = stripsDraft || led.strips || [];
+  lctx.fillStyle = '#000'; lctx.fillRect(0, 0, W, H);
+  if (S.live && Object.keys(thumbImgs).length) { const n = led.source && thumbImgs[led.source] != null ? led.source : Object.keys(thumbImgs)[0]; const im = document.getElementById('th-' + n); if (im && im.complete && im.naturalWidth) { lctx.imageSmoothingEnabled = true; lctx.globalAlpha = 0.55; lctx.drawImage(im, 0, 0, W, H); lctx.globalAlpha = 1; } }
+  else { lctx.globalAlpha = 0.35; lctx.drawImage(canvas, 0, 0, W, H); lctx.globalAlpha = 1; }   // demo: our own preview
+  lctx.strokeStyle = 'rgba(255,255,255,.15)'; lctx.lineWidth = 1; for (let i = 1; i < 4; i++) { lctx.beginPath(); lctx.moveTo(W * i / 4, 0); lctx.lineTo(W * i / 4, H); lctx.stroke(); lctx.beginPath(); lctx.moveTo(0, H * i / 4); lctx.lineTo(W, H * i / 4); lctx.stroke(); }
+  const colors = led.colors || {};
+  strips.forEach((st, i) => {
+    if (st.enabled === false) return;
+    const x0 = (+st.x0 || 0) * W, y0 = (st.y0 == null ? 0.5 : +st.y0) * H, x1 = (st.x1 == null ? 1 : +st.x1) * W, y1 = (st.y1 == null ? 0.5 : +st.y1) * H;
+    const cols = colors[st.name]; const n = Math.max(1, Math.min(200, +st.count || 1));
+    lctx.lineWidth = 7; lctx.lineCap = 'round';
+    if (cols && cols.length) { const segs = cols.length; for (let k = 0; k < segs; k++) { const a = k / segs, b = (k + 1) / segs; lctx.strokeStyle = `rgb(${cols[k][0]},${cols[k][1]},${cols[k][2]})`; lctx.beginPath(); lctx.moveTo(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a); lctx.lineTo(x0 + (x1 - x0) * b, y0 + (y1 - y0) * b); lctx.stroke(); } }
+    else { lctx.strokeStyle = 'rgba(75,185,211,.8)'; lctx.setLineDash([6, 6]); lctx.beginPath(); lctx.moveTo(x0, y0); lctx.lineTo(x1, y1); lctx.stroke(); lctx.setLineDash([]); }
+    lctx.fillStyle = '#fff'; lctx.font = '12px DM Mono, monospace'; lctx.fillText(`${st.name || 'strip'} · ${st.count}px`, Math.min(W - 120, x0 + 6), Math.max(12, y0 - 8));
+    lctx.fillStyle = '#4bb9d3'; lctx.beginPath(); lctx.arc(x0, y0, 5, 0, 7); lctx.fill(); lctx.fillStyle = '#e67eb1'; lctx.beginPath(); lctx.arc(x1, y1, 5, 0, 7); lctx.fill();
+  });
+  if (!strips.length) { lctx.fillStyle = 'rgba(255,255,255,.6)'; lctx.font = '14px DM Sans, sans-serif'; lctx.fillText('add a strip below — blue dot = first pixel, pink = last', 20, 30); }
+}
+
+
+// ------------------------------------------------------------ performance mode (big touch controls)
+let perfOn = false, pfBlackPrev = null, pfFreezePrev = null;
+function perfEnter(on) {
+  perfOn = on; $('perf').hidden = !on; document.body.classList.toggle('perf', on);
+  try { localStorage.setItem('frx.perf', on ? '1' : '0'); } catch (e) {}
+  if (on) { buildPerf(); renderPerf(); }
+}
+$('perf-enter').onclick = () => perfEnter(true);
+$('perf-exit').onclick = () => perfEnter(false);
+function pfPage(i) { const pg = $('pf-pages'); pg.scrollTo({left: pg.clientWidth * i, behavior: 'smooth'}); }
+$('pf-tabs').querySelectorAll('button').forEach(b => b.onclick = () => pfPage(+b.dataset.pg));
+$('pf-pages').addEventListener('scroll', () => { const i = Math.round($('pf-pages').scrollLeft / Math.max(1, $('pf-pages').clientWidth)); $('pf-tabs').querySelectorAll('button').forEach(b => b.classList.toggle('active', +b.dataset.pg === i)); [...$('pf-dots').children].forEach((d, k) => d.classList.toggle('on', k === i)); });
+$('pf-tap').onclick = () => send({tap: 1});
+$('pf-beat1').onclick = () => send({beat1: 1});
+$('pf-eng-shader').onclick = () => send({set: {mode: lastShaderMode}});
+$('pf-eng-pm').onclick = () => send({set: {mode: 8}});
+$('pf-blackout').onclick = () => { if (pfBlackPrev == null) { pfBlackPrev = S.base.brightness; send({set: {brightness: 0}}); } else { send({set: {brightness: pfBlackPrev || 1}}); pfBlackPrev = null; } };
+$('pf-freeze').onclick = () => { if (pfFreezePrev == null) { pfFreezePrev = S.clock_speed; send({clock_speed: 0}); } else { send({clock_speed: pfFreezePrev || 1}); pfFreezePrev = null; } };
+$('pf-autotoggle').onclick = () => send({source: {name: 'auto', enabled: !S.auto_enabled}});
+$('pf-pm-prev').onclick = () => send({pm: {prev: 1}}); $('pf-pm-next').onclick = () => send({pm: {next: 1}}); $('pf-pm-random').onclick = () => send({pm: {random: 1}});
+$('pf-pm-hold').onclick = () => $('pm-hold').click(); $('pf-pm-fav').onclick = () => $('pm-favtoggle').click();
+$('perf').querySelectorAll('input[data-pk]').forEach(r => r.oninput = () => { r.dataset.touch = performance.now(); r.parentElement.querySelector('.v').textContent = (+r.value).toFixed(2); send({set: {[r.dataset.pk]: +r.value}}); });
+$('perf').querySelectorAll('input[data-mk]').forEach(r => r.oninput = () => { r.dataset.touch = performance.now(); r.parentElement.querySelector('.v').textContent = (+r.value).toFixed(2); send({[r.dataset.mk]: +r.value}); });
+$('perf').querySelectorAll('[data-nudge]').forEach(b => b.onclick = () => { const k = b.dataset.nudge, p = PARAMS[idx[k]]; send({set: {[k]: Math.max(p.min, Math.min(p.max, (S.base[k] || 0) + +b.dataset.d))}}); });
+let perfBuilt = false;
+function buildPerf() {
+  $('pf-scenes').innerHTML = MODE_NAMES.slice(0, 8).map((n, i) => `<button class="pbtn" data-m="${i}">${n}</button>`).join('');
+  $('pf-scenes').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {mode: +b.dataset.m}}));
+  $('pf-hues').innerHTML = [0, .08, .16, .25, .33, .42, .5, .58, .66, .75, .83, .92].map(h => `<button class="pbtn" data-h="${h}" style="background:hsl(${h * 360} 70% 22%);border-color:hsl(${h * 360} 70% 40%)">${Math.round(h * 360)}°</button>`).join('');
+  $('pf-hues').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {hue: +b.dataset.h}}));
+  perfBuilt = true;
+}
+function renderPerf() {
+  if (!perfOn) return;
+  $('pf-bpm').textContent = S.bpm ? S.bpm.toFixed(1) : '—';
+  $('pf-src').textContent = $('tempo-label').textContent;
+  const on8 = Math.round(S.base.mode) === 8;
+  $('pf-eng-shader').className = 'pbtn' + (on8 ? '' : ' active'); $('pf-eng-pm').className = 'pbtn' + (on8 ? ' active' : '');
+  $('pf-scenes').querySelectorAll('button').forEach(b => b.className = 'pbtn' + (+b.dataset.m === Math.round(S.base.mode) ? ' active' : ''));
+  $('pf-blackout').className = 'pbtn danger' + (S.base.brightness === 0 ? ' active' : ''); $('pf-freeze').className = 'pbtn' + (S.clock_speed === 0 ? ' active' : ''); $('pf-autotoggle').className = 'pbtn' + (S.auto_enabled ? ' active' : '');
+  const names = Object.keys(S.presets || {});
+  const psig = names.join('|'); if ($('pf-presets').dataset.sig !== psig) { $('pf-presets').dataset.sig = psig; $('pf-presets').innerHTML = names.map(n => `<button class="pbtn pm-tile" data-p="${esc(n)}">${esc(n)}</button>`).join('') || '<span class="hint">no presets saved</span>'; $('pf-presets').querySelectorAll('[data-p]').forEach(b => b.onclick = () => send({preset: {load: b.dataset.p}})); }
+  const list = S.pm_presets || [], nm = list[S.pm.index] || '';
+  $('pf-pm-name').textContent = list.length ? `#${S.pm.index} · ${shortName(nm)}` : 'projectM presets not available';
+  $('pf-pm-hold').className = 'pbtn' + (S.pm.cycle_bars === 0 && pmHeld ? ' active' : ''); $('pf-pm-fav').textContent = (pmFavs.has(nm) ? '★' : '☆') + ' FAVOURITE';
+  const favs = list.map((n, i) => [n, i]).filter(([n]) => pmFavs.has(n)); const fsig = favs.map(f => f[1]).join(',') + '|' + S.pm.index;
+  if ($('pf-pm-favs').dataset.sig !== fsig) { $('pf-pm-favs').dataset.sig = fsig; $('pf-pm-favs').innerHTML = favs.map(([n, i]) => `<button class="pbtn pm-tile ${i === S.pm.index ? 'active' : ''}" data-i="${i}">${esc(shortName(n))}</button>`).join('') || '<span class="hint">star presets in the projectM panel and they appear here</span>'; $('pf-pm-favs').querySelectorAll('[data-i]').forEach(b => b.onclick = () => send({pm: {index: +b.dataset.i}})); }
+  $('perf').querySelectorAll('input[data-pk]').forEach(r => { if (!(r.dataset.touch && performance.now() - r.dataset.touch < 800)) { r.value = S.base[r.dataset.pk]; r.parentElement.querySelector('.v').textContent = (+S.base[r.dataset.pk]).toFixed(2); } });
+  $('perf').querySelectorAll('input[data-mk]').forEach(r => { if (!(r.dataset.touch && performance.now() - r.dataset.touch < 800)) { r.value = S[r.dataset.mk]; r.parentElement.querySelector('.v').textContent = (+S[r.dataset.mk]).toFixed(2); } });
+  $('perf').querySelectorAll('[data-show]').forEach(sp => { const k = sp.dataset.show, p = PARAMS[idx[k]]; sp.textContent = fmt(S.base[k], p); });
+}
+
 // ------------------------------------------------------------ views
 $('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
   $('nav').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
   const v = b.dataset.view;
-  document.querySelector('main').hidden = v !== 'control'; $('info').hidden = v !== 'info'; $('status').hidden = v !== 'status';
+  document.querySelector('main').hidden = v !== 'control'; $('info').hidden = v !== 'info'; $('status').hidden = v !== 'status'; $('outputs').hidden = v !== 'outputs';
   if (v === 'status') renderStatus();
+  if (v === 'outputs') renderOutputs(true);
   try { localStorage.setItem('frx.view', b.dataset.view); } catch (e) {}
   if (!info) window.scrollTo(0, 0);
 });
-try { const sv = localStorage.getItem('frx.view'); if (sv && sv !== 'control') $('nav').querySelector(`[data-view=${sv}]`).click(); } catch (e) {}
+try { const sv = localStorage.getItem('frx.view'); if (sv && sv !== 'control' && $('nav').querySelector(`[data-view=${sv}]`)) $('nav').querySelector(`[data-view=${sv}]`).click(); } catch (e) {}
 
 
 // ------------------------------------------------------------ projectM browser simulation (Butterchurn = Milkdrop 2 in WebGL)
@@ -1137,6 +1564,7 @@ $('master-url').value = saved || '';
 $('master-connect').onclick = () => { const u = $('master-url').value.trim(); if (u) { try { localStorage.setItem('frx.master', u); } catch (e) {} connect(u); } };
 const here = location.protocol.startsWith('http') && !/github\.io$/.test(location.hostname) ? (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' : null;
 if (saved) connect(saved); else if (here) connect(here); else startDemo();
+try { if (new URLSearchParams(location.search).get('perf') === '1' || localStorage.getItem('frx.perf') === '1') perfEnter(true); } catch (e) {}
 })();
 </script>
 </body>
