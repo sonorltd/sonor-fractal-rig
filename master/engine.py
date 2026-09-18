@@ -52,6 +52,8 @@ class Engine:
         self.audio_energy = 0.0
         self.audio_bass = 0.0
         self.audio_ok = False
+        self.audio_wave = []
+        self.audio_bands = []
         self.prodj_ok = False
         self.prodj_decks = {}                           # device -> dict(bpm, beat, seen)
         # input sources: name -> dict(enabled, ok, detail). Inputs update these; UI toggles them.
@@ -409,12 +411,13 @@ class Engine:
             out={k: round(self.out[i], 4) for i, k in enumerate(KEYS)},
             auto={k: self.auto[i] for i, k in enumerate(KEYS)},
             bpm=round(self.bpm, 2), bar_beat=self.bar_beat, beat_t=self.beat_t,
-            tempo_source=self.tempo_source, prodj=self.prodj_ok, audio=self.audio_ok,
+            tempo_source=self.tempo_source, prodj=self.prodj_ok, audio=self.audio_ok, prodj_dev=getattr(self, "_prodj_dev", None),
             decks=self.prodj_decks, clock_speed=self.clock_speed, auto_depth=self.auto_depth,
             auto_rate=self.auto_rate, auto_enabled=self.auto_enabled, presets=list(self.presets.keys()), fleet=fleet,
             sources=self.sources, diag=self.diag, packets_sent=self.packets_sent, tick_hz=round(self.tick_hz, 1),
             tick_gap_ms=round(getattr(self, "_tick_gap_last", 0.0) * 1000, 1), uptime=round(time.time() - self.started),
-            prodj_raw=self.prodj_raw,
+            prodj_raw=self.prodj_raw, audio_wave=self.audio_wave if self.audio_ok else [], audio_bands=self.audio_bands if self.audio_ok else [],
+            audio_levels=dict(energy=round(self.audio_energy, 3), bass=round(self.audio_bass, 3)) if self.audio_ok else None,
             pm=dict(count=len(self.pm_presets), dir=self.pm_dir, index=self.pm_index(), name=self.pm_name(),
                     cycle_bars=self.pm_cycle_bars, shuffle=self.pm_shuffle,
                     audio=self.audio_stream.stats() if self.audio_stream else None),

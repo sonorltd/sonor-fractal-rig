@@ -24,7 +24,7 @@ from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
 import inputs, outputs
 
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.6.0"
 osc_out = led = thumbs = link = None
 
 

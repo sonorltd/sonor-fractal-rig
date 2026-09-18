@@ -1,6 +1,6 @@
-# STUDIO - Fractal Rig (v0.5.0)
+# STUDIO - Fractal Rig (v0.6.0)
 
-> Current version: 0.5.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.6.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
 Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 136-byte UDP multicast
@@ -74,6 +74,12 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   vendored; `install-ndi.sh`), heartbeat v4 with ndi state, `--display`. Web: Outputs tab (thumbnails,
   Resolume/Link, NDI, LED strip editor + matrix builder + canvas preview), Perform mode (`#perf`,
   swipeable big-button pages, `?perf=1`, key P/Esc), `install-kiosk.sh` (cage or desktop autostart).
+- 2026-09-18 v0.6.0 — Inputs monitor card (Control tab, under Tempo): canvas drawn every frame from the
+  same anchored clock as the preview — 4-bar beat grid + playhead, lock badge (prodj deck / link peers /
+  free-running) with BPM-spread readout, per-deck lanes, Link phase bar, audio waveform + 16 log bands +
+  E/B meters, MIDI/OSC/Pro DJ Link activity chips; slim grid on the Perform Show page. Master:
+  `Audio.callback` fills `engine.audio_wave` (96 samples) / `audio_bands` (16, auto-gained); snapshot
+  carries `audio_wave`, `audio_bands`, `audio_levels`, `prodj_dev`; MIDI/OSC sources stamp `seen`.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

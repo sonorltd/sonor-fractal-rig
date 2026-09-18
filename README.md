@@ -136,6 +136,7 @@ Scenes 0–7 share one shader, so kaleidoscope, rotation, palette and beat contr
 | **OSC** | udp/9000: `/frx/<param> f` · `/frx/tap` · `/frx/beat1` · `/frx/bpm f` · `/frx/preset s|i` · `/frx/auto_<param> 0|1`. TouchOSC / Lemur / Ableton Max-for-Live all speak this. |
 | **Audio** | `python3 master.py --audio` (or `"audio_enabled": true`). Drives the `energy` and `bass` params from RMS + a 30–150 Hz band with auto-gain; falls back to onset-detected beats when no Pro DJ Link is present. |
 | **Autonomous** | Everything with the pink toggle drifts on smooth noise. Depth/rate live in the Master panel. Leave it and walk away. |
+| **Inputs monitor** (v0.6) | Live scope under Tempo: 4-bar beat grid with playhead, **lock badge** (Pro DJ Link deck / Ableton Link peers / free-running) and BPM-spread readout, a lane per Pro DJ Link deck with its own beat boxes, Link phase, **audio waveform + 16-band spectrum + energy/bass meters** (streamed from the master at 15 Hz when Audio in is on), MIDI / OSC / Pro DJ Link activity chips. Slim beat grid in Perform mode. |
 
 Master state (`state.json`) and presets (`presets.json`) persist across restarts.
 

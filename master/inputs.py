@@ -123,11 +123,12 @@ async def midi_task(engine, cfg):
                     continue
                 if msg.type == "control_change":
                     engine.last_cc = msg.control                      # for MIDI-learn in the UI
-                    engine.source("midi", last=f"CC {msg.control} = {msg.value}")
+                    engine.source("midi", last=f"CC {msg.control} = {msg.value}", seen=time.time())
                     key = ccmap.get(msg.control)
                     if key:
                         engine.set_norm(key, msg.value / 127.0, "midi")
                 elif msg.type == "note_on" and msg.velocity > 0:
+                    engine.source("midi", last=f"note {msg.note} vel {msg.velocity}", seen=time.time())
                     if msg.note >= 36:
                         engine.load_preset_index(msg.note - 36)
                     elif msg.note == 35:
@@ -164,7 +165,7 @@ async def osc_start(engine, cfg):
         key = addr.split("/")[-1]
         if not args or not engine.sources["osc"]["enabled"]:
             return
-        engine.source("osc", ok=True, last=f"{addr} {args[0]}", seen=time.time())
+        engine.source("osc", ok=True, last=f"{addr} {round(args[0], 4) if isinstance(args[0], float) else args[0]}", seen=time.time())
         if key == "tap":
             engine.tap()
         elif key == "beat1":
@@ -307,6 +308,20 @@ class Audio:
         self.bass += (b - self.bass) * (0.6 if b > self.bass else 0.2)
         self.e.audio_energy = round(self.energy, 3)
         self.e.audio_bass = round(self.bass, 3)
+        # compact visualiser data for the UI: 96-point waveform + 16 log bands (auto-gained)
+        try:
+            step = max(1, len(x) // 96)
+            self.e.audio_wave = [round(float(v), 2) for v in np.clip(x[::step][:96] * self.gain * 3.0, -1, 1)]
+            edges = np.geomspace(40, min(16000, sr / 2), 17)
+            bands = []
+            for i in range(16):
+                sel = spec[(bins >= edges[i]) & (bins < edges[i + 1])]
+                bands.append(float(sel.mean()) if len(sel) else 0.0)
+            bands = np.array(bands) / len(x) * (1.0 + np.arange(16) * 0.5)          # tilt: treble bands are naturally quieter
+            self._bmax = max(getattr(self, "_bmax", 1e-4) * 0.995, float(bands.max()), 1e-4)
+            self.e.audio_bands = [round(min(1.0, float(b) / self._bmax), 2) for b in bands]
+        except Exception:
+            pass
         # crude onset -> beat, only when Pioneer isn't driving
         now = time.monotonic()
         if b > 0.8 and now - self.last_onset > 0.25 and not self.e.prodj_ok:
