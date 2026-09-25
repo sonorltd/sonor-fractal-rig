@@ -7,10 +7,26 @@
 #   1. Download "NDI SDK for Linux" from https://ndi.video/for-developers/ndi-sdk/  (free, needs an email)
 #   2. sudo bash setup/install-ndi.sh ~/Downloads/Install_NDI_SDK_v6_Linux.tar.gz
 #   3. sudo systemctl edit fractal-renderer   →  add  --ndi  to ExecStart (or re-run install.sh with --ndi)
+#   No argument = download the SDK straight from NDI's public download URL (by running that you accept
+#   NDI's SDK licence, the same one you click through on the website):
+#      sudo bash setup/install-ndi.sh
 set -euo pipefail
-TAR="${1:-}"; [ -f "$TAR" ] || { echo "usage: $0 <Install_NDI_SDK_vX_Linux.tar.gz>"; exit 1; }
+TAR="${1:-}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-TMP=$(mktemp -d); tar xzf "$TAR" -C "$TMP"
+TMP=$(mktemp -d)
+if [ -z "$TAR" ]; then
+  # pick up a tarball someone already copied to the home dir first, else fetch
+  TAR=$(ls -t /home/*/Install_NDI_SDK*Linux*.tar.gz ~/Install_NDI_SDK*Linux*.tar.gz 2>/dev/null | head -1 || true)
+  if [ -z "$TAR" ]; then
+    for url in https://downloads.ndi.tv/SDK/NDI_SDK_Linux/Install_NDI_SDK_v6_Linux.tar.gz \
+               https://downloads.ndi.tv/SDK/NDI_SDK_Linux/Install_NDI_SDK_v5_Linux.tar.gz; do
+      echo "== downloading $(basename "$url") (≈ 90 MB — you accept NDI's SDK licence by continuing)"
+      if curl -fL --progress-bar -o "$TMP/ndi.tar.gz" "$url"; then TAR="$TMP/ndi.tar.gz"; break; fi
+    done
+  fi
+fi
+[ -n "$TAR" ] && [ -f "$TAR" ] || { echo "usage: $0 [Install_NDI_SDK_vX_Linux.tar.gz]  (download from https://ndi.video/for-developers/ndi-sdk/)"; exit 1; }
+tar xzf "$TAR" -C "$TMP"
 SH=$(find "$TMP" -maxdepth 1 -name "Install_NDI_SDK*.sh" | head -1)
 [ -n "$SH" ] || { echo "no installer script in tarball"; exit 1; }
 ( cd "$TMP" && yes | PAGER=cat bash "$SH" >/dev/null )       # accepts the licence you already agreed to on download
