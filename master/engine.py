@@ -496,6 +496,9 @@ class Engine:
                 self.base = [float(v) for v in s["base"]]
             if len(s.get("auto", [])) == NPARAMS:
                 self.auto = [bool(v) for v in s["auto"]]
+            # output resolution always starts at 1080p (config "out_res_boot": 0 auto / 1 1080p / 2 4K to change);
+            # the top-bar selector still works within the session — this just stops a 4K TV surprising a Pi 4 at boot
+            self.base[INDEX["out_res"]] = float(self.cfg.get("out_res_boot", 1))
             self.clock_speed = float(s.get("clock_speed", self.clock_speed))
             self.auto_depth = float(s.get("auto_depth", self.auto_depth))
             self.auto_rate = float(s.get("auto_rate", self.auto_rate))

@@ -41,7 +41,7 @@ static const char *FRX_PARAM_NAMES[FRX_NPARAMS] = {
     "mode", "iterations", "zoom", "center_x", "center_y", "julia_x", "julia_y", "rotation", "kaleido", "warp", "hue", "hue_spread", "hue_speed", "contrast", "brightness", "glow", "beat_pulse", "bar_swing", "energy", "bass", "pm_preset", "pm_beat_sens", "pm_blend", "pm_mix", "video_clip", "video_t0", "video_speed", "video_loop", "out_res", "live_mix", "live_blend"
 };
 static const float FRX_PARAM_DEFAULTS[FRX_NPARAMS] = {
-    0.0f, 160.0f, 0.6f, -0.55f, 0.0f, -0.75f, 0.12f, 0.0f, 0.0f, 0.0f, 0.62f, 1.2f, 0.08f, 1.1f, 1.0f, 0.35f, 0.4f, 0.2f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f
+    0.0f, 160.0f, 0.6f, -0.55f, 0.0f, -0.75f, 0.12f, 0.0f, 0.0f, 0.0f, 0.62f, 1.2f, 0.08f, 1.1f, 1.0f, 0.35f, 0.4f, 0.2f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f
 };
 /* 1 = discrete (snap), 0 = continuous (smooth) */
 static const unsigned char FRX_PARAM_DISCRETE[FRX_NPARAMS] = {

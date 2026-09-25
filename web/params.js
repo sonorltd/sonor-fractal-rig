@@ -314,11 +314,11 @@ window.FRX_PARAMS = [
   "label": "Output",
   "min": 0,
   "max": 2,
-  "def_": 0,
+  "def_": 1,
   "kind": "i",
   "auto": false,
   "group": "output",
-  "tip": "0 Auto (screen native) \u00b7 1 1080p \u00b7 2 4K"
+  "tip": "0 Auto (screen native) \u00b7 1 1080p (default \u2014 every projector, every boot) \u00b7 2 4K"
  },
  {
   "key": "live_mix",
