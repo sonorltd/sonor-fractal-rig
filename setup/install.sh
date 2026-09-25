@@ -48,8 +48,9 @@ if [ -f /boot/firmware/cmdline.txt ] && ! grep -q consoleblank /boot/firmware/cm
   sed -i 's/$/ consoleblank=0/' /boot/firmware/cmdline.txt
 fi
 
-systemctl enable --now fractal-renderer.service
-if [ "$ROLE" = "master" ]; then systemctl enable --now fractal-master.service; fi
+# enable AND restart — `enable --now` leaves an already-running renderer on the old binary/unit
+systemctl enable fractal-renderer.service >/dev/null 2>&1; systemctl restart fractal-renderer.service
+if [ "$ROLE" = "master" ]; then systemctl enable fractal-master.service >/dev/null 2>&1; systemctl restart fractal-master.service; fi
 
 echo
 echo "== done. Useful:"
