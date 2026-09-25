@@ -28,6 +28,10 @@ install -d -o "$USER_NAME" -g "$USER_NAME" /var/lib/fractal-rig /var/lib/fractal
 
 echo "== renderer build"
 ( cd "$REPO/renderer" && make -s )
+# NDI receiver for the LIVE source, only when the NDI SDK is installed (setup/install-ndi.sh)
+if [ -f /usr/local/include/Processing.NDI.Lib.h ]; then
+  ( cd "$REPO/setup" && gcc -O2 -Wall -o ndi-recv ndi-recv.c -lndi -Wl,-rpath,/usr/local/lib ) || echo "!! ndi-recv build failed (NDI in disabled)"
+fi
 
 if [ "$ROLE" = "master" ]; then
   echo "== master python venv"

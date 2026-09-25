@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Fractal Rig — install the NDI® SDK for Linux so the renderer can publish its picture as an NDI source
-# (Resolume Arena/Avenue, OBS, vMix all take NDI). The SDK is a licence-click download, so this script
+# (Resolume Arena/Avenue, OBS, vMix all take NDI) and so the MASTER can take an NDI source (Resolume's
+# composition) in as the LIVE stream for every projector (setup/ndi-recv). The SDK is a licence-click download, so this script
 # takes the tarball YOU downloaded and puts the headers + lib where the Makefile finds them.
 #
 #   1. Download "NDI SDK for Linux" from https://ndi.video/for-developers/ndi-sdk/  (free, needs an email)
@@ -23,5 +24,9 @@ cp -P "$LIBDIR"/libndi.so* /usr/local/lib/
 ldconfig
 echo "== NDI headers + libndi installed to /usr/local (from $(basename "$LIBDIR"))"
 ( cd "$REPO/renderer" && make clean >/dev/null && make -s ) && "$REPO/renderer/fractal" --version
+# receiver for the master's LIVE source (Resolume → NDI → rig): master/media.py runs setup/ndi-recv
+( cd "$REPO/setup" && gcc -O2 -Wall -o ndi-recv ndi-recv.c -lndi -Wl,-rpath,/usr/local/lib && echo "== built setup/ndi-recv (NDI in → LIVE stream)" )
+systemctl is-active --quiet fractal-master && systemctl restart fractal-master || true
 echo "== add --ndi to the renderer's ExecStart to publish:  sudo systemctl edit fractal-renderer"
+echo "== NDI *in* (Resolume → projectors): Media tab → LIVE source → kind NDI"
 rm -rf "$TMP"

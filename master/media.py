@@ -220,8 +220,41 @@ class Media:
         return os.path.exists(dst)
 
     # ------------------------------------------------------------ live stream (master → multicast, renderers show as clip 255)
+    # ---- NDI in (Resolume → LIVE): setup/ndi-recv (built by install-ndi.sh) pipes UYVY frames into ffmpeg
+    NDI_RECV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "setup", "ndi-recv")
+
+    def have_ndi(self):
+        return os.access(self.NDI_RECV, os.X_OK)
+
+    async def ndi_sources(self, wait_ms=2500):
+        """NDI sources visible on the LAN (name + url), [] when ndi-recv isn't built."""
+        if not self.have_ndi():
+            return []
+        try:
+            p = await asyncio.create_subprocess_exec(self.NDI_RECV, "--list", "--wait", str(wait_ms),
+                                                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+            out, _ = await asyncio.wait_for(p.communicate(), wait_ms / 1000 + 5)
+            return json.loads(out.decode() or "[]")
+        except Exception as ex:
+            self.e.event(f"video: NDI list failed ({ex})")
+            return []
+
+    async def _ndi_probe(self, name, low):
+        cmd = [self.NDI_RECV, "--source", name, "--probe", "--wait", "8000"] + (["--low"] if low else [])
+        p = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        try:
+            out, err = await asyncio.wait_for(p.communicate(), 20)
+        except asyncio.TimeoutError:
+            p.kill(); return None, "NDI probe timed out"
+        if p.returncode != 0:
+            return None, (err.decode(errors="ignore").strip().splitlines() or ["ndi-recv failed"])[-1]
+        try:
+            return json.loads(out.decode()), ""
+        except ValueError:
+            return None, "NDI probe gave no frame info"
+
     async def live_start(self, source, kind="file", extra=None):
-        """kind: file (loop a clip from the library), v4l2 (/dev/videoN capture), test (colour bars)."""
+        """kind: file (loop a clip), v4l2/hdmi (/dev/videoN capture), ndi (NDI source by name), test (colour bars)."""
         await self.live_stop()
         if not self.have_ffmpeg:
             self.live.update(msg="ffmpeg not installed"); return False
@@ -245,6 +278,24 @@ class Media:
             cmd += ["-framerate", str(x.get("fps", 30)), "-video_size", size, "-i", source] + enc
         elif kind == "test":
             cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-re", "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30"] + enc
+        elif kind == "ndi":
+            # Resolume (or anything) → NDI → ndi-recv (UYVY on a pipe) → ffmpeg → multicast. Probe first so ffmpeg
+            # knows the frame size; ndi-recv exits 3 if the source changes size and _live_watch reports it.
+            if not self.have_ndi():
+                self.live.update(msg="NDI receiver not built — sudo bash setup/install-ndi.sh <SDK.tar.gz> on the master"); return False
+            x = extra or {}
+            low = bool(x.get("low"))
+            self.live.update(msg=f"connecting to NDI '{source}'…")
+            info, err = await self._ndi_probe(source, low)
+            if not info:
+                self.live.update(msg=err); return False
+            fps = max(1.0, min(60.0, float(info.get("fps") or 30)))
+            recv = [self.NDI_RECV, "--source", source] + (["--low"] if low else [])
+            ff = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "uyvy422", "-s", f"{info['width']}x{info['height']}",
+                  "-r", f"{fps:.3f}", "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "64", "-i", "-"] + enc
+            import shlex
+            cmd = ["bash", "-o", "pipefail", "-c", " ".join(shlex.quote(c) for c in recv) + " | " + " ".join(shlex.quote(c) for c in ff)]
+            self.e.event(f"video: NDI '{source}' {info['width']}x{info['height']} @ {fps:.0f} fps{' (proxy)' if low else ''}")
         else:
             self.live.update(msg=f"unknown source kind {kind}"); return False
         self._live_proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
@@ -257,7 +308,10 @@ class Media:
         err = (await proc.stderr.read()).decode(errors="ignore")[-200:] if proc.stderr else ""
         await proc.wait()
         if self._live_proc is proc:
-            self.live.update(running=False, msg=err.strip() or f"ffmpeg exited {proc.returncode}", pid=None)
+            msg = err.strip() or f"ffmpeg exited {proc.returncode}"
+            if proc.returncode == 3:
+                msg = "NDI source changed resolution — press START again"
+            self.live.update(running=False, msg=msg, pid=None)
             self.e.event(f"video: LIVE stream ended ({self.live['msg'][:80]})")
 
     async def live_stop(self):

@@ -124,7 +124,7 @@ Scene 9 plays **video clips frame-locked on every projector without streaming**:
 Media tab, the master converts them (ffmpeg → ≤1080p H.264), every Pi pulls the library over HTTP
 (`fractal-media-sync`) and decodes its local copy with libmpv, tracking the master clock. Playlist,
 auto-advance (clip end / every N bars), bar sync, Perform tiles, OSC `/frx/video …`, MIDI notes 31/30/29/28.
-**LIVE** (clip 255) is the one real stream: an HDMI capture dongle (UVC), any V4L2 camera, a looping
+**LIVE** (clip 255) is the one real stream: an NDI source (Resolume over the LAN, no capture card), an HDMI capture dongle (UVC), any V4L2 camera, a looping
 file or test bars → ffmpeg → multicast MPEG-TS → every Pi within ~0.5 s.
 
 **Projection mapping** (Outputs tab, per projector, applied live): keystone corners, black-out mask

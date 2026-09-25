@@ -98,7 +98,8 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   (playlist, auto-cycle end|bars|off, bar sync), `renderer/video_bridge.c` (libmpv render API, HAVE_MPV optional,
   seek >0.35 s else ±8 % speed trim against `(t − t0) × speed`), `setup/fractal-media-sync` (stdlib Python on every
   Pi: pulls clips + mapping.txt from the master using the renderer's state file; status page on :8082),
-  OSC `/frx/video*`, MIDI 31/30/29/28. **Projection mapping**: `renderer/mapping.c` + `shaders/warp.frag` (inverse
+  OSC `/frx/video*`, MIDI 31/30/29/28. NDI in: `setup/ndi-recv.c` (SDK receiver → UYVY pipe → ffmpeg, kind `ndi`,
+  `--low` proxy, exit 3 on size change; built by install-ndi.sh / install.sh when the SDK is present). **Projection mapping**: `renderer/mapping.c` + `shaders/warp.frag` (inverse
   homography, 512×288 mask texture with box-blur feather, edge blend ^1.6, bright/gamma, test grid), `master/mapping.py`
   store + `/api/mapping/{name}(.txt)` + canvas editor in Outputs (drag corners, draw masks, nudge keys, copy-from,
   live apply with 150 ms debounce). **Output resolution** param `out_res` (top-bar selector): KMSDRM renderer

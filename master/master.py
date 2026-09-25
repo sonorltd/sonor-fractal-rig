@@ -370,7 +370,10 @@ async def web_app(engine, cfg):
     async def api_media(request):
         return web.json_response(media.manifest() if media else dict(clips=[], jobs=[], live=None, ffmpeg=False))
     async def api_media_devices(request):
-        return web.json_response(media.v4l2_devices() if media else [])
+        if not media:
+            return web.json_response(dict(v4l2=[], ndi=[], have_ndi=False))
+        ndi = await media.ndi_sources() if request.query.get("ndi", "1") != "0" else []
+        return web.json_response(dict(v4l2=media.v4l2_devices(), ndi=ndi, have_ndi=media.have_ndi()))
     async def api_media_upload(request):
         if not media:
             raise web.HTTPServiceUnavailable(text="media disabled")
