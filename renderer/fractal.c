@@ -35,11 +35,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <dirent.h>
+#include <strings.h>
 #include "params.h"
 #include "pm_bridge.h"
 #include "ndi_out.h"
 
-#define APP_VERSION "0.6.0"
+#define APP_VERSION "0.6.1"
 #define FREEWHEEL_AFTER 3.0      /* s without packets before we run on our own clock */
 #define SMOOTH_TAU 0.06          /* s — exponential smoothing of continuous params */
 #define TAU_D 6.283185307179586
@@ -326,12 +328,48 @@ static GLuint make_fbo(int w, int h, GLuint *tex_out) {
     *tex_out = tex; return fbo;
 }
 
+/* ---------------------------------------------------------------- KMSDRM device pick
+ * A Pi 4 exposes two DRM nodes: /dev/dri/card0 is the v3d render core (no outputs) and card1 is the
+ * vc4 display controller. SDL's KMSDRM backend opens index 0 by default, finds no connector and
+ * reports "KMSDRM not available". So, unless the operator pinned SDL_KMSDRM_DEVICE_INDEX, pick the
+ * card that actually has a connected output (sysfs), and as a last resort try indices 0..3. */
+static int drm_card_with_output(void) {
+    DIR *d = opendir("/sys/class/drm"); if (!d) return -1;
+    struct dirent *e; int best = -1;
+    while ((e = readdir(d))) {
+        int card; char rest[64];
+        if (sscanf(e->d_name, "card%d-%63s", &card, rest) != 2) continue;
+        char path[320]; snprintf(path, sizeof path, "/sys/class/drm/%s/status", e->d_name);
+        FILE *f = fopen(path, "r"); if (!f) continue;
+        char st[32] = {0}; if (fgets(st, sizeof st, f) && !strncmp(st, "connected", 9) && (best < 0 || card < best)) best = card;
+        fclose(f);
+    }
+    closedir(d); return best;
+}
+static int sdl_init_video(void) {
+    const char *vd = getenv("SDL_VIDEODRIVER");
+    int kms = vd && !strcasecmp(vd, "KMSDRM");
+    if (kms && !getenv("SDL_KMSDRM_DEVICE_INDEX")) {
+        int c = drm_card_with_output();
+        if (c >= 0) { char v[8]; snprintf(v, sizeof v, "%d", c); setenv("SDL_KMSDRM_DEVICE_INDEX", v, 1); fprintf(stderr, "KMSDRM: /dev/dri/card%d has a connected output\n", c); }
+    }
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0) return 0;
+    if (!kms) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return -1; }
+    for (int i = 0; i < 4; i++) {           /* last resort: walk the DRM nodes */
+        char v[8]; snprintf(v, sizeof v, "%d", i); setenv("SDL_KMSDRM_DEVICE_INDEX", v, 1);
+        SDL_Quit();
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0) { fprintf(stderr, "KMSDRM: using /dev/dri/card%d\n", i); return 0; }
+    }
+    fprintf(stderr, "SDL: %s (tried /dev/dri/card0..3 — is vc4-kms-v3d enabled and the user in the video/render groups?)\n", SDL_GetError());
+    return -1;
+}
+
 /* ---------------------------------------------------------------- main */
 int main(int argc, char **argv) {
     parse_args(argc, argv);
     memcpy(target, FRX_PARAM_DEFAULTS, sizeof target); memcpy(cur, target, sizeof cur);
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
+    if (sdl_init_video() != 0) return 1;
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);

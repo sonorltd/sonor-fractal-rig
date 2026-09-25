@@ -1,6 +1,6 @@
-# STUDIO - Fractal Rig (v0.6.0)
+# STUDIO - Fractal Rig (v0.6.1)
 
-> Current version: 0.6.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.6.1 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
 Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 136-byte UDP multicast
@@ -80,6 +80,11 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   E/B meters, MIDI/OSC/Pro DJ Link activity chips; slim grid on the Perform Show page. Master:
   `Audio.callback` fills `engine.audio_wave` (96 samples) / `audio_bands` (16, auto-gained); snapshot
   carries `audio_wave`, `audio_bands`, `audio_levels`, `prodj_dev`; MIDI/OSC sources stamp `seen`.
+- 2026-09-25 v0.6.1 — first real Pi 4 slave (`fractal1`, Pi OS Lite): SDL KMSDRM opened /dev/dri/card0 (the v3d
+  render node, no outputs) → "KMSDRM not available" restart loop. Renderer now picks the DRM card with a
+  connected connector from sysfs (`SDL_KMSDRM_DEVICE_INDEX`), falls back to trying card0..3; operator can
+  still pin the index. Lesson: on Pi 4 card0=v3d, card1=vc4 display; on Pi 5 the order differs. Slave and
+  master must share a switch — Wi-Fi ↔ Wi-Fi multicast through an AP is unreliable.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

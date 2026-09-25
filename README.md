@@ -52,7 +52,8 @@ drifts on its own.
   via a splitter, or (future) two independent tiles.
 * **Wired gigabit switch.** Multicast over Wi-Fi works but jitters; a £15 8-port switch and
   five patch leads is the single biggest reliability win.
-* Official 27 W (Pi 5) / 15 W (Pi 4) PSUs. Under-powered Pis throttle the GPU.
+* Official 27 W (Pi 5) / 15 W (Pi 4) PSUs. Under-powered Pis throttle the GPU — and brown-outs corrupt SD cards. A laptop USB-C charger only offers 5 V at 3 A: fine for a Pi 4, **not** for a Pi 5.
+* Master and every renderer on the **same wired switch**. Multicast between Wi-Fi clients through an access point is throttled or dropped by most APs.
 * 2 GB Pi 5 is enough for renderer or master; 4 GB if that Pi also runs the touchscreen kiosk. 32 GB card minimum, 64 GB comfortable (A2-rated).
 * Master extras: the Pi's own USB for a MIDI controller; a USB audio interface or the XDJ's
   USB audio for live energy (optional); an Ethernet path to the **XDJ-RX2 LINK port**.

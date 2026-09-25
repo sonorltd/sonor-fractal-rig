@@ -289,7 +289,7 @@
   <div class="spacer"></div>
   <button class="btn small primary" id="perf-enter" title="big-button touch mode">▶ PERFORM</button>
   <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="outputs">Outputs</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
-  <span class="pill" id="pill-ver">v0.6.0</span>
+  <span class="pill" id="pill-ver">v0.6.1</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
@@ -755,6 +755,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
+      <tr><td>v0.6.1</td><td>Pi 4 renderer fix: SDL now opens the DRM device that actually has a connected HDMI output (Pi 4 exposes the 3D core as <code>card0</code> with no outputs, which made KMSDRM fail on every start). Also tries <code>card0..3</code> as a fallback; <code>SDL_KMSDRM_DEVICE_INDEX</code> still overrides.</td></tr>
       <tr><td>v0.6.0</td><td><b>Inputs monitor</b> on the Control tab: 4-bar beat grid with playhead and lock badge (Pro DJ Link deck / Ableton Link peers / free-running), BPM stability readout, per-deck lanes, Link phase, audio waveform + 16-band spectrum + energy/bass meters streamed from the master, MIDI / OSC / Pro DJ Link activity chips; slim beat grid in Perform mode. Master streams <code>audio_wave</code> / <code>audio_bands</code> / <code>audio_levels</code> and the followed deck in the state snapshot.</td></tr>
       <tr><td>v0.5.0</td><td><b>Outputs</b> tab: live thumbnails from every renderer; Ableton Link (follow / lead); OSC to Resolume (tempo, bar resync, scene → column, parameter map); NDI publishing (<code>install-ndi.sh</code> + <code>--ndi</code>); LED pixel output over DDP / Art-Net / sACN with a strip layout editor, matrix builder, test patterns and live canvas preview. <b>Perform mode</b> — big touch controls in swipeable pages — plus <code>install-kiosk.sh</code> for a Pi touchscreen console and <code>--display</code> on the renderer.</td></tr>
       <tr><td>v0.4.2</td><td>Engine switch (Shader scenes ⇄ projectM) and the extended projectM panel: big preset name, PREV / RANDOM / NEXT, filterable browse list with ★ favourites, recent chips, hold, auto-cycle; works in the Pages demo too.</td></tr>
