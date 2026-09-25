@@ -85,6 +85,10 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   connected connector from sysfs (`SDL_KMSDRM_DEVICE_INDEX`), falls back to trying card0..3; operator can
   still pin the index. Lesson: on Pi 4 card0=v3d, card1=vc4 display; on Pi 5 the order differs. Slave and
   master must share a switch — Wi-Fi ↔ Wi-Fi multicast through an AP is unreliable.
+  Second Pi 4 finding: with a screen attached the renderer ran but every frame failed with
+  `Could not queue pageflip: -13` (EACCES) — a systemd service user has no logind seat, so no DRM master.
+  `fractal-renderer.service` now sets `AmbientCapabilities=CAP_SYS_ADMIN` + `SupplementaryGroups=video render
+  input`. Measured 53 % multicast packet loss Wi-Fi→Wi-Fi through the studio AP — wire the renderers.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

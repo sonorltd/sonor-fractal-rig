@@ -10,6 +10,10 @@ WorkingDirectory=@REPO@/renderer
 # On Pi OS Desktop delete the next line and it will use the compositor instead.
 Environment=SDL_VIDEODRIVER=KMSDRM
 Environment=SDL_VIDEO_KMSDRM_ATOMIC=1
+# KMSDRM page-flips need DRM-master rights. A background service has no logind seat, so without this
+# the renderer runs but every flip fails with "Could not queue pageflip: -13" and the screen stays blank.
+SupplementaryGroups=video render input
+AmbientCapabilities=CAP_SYS_ADMIN
 ExecStart=@REPO@/renderer/fractal @ARGS@
 Restart=always
 RestartSec=2
