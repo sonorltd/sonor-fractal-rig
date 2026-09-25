@@ -91,6 +91,9 @@ class Engine:
         # video (scene 9) — the Media object (master.media) owns the files; the engine owns playback state
         self.media = None                               # set by master.py
         self.mapping = None                             # MappingStore, set by master.py
+        self.shows = None                               # Shows store, set by master.py
+        self.osc_in_map = dict(cfg.get("osc_in_map", {}) or {})   # Resolume OSC address → param key
+        self.osc_last = None                            # last non-/frx OSC message (for learn)
         self.video_playlist = list(cfg.get("video_playlist", []))   # clip names, in order
         self.video_cycle = cfg.get("video_cycle", "end")             # "end" = advance when the clip ends · "bars" = every N bars · "off"
         self.video_cycle_bars = int(cfg.get("video_cycle_bars", 8) or 8)
@@ -525,7 +528,7 @@ class Engine:
             tick_gap_ms=round(getattr(self, "_tick_gap_last", 0.0) * 1000, 1), uptime=round(time.time() - self.started),
             prodj_raw=self.prodj_raw, audio_wave=self.audio_wave if self.audio_ok else [], audio_bands=self.audio_bands if self.audio_ok else [],
             audio_levels=dict(energy=round(self.audio_energy, 3), bass=round(self.audio_bass, 3)) if self.audio_ok else None,
-            video=self._video_snapshot(),
+            video=self._video_snapshot(), osc_in_map=self.osc_in_map, osc_last=self.osc_last,
             pm=dict(count=len(self.pm_presets), dir=self.pm_dir, index=self.pm_index(), name=self.pm_name(),
                     cycle_bars=self.pm_cycle_bars, shuffle=self.pm_shuffle,
                     audio=self.audio_stream.stats() if self.audio_stream else None),

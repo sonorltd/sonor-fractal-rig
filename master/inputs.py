@@ -204,6 +204,22 @@ async def osc_start(engine, cfg):
             engine.set(key, args[0], "osc")
 
     d.map("/frx/*", on_param)
+
+    # Anything that is NOT /frx/… is treated as "Resolume (or another app) talking to us": Resolume Arena/Avenue
+    # can send every parameter change as OSC (Preferences → OSC → OSC output). We remember the last address seen
+    # (for the learn button on the Resolume tab) and apply cfg["osc_in_map"] = {address: param_key}: Resolume's
+    # 0..1 floats land on the param's full range, like a MIDI CC. `engine.osc_in_map` lives on the engine so the UI
+    # and shows can edit it; it is persisted in config.local.json by master.py.
+    def on_other(addr, *args):
+        if not engine.sources["osc"]["enabled"] or not args:
+            return
+        v = args[0]
+        engine.osc_last = dict(addr=addr, value=(round(v, 4) if isinstance(v, float) else v), t=time.time())
+        engine.source("osc", ok=True, last=f"{addr} {engine.osc_last['value']}", seen=time.time())
+        key = (engine.osc_in_map or {}).get(addr)
+        if key and isinstance(v, (int, float)):
+            engine.set_norm(key, float(v), "resolume")
+    d.set_default_handler(on_other)
     try:
         server = AsyncIOOSCUDPServer(("0.0.0.0", int(cfg.get("osc_port", 9000))), d, asyncio.get_running_loop())
         await server.create_serve_endpoint()

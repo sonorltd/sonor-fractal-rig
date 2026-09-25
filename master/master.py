@@ -31,7 +31,7 @@ osc_out = led = thumbs = link = None
 LOCAL_CFG = os.path.join(HERE, "config.local.json")
 
 
-def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync")):
+def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid")):
     """Persist the UI-editable parts of the config to config.local.json (config.json stays pristine in git)."""
     try:
         cur = json.load(open(LOCAL_CFG)) if os.path.exists(LOCAL_CFG) else {}
@@ -169,6 +169,7 @@ async def diag_task(engine, cfg):
 
 from media import VIDEO_EXT, clean_name   # noqa: E402
 from mapping import MappingStore, to_text, is_identity   # noqa: E402
+from shows import Shows, clean as clean_show   # noqa: E402
 
 def inputs_pm_scan(engine):
     from pm import scan_presets
@@ -188,7 +189,7 @@ async def web_app(engine, cfg):
         clients.add(ws)
         await ws.send_json(dict(type="hello", version=APP_VERSION, params=[
             dict(key=p[0], label=p[1], min=p[2], max=p[3], def_=p[4], kind=p[5], auto=p[6], group=p[7], tip=p[8])
-            for p in PARAMS], pm_presets=engine.pm_presets))
+            for p in PARAMS], pm_presets=engine.pm_presets, resolume_grid=cfg.get("resolume_grid") or dict(layers=4, columns=8, names={})))
         try:
             async for msg in ws:
                 if msg.type != WSMsgType.TEXT:
@@ -225,6 +226,26 @@ async def web_app(engine, cfg):
                     if q.get("live_start") and media: await media.live_start(str(q["live_start"].get("source", "")), q["live_start"].get("kind", "file"), q["live_start"])
                     if q.get("live_stop") and media: await media.live_stop()
                     if q.get("rethumb") and media: await media.thumbnail(str(q["rethumb"]))
+                if "resolume" in m:
+                    q = m["resolume"]
+                    # generic send, restricted to Resolume's own namespace so the UI can drive clips/layers/master
+                    if q.get("send") and isinstance(q["send"], dict) and str(q["send"].get("addr", "")).startswith("/composition"):
+                        a = q["send"].get("args", [])
+                        osc_out.send(str(q["send"]["addr"]), *(a if isinstance(a, list) else [a]))
+                    if "map" in q and isinstance(q["map"], dict):          # {addr: param} replaces the whole map
+                        engine.osc_in_map = {str(k): str(v) for k, v in q["map"].items() if str(v) in KEYS}
+                        cfg["osc_in_map"] = engine.osc_in_map; save_local_config(cfg)
+                    if q.get("learn") and engine.osc_last and str(q["learn"]) in KEYS:
+                        engine.osc_in_map[engine.osc_last["addr"]] = str(q["learn"]); cfg["osc_in_map"] = engine.osc_in_map; save_local_config(cfg)
+                        engine.event(f"Resolume OSC in: {engine.osc_last['addr']} → {q['learn']}")
+                    if q.get("unmap"):
+                        engine.osc_in_map.pop(str(q["unmap"]), None); cfg["osc_in_map"] = engine.osc_in_map; save_local_config(cfg)
+                    if "grid" in q and isinstance(q["grid"], dict):        # layers / columns the clip pad shows + names
+                        cfg["resolume_grid"] = dict(layers=max(1, min(16, int(q["grid"].get("layers", 4)))), columns=max(1, min(32, int(q["grid"].get("columns", 8)))),
+                                                    names=dict(q["grid"].get("names", {}) or {})); save_local_config(cfg)
+                        for c in list(clients):
+                            try: await c.send_json(dict(type="resolume_grid", resolume_grid=cfg["resolume_grid"]))
+                            except Exception: pass
                 if "mapping" in m and engine.mapping:
                     q = m["mapping"]
                     if "put" in q and q.get("name"): engine.mapping.put(q["name"], q["put"])
@@ -435,6 +456,69 @@ async def web_app(engine, cfg):
             raise web.HTTPBadRequest(text="json body expected")
         return web.json_response(engine.mapping.put(name, body))
 
+    # ---- shows (whole-rig setups per venue / scenario)
+    async def api_shows(request):
+        return web.json_response(dict(shows=engine.shows.list() if engine.shows else [], last=cfg.get("last_show")))
+
+    async def api_show_get(request):
+        d = engine.shows.get(request.match_info["name"]) if engine.shows else None
+        if not d:
+            raise web.HTTPNotFound(text="no such show")
+        resp = web.json_response(d)
+        if request.query.get("download"):
+            resp.headers["Content-Disposition"] = f'attachment; filename="{clean_show(d["name"])}.fractalshow.json"'
+        return resp
+
+    async def api_show_save(request):
+        if not engine.shows:
+            raise web.HTTPServiceUnavailable(text="shows disabled")
+        name = clean_show(request.match_info["name"])
+        if not name:
+            raise web.HTTPBadRequest(text="name required")
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if body.get("import"):                       # a .fractalshow.json uploaded from the browser
+            d = body["import"]
+            if not isinstance(d, dict) or "params" not in d:
+                raise web.HTTPBadRequest(text="not a show file")
+            d["name"] = name; d["saved"] = time.time()
+            json.dump(d, open(engine.shows.path(name), "w"), indent=1)
+            engine.event(f"show imported: {name}")
+            return web.json_response(dict(ok=True, shows=engine.shows.list()))
+        prev = engine.shows.get(name) if body.get("update") else None
+        engine.shows.capture(name, venue=str(body.get("venue", "")), notes=str(body.get("notes", "")), keep_meta_from=prev)
+        return web.json_response(dict(ok=True, shows=engine.shows.list()))
+
+    async def api_show_load(request):
+        if not engine.shows:
+            raise web.HTTPServiceUnavailable(text="shows disabled")
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        parts = set(body["parts"]) if isinstance(body.get("parts"), list) else None
+        ok = engine.shows.apply(request.match_info["name"], parts)
+        if not ok:
+            raise web.HTTPNotFound(text="no such show")
+        return web.json_response(dict(ok=True, last=cfg.get("last_show")))
+
+    async def api_show_delete(request):
+        ok = engine.shows.delete(request.match_info["name"]) if engine.shows else False
+        return web.json_response(dict(ok=ok, shows=engine.shows.list() if engine.shows else []))
+
+    async def api_show_rename(request):
+        body = await request.json()
+        ok = engine.shows.rename(request.match_info["name"], body.get("new", "")) if engine.shows else False
+        return web.json_response(dict(ok=ok, shows=engine.shows.list() if engine.shows else []))
+
+    app.router.add_get("/api/shows", api_shows)
+    app.router.add_get("/api/shows/{name}", api_show_get)
+    app.router.add_post("/api/shows/{name}", api_show_save)
+    app.router.add_post("/api/shows/{name}/load", api_show_load)
+    app.router.add_post("/api/shows/{name}/rename", api_show_rename)
+    app.router.add_delete("/api/shows/{name}", api_show_delete)
     app.router.add_get("/api/mapping", api_mapping)
     app.router.add_get("/api/mapping/{name}", api_mapping_get)
     app.router.add_put("/api/mapping/{name}", api_mapping_put)
@@ -502,6 +586,19 @@ async def main():
     except Exception as ex:
         engine.mapping = None
         engine.event(f"mapping: store disabled ({ex})")
+
+    def _apply_video(v):
+        if "playlist" in v: engine.video_playlist = [str(x) for x in v["playlist"]][:64]; cfg["video_playlist"] = engine.video_playlist
+        if "cycle" in v: engine.video_cycle = v["cycle"] if v["cycle"] in ("end", "bars", "off") else "end"; cfg["video_cycle"] = engine.video_cycle
+        if "cycle_bars" in v: engine.video_cycle_bars = max(1, int(v["cycle_bars"])); cfg["video_cycle_bars"] = engine.video_cycle_bars
+        if "bar_sync" in v: engine.video_bar_sync = bool(v["bar_sync"]); cfg["video_bar_sync"] = engine.video_bar_sync
+    cfg["_app_version"] = APP_VERSION
+    try:
+        engine.shows = Shows(engine, cfg, cfg.get("shows_dir") or os.path.join(ROOT, "master", "shows"),
+                             dict(outputs=lambda: dict(osc_out=osc_out, led=led, link=link), save_local_config=lambda: save_local_config(cfg), apply_video=_apply_video))
+    except Exception as ex:
+        engine.shows = None
+        engine.event(f"shows: disabled ({ex})")
     engine.event(f"Fractal Rig master v{APP_VERSION} — {len(KEYS)} params")
     engine.event(f"projectM: {len(engine.pm_presets)} presets in {engine.pm_dir}" if engine.pm_presets else
                  f"projectM: no presets in {engine.pm_dir} (run setup/install-projectm.sh) — scene 8 shows plasma")

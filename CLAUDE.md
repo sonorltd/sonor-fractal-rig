@@ -3,7 +3,7 @@
 > Current version: 0.7.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
-Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 156-byte UDP multicast
+Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 164-byte UDP multicast
 state packet at 60 Hz, N Pi renderers (C + SDL2 + GLES3) drawing the same GLSL shader to
 projectors over HDMI. Inputs: web UI, MIDI, OSC, Pioneer Pro DJ Link (passive beat listener),
 optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
@@ -107,7 +107,20 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   the first cut mirrored every mask vertically on the projector. **Output resolution** param `out_res` (top-bar selector): KMSDRM renderer
   remembers the request in `<state>.res`, exits 3, systemd restarts it in the new mode; `--out-res` pins.
   Heartbeat v5 adds `media:` `map:` `video:` tokens; fleet table shows a media column. Perform pages scroll
-  (`.ppage overflow-y:auto`). Sources card moved to the bottom of Control. Packet 156 bytes / 29 params.
+  (`.ppage overflow-y:auto`). Tabs: Control · Shows · Inputs · Media · Outputs · LEDs · Rig · Info — Sources/MIDI-OSC
+  moved to Inputs, Projectors+Log into Rig, LED strips own tab with colour-coded draggable zones (canvas pointer
+  handlers write the draft rows). **Shows** (`master/shows.py`, `master/shows/<name>.json`, `/api/shows…`): capture/apply
+  params+auto, preset bank, every mapping, video playlist settings, pm cycling, osc_out/led/link cfg, out_res; partial
+  load by parts; import/download as `.fractalshow.json`. `--headless` renderer (SDL offscreen, paced 60 fps) for a
+  master whose HDMI is taken (the test rig; defaults 720p — it shares the GPU with the kiosk). **Resolume tab**: `live_mix` +
+  `live_blend` params → renderer `mix.frag` blends the LIVE feed (vb clip 255 kept decoding while mix > 0, scene ≠ 9)
+  into `mix_fbo`, final pass reads `out_tex`; OSC generic send (`/composition/*` only) for clip pad / layers / master;
+  Resolume OSC *output* learned into `engine.osc_in_map` (default OSC handler, `set_norm`), persisted + in shows.
+  Perform: rail nav, one scrolling page, no swipe; preview/Butterchurn stops while Perform is up (was killing the
+  Pi 5 kiosk session when projectM was selected). Master-loss behaviour: renderers already freewheel on the last
+  state (own clock, last params, clips loop locally); v0.7.0 adds a LIVE-feed stall fallback (`vb_frame_age()` >
+  FEED_STALL 3 s → last shader scene, feed mix suspended) so a dead master never leaves a black/frozen projector.
+  Packet 164 bytes / 31 params.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

@@ -319,5 +319,27 @@ window.FRX_PARAMS = [
   "auto": false,
   "group": "output",
   "tip": "0 Auto (screen native) \u00b7 1 1080p \u00b7 2 4K"
+ },
+ {
+  "key": "live_mix",
+  "label": "Feed mix",
+  "min": 0,
+  "max": 1,
+  "def_": 0.0,
+  "kind": "f",
+  "auto": false,
+  "group": "feed",
+  "tip": "crossfade the LIVE feed over the picture: 0 renderer \u00b7 1 feed"
+ },
+ {
+  "key": "live_blend",
+  "label": "Feed blend",
+  "min": 0,
+  "max": 4,
+  "def_": 0,
+  "kind": "i",
+  "auto": false,
+  "group": "feed",
+  "tip": "0 crossfade \u00b7 1 add \u00b7 2 multiply \u00b7 3 screen \u00b7 4 difference"
  }
 ];

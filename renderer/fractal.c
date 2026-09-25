@@ -45,6 +45,7 @@
 
 #define APP_VERSION "0.7.0"
 #define FREEWHEEL_AFTER 3.0      /* s without packets before we run on our own clock */
+#define FEED_STALL      3.0      /* s without a new LIVE frame before a renderer stops trusting the feed */
 #define SMOOTH_TAU 0.06          /* s — exponential smoothing of continuous params */
 #define TAU_D 6.283185307179586
 #define AUDIO_STALE 1.0          /* s without PCM packets before we synthesize audio for projectM */
@@ -117,7 +118,7 @@ static void usage(void) {
            "  --state-file FILE   where to note the master's IP for fractal-media-sync\n"
            "  --no-video          disable libmpv video even if built in\n"
            "  --out-res auto|1080|4k  pin this output's mode (default: follow the master's Output selector)\n"
-           "  --headless          render with no screen (SDL offscreen, 1080p unless --window) — e.g. a master Pi whose\n"
+           "  --headless          render with no screen (SDL offscreen, 720p unless --window WxH) — e.g. a master Pi whose\n"
            "                      HDMI is used by something else but should still publish NDI / thumbnails\n"
            "  --thumb-hz N        live thumbnail rate to the master (default 20, 0 = off)\n"
            "  --ndi               publish this renderer's picture as an NDI source (needs HAVE_NDI build)\n"
@@ -142,7 +143,7 @@ static void parse_args(int argc, char **argv) {
         else if (!strcmp(a, "--name"))  strncpy(cfg.name, NEXT(), 63);
         else if (!strcmp(a, "--shaders")) strncpy(cfg.shader_dir, NEXT(), 511);
         else if (!strcmp(a, "--novsync")) cfg.vsync = 0;
-        else if (!strcmp(a, "--headless")) { cfg.headless = 1; cfg.windowed = 1; if (!cfg.win_w) { cfg.win_w = 1920; cfg.win_h = 1080; } }
+        else if (!strcmp(a, "--headless")) { cfg.headless = 1; cfg.windowed = 1; if (!cfg.win_w) { cfg.win_w = 1280; cfg.win_h = 720; } }   /* 720p: it shares the GPU with the kiosk desktop */
         else if (!strcmp(a, "--display")) cfg.display = atoi(NEXT());
         else if (!strcmp(a, "--media-dir") && i + 1 < argc) snprintf(cfg.media_dir, sizeof cfg.media_dir, "%s", argv[++i]);
         else if (!strcmp(a, "--live-url") && i + 1 < argc) snprintf(cfg.live_url, sizeof cfg.live_url, "%s", argv[++i]);
@@ -484,6 +485,15 @@ int main(int argc, char **argv) {
     map_init(cfg.mapping);
     double map_poll_last = 0;
 
+    /* LIVE feed crossfade over any scene (live_mix > 0): the feed decodes into pm_fbo, mix.frag blends it with the
+       scene into mix_fbo, and the final pass reads mix_tex instead of tex. Not available while scene 9 plays a file
+       (one decoder per Pi) — there the feed is simply the clip 255 choice. */
+    GLuint mix_tex; GLuint mix_fbo = make_fbo(rw, rh, &mix_tex);
+    GLuint mixp = build_program_plain("mix.frag");
+    GLint m_a = glGetUniformLocation(mixp, "u_a"), m_b = glGetUniformLocation(mixp, "u_b"), m_res = glGetUniformLocation(mixp, "u_res"),
+          m_mix = glGetUniformLocation(mixp, "u_mix"), m_blend = glGetUniformLocation(mixp, "u_blend");
+    int feed_on = 0;
+
     /* thumbnail FBO (80x45) + optional NDI */
     const int tw = 80, th = 45; GLuint th_tex; GLuint th_fbo = make_fbo(tw, th, &th_tex);
     static unsigned char th_px[80 * 45 * 4];
@@ -499,6 +509,7 @@ int main(int argc, char **argv) {
 
     double last = now_s(), hb_last = last, fps_t = last; int frames = 0; float fps = 0;
     double out_res_seen_t = 0; int out_res_restart = 0;
+    int last_shader_scene = 4, feed_fallback = 0;   /* plasma until we have seen a shader scene */
     int running = 1;
     while (running) {
         SDL_Event e;
@@ -519,6 +530,15 @@ int main(int argc, char **argv) {
             cur[i] = FRX_PARAM_DISCRETE[i] ? target[i] : cur[i] + (target[i] - cur[i]) * a;
 
         int scene = (int)floorf(cur[P_MODE] + 0.5f);
+        /* Fallback when the master is gone: we keep drawing the last state on our own clock (that is what freewheel
+           is), but a LIVE feed comes from the master's ffmpeg, so it dies with it — after FEED_STALL seconds without
+           a new frame, drop to the last shader scene / a plain plasma instead of a frozen or black picture. */
+        int feed_stalled = vb_ok && vb_frame_age() > FEED_STALL;
+        if (scene == 9 && (int)floorf(cur[P_VIDEO_CLIP] + 0.5f) == 255 && feed_stalled) {
+            if (!feed_fallback) { feed_fallback = 1; fprintf(stderr, "[video] LIVE feed stalled — falling back to scene %d until it returns\n", last_shader_scene); }
+            scene = last_shader_scene;
+        } else if (feed_fallback && !(scene == 9 && feed_stalled)) { feed_fallback = 0; fprintf(stderr, "[video] feed back\n"); }
+        if (scene <= 7) last_shader_scene = scene;
         /* Output selector: when the master asks for a different mode, remember it and restart (systemd brings us back) */
         if (!cfg.out_res_pin_set && !cfg.windowed && kms && have_master) {
             int want_res = (int)floorf(cur[P_OUT_RES] + 0.5f);
@@ -577,10 +597,31 @@ int main(int argc, char **argv) {
         glDrawArrays(GL_TRIANGLES, 0, 3);
         }
 
+        /* LIVE feed mix over the scene (any scene but a video clip) */
+        GLuint out_tex = tex; GLuint out_fbo = fbo;
+        float live_mix = cur[P_LIVE_MIX];
+        if (vb_ok && live_mix > 0.003f && scene != 9 && !(feed_on && feed_stalled)) {
+            vb_update(255, 0, 1.0, 1, anim_t);
+            glBindFramebuffer(GL_FRAMEBUFFER, pm_fbo); glViewport(0, 0, rw, rh);
+            int got = vb_render(pm_fbo, rw, rh);
+            glBindVertexArray(vao); glDisable(GL_BLEND); glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST);
+            if (got) {
+                glBindFramebuffer(GL_FRAMEBUFFER, mix_fbo); glViewport(0, 0, rw, rh);
+                glUseProgram(mixp);
+                glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, tex); glUniform1i(m_a, 0);
+                glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, pm_tex); glUniform1i(m_b, 1);
+                glActiveTexture(GL_TEXTURE0);
+                glUniform2f(m_res, (float)rw, (float)rh); glUniform1f(m_mix, live_mix); glUniform1i(m_blend, (int)floorf(cur[P_LIVE_BLEND] + 0.5f));
+                glDrawArrays(GL_TRIANGLES, 0, 3);
+                out_tex = mix_tex; out_fbo = mix_fbo;
+            }
+            feed_on = 1;
+        } else if (feed_on && scene != 9) { vb_update(-1, 0, 1.0, 1, anim_t); feed_on = 0; }   /* stop the decoder when the fader hits 0 */
+
         /* live thumbnail + NDI, both from the low-res fbo */
         if (!cfg.no_thumb && sock >= 0 && now - thumb_last >= thumb_period) {
             thumb_last = now;
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, th_fbo);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, out_fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, th_fbo);
             glBlitFramebuffer(0, 0, rw, rh, 0, 0, tw, th, GL_COLOR_BUFFER_BIT, GL_LINEAR);
             glBindFramebuffer(GL_FRAMEBUFFER, th_fbo); glReadPixels(0, 0, tw, th, GL_RGBA, GL_UNSIGNED_BYTE, th_px);
             send_thumb(sock, th_px, tw, th, anim_t);
@@ -589,7 +630,7 @@ int main(int argc, char **argv) {
         if (ndi_ok && now - ndi_last >= 1.0 / (cfg.ndi_fps > 0 ? cfg.ndi_fps : 30)) {
             ndi_last = now;
             unsigned char *nb = ndi_buffer();
-            if (nb) { glBindFramebuffer(GL_FRAMEBUFFER, fbo); glReadPixels(0, 0, rw, rh, GL_RGBA, GL_UNSIGNED_BYTE, nb);
+            if (nb) { glBindFramebuffer(GL_FRAMEBUFFER, out_fbo); glReadPixels(0, 0, rw, rh, GL_RGBA, GL_UNSIGNED_BYTE, nb);
                 /* GL gives bottom-up rows; flip in place */
                 for (int y = 0; y < rh / 2; y++) { unsigned char tmp[4096 * 4]; int rowb = rw * 4; if (rowb > (int)sizeof tmp) break;
                     memcpy(tmp, nb + y * rowb, rowb); memcpy(nb + y * rowb, nb + (rh - 1 - y) * rowb, rowb); memcpy(nb + (rh - 1 - y) * rowb, tmp, rowb); }
@@ -598,7 +639,7 @@ int main(int argc, char **argv) {
 
         /* final pass: cheap upscale blit, or the mapping warp when mapping.txt is not identity */
         if (map_identity()) {
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, out_fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
             glBlitFramebuffer(0, 0, rw, rh, 0, 0, W, H, GL_COLOR_BUFFER_BIT, GL_LINEAR);
         } else {
             float inv[9], feather, edge[4], bright, gam; int test;
@@ -607,8 +648,8 @@ int main(int argc, char **argv) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H);
             glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
             glUseProgram(warp);
-            glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, tex); glUniform1i(w_tex, 0);
-            glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, mask ? mask : tex); glUniform1i(w_mask, 1);
+            glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, out_tex); glUniform1i(w_tex, 0);
+            glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, mask ? mask : out_tex); glUniform1i(w_mask, 1);
             glActiveTexture(GL_TEXTURE0);
             glUniform1i(w_has_mask, mask ? 1 : 0);
             glUniform2f(w_res, (float)W, (float)H); glUniformMatrix3fv(w_inv, 1, GL_FALSE, inv);

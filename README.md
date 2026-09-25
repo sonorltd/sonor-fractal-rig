@@ -127,6 +127,15 @@ auto-advance (clip end / every N bars), bar sync, Perform tiles, OSC `/frx/video
 **LIVE** (clip 255) is the one real stream: an NDI source (Resolume over the LAN, no capture card), an HDMI capture dongle (UVC), any V4L2 camera, a looping
 file or test bars → ffmpeg → multicast MPEG-TS → every Pi within ~0.5 s.
 
+**Resolume tab** (two-way): rig → Resolume as NDI, Resolume → every projector as the LIVE feed, a per-projector
+**feed mix** crossfade (`live_mix`, 5 blend modes), clip pad / layer faders / master over OSC, and Resolume's OSC
+output mapped onto rig parameters with a learn button. **Shows** tab: whole-rig setups per venue (look, presets,
+mapping for every projector, playlist, outputs, resolution) — save, load (whole or by part), update, export/import.
+
+**If the master drops out** every projector carries on by itself: same clock, last parameters, clips keep looping,
+projectM keeps running; a LIVE feed (which only the master can send) falls back to the last shader scene after 3 s
+and comes back automatically. Nothing goes black.
+
 **Projection mapping** (Outputs tab, per projector, applied live): keystone corners, black-out mask
 polygons with feather, soft-edge blend, brightness/gamma, test pattern. **Output resolution** selector
 on the top bar (Auto / 1080p / 4K — a Pi 4 on a 4K TV wants 1080p). Every Pi has a status page on

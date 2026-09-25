@@ -143,12 +143,23 @@
   .perf-top .bpm { font-size: 28px; }
   .perf-top .tabs { border: 0; margin: 0; }
   .perf-top .tabs button { font-size: 14px; padding: 8px 12px; }
-  /* pages swipe horizontally (snap), each page scrolls vertically on its own. min-height:0 + height:100% are what
-     let a flex child actually scroll instead of growing; touch-action keeps both axes usable on the touch panel. */
-  .perf-pages { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; touch-action: pan-x pan-y; }
-  .perf-pages::-webkit-scrollbar { display: none; }
-  .ppage { flex: 0 0 100%; height: 100%; min-height: 0; scroll-snap-align: start; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pan-x; padding: 14px 14px 72px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; }
+  /* Perform layout: a fixed rail of page buttons on the left, ONE page visible at a time, and that page is the
+     scroll container (overflow-y:auto + min-height:0). No horizontal swipe any more — it fought with vertical
+     scrolling on the kiosk and hid pages. */
+  .perf-body { flex: 1; min-height: 0; display: flex; }
+  .perf-rail { width: 112px; flex: none; display: flex; flex-direction: column; gap: 6px; padding: 10px 8px; border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; }
+  .perf-rail button { min-height: 60px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 600; letter-spacing: .03em; padding: 6px 4px; display: grid; place-items: center; gap: 2px; }
+  .perf-rail button small { font-weight: 400; font-size: 10px; color: var(--muted); }
+  .perf-rail button.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.25), rgba(128,88,161,.25)); color: #fff; }
+  .perf-rail .spacer { flex: 1; }
+  .perf-pages { flex: 1; min-height: 0; position: relative; display: flex; }
+  .ppage { flex: 1; min-height: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: 14px 16px 90px; display: none; flex-direction: column; gap: 14px; box-sizing: border-box; scrollbar-width: thin; }
+  .ppage.on { display: flex; }
   .ppage > * { flex: none; }
+  .pscroll { position: absolute; right: 10px; bottom: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+  .pscroll button { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--line); background: rgba(22,26,33,.92); color: var(--text); font-size: 22px; }
+  .pf-hint { font-size: 12px; color: var(--muted); }
+  @media (max-width: 600px) { .perf-rail { width: 76px; } .perf-rail button { min-height: 52px; font-size: 12px; } .perf-rail button small { display: none; } }
   .pgrid { display: grid; gap: 10px; }
   .pgrid.c2 { grid-template-columns: 1fr 1fr; } .pgrid.c3 { grid-template-columns: repeat(3, 1fr); } .pgrid.c4 { grid-template-columns: repeat(4, 1fr); }
   .pbtn { min-height: 72px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; font-weight: 700; letter-spacing: .03em; display: grid; place-items: center; gap: 2px; padding: 10px; text-align: center; }
@@ -166,16 +177,39 @@
   .pstep { display: grid; grid-template-columns: 72px 1fr 72px; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
   .pstep .pbtn { min-height: 60px; font-size: 26px; }
   .pstep .mid { text-align: center; } .pstep .mid b { display: block; font-size: 16px; } .pstep .mid span { font-family: var(--mono); color: var(--accent2); font-size: 18px; }
-  .pdots { display: flex; justify-content: center; gap: 8px; padding: 8px; border-top: 1px solid var(--line); background: var(--panel); }
-  .pdots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); } .pdots i.on { background: var(--accent2); }
   .pm-tile { min-height: 64px; font-size: 14px; font-weight: 500; }
+  .pf-preset { min-height: 84px; font-size: 17px; }
+  .pf-preset small { font-size: 11px; }
+  .pf-show { min-height: 84px; font-size: 16px; text-align: left; place-items: start; }
+  .pf-show small { text-align: left; }
   @media (max-width: 500px) { .pgrid.c3 { grid-template-columns: 1fr 1fr; } .pgrid.c4 { grid-template-columns: 1fr 1fr; } .pslider { grid-template-columns: 90px 1fr 56px; } .pbtn { font-size: 16px; min-height: 64px; } .perf-top .tabs button { padding: 8px 8px; font-size: 13px; } }
 
   /* outputs tab */
-  #outputs { display: block; max-width: 1200px; margin: 0 auto; padding: 16px; }
-  #outputs[hidden] { display: none; }
-  #outputs .card { margin-bottom: 16px; }
-  #outputs h2 .sub { color: var(--muted); font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  #outputs, #inputs, #leds, #shows, #resolume { display: block; max-width: 1200px; margin: 0 auto; padding: 16px; }
+  #outputs[hidden], #inputs[hidden], #leds[hidden], #shows[hidden], #resolume[hidden] { display: none; }
+  #outputs .card, #inputs .card, #leds .card, #shows .card, #resolume .card { margin-bottom: 16px; }
+  .rpad { border-collapse: separate; border-spacing: 4px; }
+  .rpad th { font-family: var(--mono); font-size: 11px; color: var(--muted); font-weight: 400; padding: 2px; }
+  .rpad th.col { cursor: pointer; border: 1px solid var(--line); border-radius: 6px; padding: 6px; } .rpad th.col:hover { color: var(--text); border-color: var(--accent2); }
+  .rpad td button { width: 100%; min-width: 64px; min-height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 12px; padding: 4px; }
+  .rpad td button:active { background: var(--accent); }
+  .rpad td button.on { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.25), rgba(128,88,161,.25)); }
+  .rlayer { display: grid; grid-template-columns: 90px 1fr 56px 90px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+  .rlayer input[type=range] { width: 100%; accent-color: var(--accent2); }
+  .rlayer .v { font-family: var(--mono); color: var(--accent2); text-align: right; }
+  #resolume h2 .sub { color: var(--muted); font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .showgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .show { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .show.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .show h4 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .show .meta { font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .show .notes { font-size: 12px; color: var(--text); white-space: pre-wrap; }
+  .show .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+  .parts { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .parts label { display: flex; align-items: center; gap: 4px; }
+  #led-canvas { touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+  .zone-sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+  #outputs h2 .sub, #inputs h2 .sub, #leds h2 .sub, #status h2 .sub { color: var(--muted); font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 400; }
   .field { display: grid; grid-template-columns: 130px 1fr; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
   .field:last-child { border-bottom: 0; }
   .field label { color: var(--muted); }
@@ -322,12 +356,12 @@
 <header>
   <div class="logo">FRACTAL <span>RIG</span></div>
   <span class="pill"><i class="dot" id="conn-dot"></i><span id="conn-label">connecting…</span></span>
-  <span class="pill" id="pill-fleet">0 projectors</span>
+  <span class="pill" id="pill-fleet" style="cursor:pointer" title="open the Rig tab">0 projectors</span>
   <span class="pill" id="pill-tempo"><i class="dot" id="tempo-dot"></i><span id="tempo-label">no tempo</span></span>
   <div class="spacer"></div>
   <select class="btn small" id="out-res" title="Output resolution on every projector (Pi renderers on KMSDRM modeset and restart, ~3 s black). A Pi 4 is much smoother at 1080p."><option value="0">Auto res</option><option value="1">1080p</option><option value="2">4K</option></select>
   <button class="btn small primary" id="perf-enter" title="big-button touch mode">▶ PERFORM</button>
-  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="outputs">Outputs</button><button data-view="media">Media</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
+  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="shows">Shows</button><button data-view="inputs">Inputs</button><button data-view="media">Media</button><button data-view="outputs">Outputs</button><button data-view="resolume">Resolume</button><button data-view="leds">LEDs</button><button data-view="status">Rig</button><button data-view="info">Info</button></nav>
   <span class="pill" id="pill-ver">v0.7.0</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
@@ -456,23 +490,10 @@
         <span class="spacer"></span><button class="btn small" id="video-open-media">Media library →</button>
       </div>
       <div class="chips" id="video-chips" style="margin-top:8px"></div>
+      <div class="row" style="gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap"><span style="font-size:12px;color:var(--muted)">FEED MIX</span><span style="font-size:11px;color:var(--muted)">renderer</span><input type="range" id="feed-mix2" min="0" max="1" step="0.005" style="flex:1;min-width:160px;accent-color:var(--accent2)"><span style="font-size:11px;color:var(--muted)">feed</span><span class="val" id="feed-mix2-v" style="font-family:var(--mono)">0.00</span><a class="btn small" href="#" id="feed-more">Resolume tab →</a></div>
       <div class="hint">Clips live on every Pi (pulled from the master automatically); the master only broadcasts <em>which clip, when it started, speed, loop</em>, so all projectors show the same frame. Kaleidoscope / zoom / hue apply through <code>Shader mix</code> in the projectM tab. Upload and manage clips, playlists and the LIVE source in <b>Media</b>.</div>
     </div>
 
-    <div class="card">
-      <h2>Projectors <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">heartbeats every second from each renderer</span></h2>
-      <div class="tablewrap"><table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>media</th><th>age</th></tr></thead><tbody id="fleet"></tbody></table></div>
-    </div>
-
-    <div class="card">
-      <h2>Log</h2>
-      <div class="log" id="log"></div>
-    </div>
-
-    <div class="card">
-      <h2>Sources <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">green = linked · amber = enabled, waiting · grey = off</span></h2>
-      <div id="sources"></div>
-    </div>
   </section>
 
   <aside style="display:flex;flex-direction:column;gap:16px">
@@ -495,19 +516,120 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>MIDI / OSC</h2>
-      <div style="font-size:12px;color:var(--muted);line-height:1.6">
-        OSC: <code>/frx/&lt;param&gt; f</code> · <code>/frx/tap</code> · <code>/frx/beat1</code> · <code>/frx/bpm f</code> · <code>/frx/preset s|i</code> · <code>/frx/auto_&lt;param&gt; 0|1</code> on udp/9000.<br>
-        MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; 35 tap · 34 set beat 1 · 33/32 projectM next/prev · 31/30 video next/prev · 29 video restart · 28 LIVE.<br>
-        Video OSC: <code>/frx/video i|s</code> · <code>/frx/video_next</code> · <code>/frx/video_prev</code> · <code>/frx/video_restart</code> · <code>/frx/video_live</code>.<br>
-        Last CC seen: <b id="last-cc" style="color:var(--text)">—</b>
-        <select id="learn-param" class="btn small"></select>
-        <button class="btn small" id="learn">Map last CC →</button>
-      </div>
     </div>
   </aside>
 </main>
+
+<section id="shows" hidden>
+  <div class="card">
+    <h2>Shows <span class="spacer"></span><span class="sub">a whole rig setup per venue or scenario — look, presets, every projector's mapping, playlist, outputs, resolution</span><span class="pill" id="show-current">—</span></h2>
+    <div class="hint" style="margin:0 0 10px">Save the rig as it is right now under a name ("Warehouse — 3 projectors", "Studio bench", "Wedding ambient"…). Loading a show puts <em>everything</em> back: parameters and which ones drift, the preset bank, projection mapping for each projector by name (projectors not in the show go back to a plain picture), video playlist and auto-advance, projectM cycling, Resolume / Link / LED settings and the output resolution. <b>Update</b> re-captures the current state into an existing show; <b>Download</b> gives a file you can keep or move to another master.</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px"><label style="font-size:11px;color:var(--muted)">Name</label><input class="text" id="show-name" placeholder="e.g. Warehouse — 3 projectors"></div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted)">Venue</label><input class="text" id="show-venue" placeholder="where"></div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:220px"><label style="font-size:11px;color:var(--muted)">Notes</label><input class="text" id="show-notes" placeholder="cabling, which projector is which, anything future-you needs"></div>
+      <button class="btn primary" id="show-save">Save current rig as show</button>
+      <label class="btn small" style="cursor:pointer">Import file… <input type="file" id="show-import" accept=".json,application/json" hidden></label>
+    </div>
+    <div class="parts" style="margin-top:10px">load parts:
+      <label><input type="checkbox" class="show-part" value="params" checked> look &amp; params</label>
+      <label><input type="checkbox" class="show-part" value="presets" checked> preset bank</label>
+      <label><input type="checkbox" class="show-part" value="mappings" checked> projection mapping</label>
+      <label><input type="checkbox" class="show-part" value="video" checked> video playlist</label>
+      <label><input type="checkbox" class="show-part" value="pm" checked> projectM cycling</label>
+      <label><input type="checkbox" class="show-part" value="outputs" checked> Resolume / Link / LEDs</label>
+      <label><input type="checkbox" class="show-part" value="out_res" checked> output resolution</label>
+      <span style="margin-left:6px">(untick to keep what you have for that part)</span>
+    </div>
+  </div>
+  <div class="showgrid" id="show-list"><div class="hint">loading…</div></div>
+</section>
+
+
+<section id="resolume" hidden>
+  <div class="card">
+    <h2>Resolume <span class="spacer"></span><span class="sub">two-way: the rig drives Resolume over OSC, Resolume's OSC output drives the rig, and video goes both ways over NDI</span></h2>
+    <div class="hint" style="margin:0"><b>Picture:</b> Resolume takes the rig as an NDI source (Sources → NDI Servers → "Fractal Rig (…)"), and its NDI screen comes back to every projector as the LIVE feed (Outputs → NDI → Use as LIVE). The <b>Feed mix</b> fader below crossfades each projector between its own picture and the Resolume return. <b>Control:</b> the clip pad and faders here send OSC to Resolume (Preferences → OSC → OSC input on, port below); mapping Resolume's OSC <em>output</em> back to rig parameters is at the bottom.</div>
+  </div>
+
+  <div class="card" id="r-feed">
+    <h2>Feed mix <span class="spacer"></span><span class="sub">every projector: own picture ⇄ LIVE feed (Resolume / HDMI) · not while a video clip plays</span></h2>
+    <div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--muted)">renderer</span>
+      <input type="range" id="feed-mix" min="0" max="1" step="0.005" style="flex:1;min-width:220px;height:36px;accent-color:var(--accent2)">
+      <span style="font-size:12px;color:var(--muted)">feed</span>
+      <span class="val" id="feed-mix-v" style="font-family:var(--mono);min-width:44px;text-align:right">0.00</span>
+      <span class="seg" id="feed-blend"><button data-b="0">crossfade</button><button data-b="1">add</button><button data-b="2">multiply</button><button data-b="3">screen</button><button data-b="4">difference</button></span>
+    </div>
+    <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn small" data-feed="0">0 % renderer</button><button class="btn small" data-feed="0.25">25 %</button><button class="btn small" data-feed="0.5">50 %</button><button class="btn small" data-feed="0.75">75 %</button><button class="btn small" data-feed="1">100 % feed</button>
+      <span class="spacer"></span><span class="pill" id="feed-state">—</span>
+    </div>
+    <div class="hint">The feed is decoded on every Pi from the LIVE multicast stream, so the fader is exactly in sync on all projectors. Loop idea: rig → NDI → Resolume effects → NDI → back here at 100 % feed = Resolume's processing on the rig's own picture; anywhere between = both. <code>live_mix</code> is a normal parameter — MIDI-learn it or send <code>/frx/live_mix f</code>.</div>
+  </div>
+
+  <div class="card" id="r-pad">
+    <h2>Clip pad <span class="spacer"></span><span class="sub">triggers Resolume clips / columns over OSC</span>
+      <span style="font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0">layers <input type="number" id="rg-layers" min="1" max="16" value="4" style="width:48px"> × columns <input type="number" id="rg-cols" min="1" max="32" value="8" style="width:52px"></span></h2>
+    <div class="tablewrap"><table class="rpad" id="rpad"></table></div>
+    <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+      <button class="btn small" id="rp-disconnect">DISCONNECT ALL</button>
+      <button class="btn small" id="rp-tap">TAP tempo in Resolume</button>
+      <button class="btn small" id="rp-resync">RESYNC</button>
+      <span class="hint" style="margin:0 0 0 8px">click a column header to launch the whole column · double-click a cell to name it (names are just labels here — Resolume decides what's in the slot)</span>
+    </div>
+  </div>
+
+  <div class="card" id="r-layers">
+    <h2>Layers &amp; master <span class="spacer"></span><span class="sub">opacity / bypass per layer, composition master · one-way (Resolume doesn't report back unless you map its OSC output below)</span></h2>
+    <div id="rlayers"></div>
+    <div class="pslider" style="margin-top:8px"><label>Composition master</label><input type="range" id="r-master" min="0" max="1" step="0.005" value="1"><span class="v" id="r-master-v">1.00</span></div>
+  </div>
+
+  <div class="card" id="r-in">
+    <h2>Resolume → rig <span class="spacer"></span><span class="sub">map Resolume's OSC output onto rig parameters (learn)</span></h2>
+    <div class="hint" style="margin:0 0 8px">In Resolume: Preferences → OSC → enable <b>OSC output</b>, target = this master's IP, port <b>9000</b>. Then wiggle a dashboard knob or fader in Resolume, pick a rig parameter and press <b>Map</b>. Resolume sends 0–1 floats, which land on the parameter's full range. Mappings are saved with the show.</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:12px;color:var(--muted)">last from Resolume:</span><code id="rin-last" style="font-size:12px">— (nothing received yet)</code>
+      <select id="rin-param" class="btn small"></select><button class="btn small primary" id="rin-map">Map last address →</button>
+    </div>
+    <div id="rin-list" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card" id="o-resolume">
+    <h2>Connection &amp; tempo <span class="spacer"></span><span class="pill"><i class="dot" id="res-dot"></i><span id="res-label">OSC out</span></span><span class="pill"><i class="dot" id="link-dot"></i><span id="link-label">Link</span></span></h2>
+    <h4 style="margin:6px 0;color:var(--accent2);font-size:13px">Ableton Link — shared tempo &amp; bar phase with Resolume / Ableton / Traktor</h4>
+    <div class="field"><label>Link</label><div class="row"><button class="toggle" id="link-toggle"></button><span class="seg"><button data-lm="follow" id="lm-follow">follow session</button><button data-lm="lead" id="lm-lead">lead (push CDJ tempo)</button></span><span style="font-size:12px;color:var(--muted)" id="link-status"></span></div></div>
+    <div class="hint">Enable Link in Resolume (Preferences → Tempo → Ableton Link) and it appears as a peer. <b>Follow</b>: the rig takes tempo and bar phase from the session. <b>Lead</b>: the rig pushes its tempo (Pro DJ Link / tap) into the session and forces bar 1 on SET BEAT 1 — so Resolume follows the decks via us.</div>
+    <h4 style="margin:14px 0 6px;color:var(--accent2);font-size:13px">OSC to Resolume — tempo, bar resync, scene → column, parameter map</h4>
+    <div class="field"><label>Send OSC</label><div class="row"><button class="toggle" id="res-toggle"></button><input class="text" id="res-host" placeholder="Resolume PC IP" style="max-width:160px"><input class="text" id="res-port" type="number" placeholder="7000" style="max-width:90px"><button class="btn small" id="res-apply">apply</button></div></div>
+    <div class="field"><label>Options</label><div class="row"><label style="font-size:12px"><input type="checkbox" id="res-tempo"> send tempo (normalised, 20–500 BPM)</label><label style="font-size:12px"><input type="checkbox" id="res-resync"> resync on SET BEAT 1</label></div></div>
+    <div class="field"><label>Test</label><div class="row"><button class="btn small" id="res-test-resync">send resync</button><button class="btn small" id="res-test-tempo">send tempo now</button><button class="btn small" id="res-test-col">connect column 1</button><span style="font-family:var(--mono);font-size:11px;color:var(--muted)" id="res-stats"></span></div></div>
+    <div class="field"><label>Scene → column</label><div class="row" id="res-cols"></div></div>
+    <div class="field"><label>Param → OSC</label><div style="min-width:0"><div id="res-map"></div><div class="row" style="margin-top:6px"><select id="res-map-param" class="btn small"></select><input class="text" id="res-map-addr" placeholder="/composition/layers/1/video/effects/hue/effect/hue"><button class="btn small" id="res-map-add">add</button></div><div class="hint">Values go out normalised 0–1 whenever the parameter changes (max 20/s). Any Resolume parameter's OSC address is shown in its shortcut panel (Shortcuts → OSC → edit). Resolume can also send OSC back to <code>/frx/&lt;param&gt;</code> on udp/9000.</div></div></div>
+  </div>
+</section>
+
+<section id="inputs" hidden>
+  <div class="card">
+    <h2>Inputs <span class="spacer"></span><span class="sub">what drives the rig: tempo sources, controllers, audio, autonomous drift</span></h2>
+    <div class="hint" style="margin:0">Live link status for every source and the on/off switches. The Control tab shows the result (tempo pill, Inputs monitor); this page is where you connect things. The <b>tempo</b> pill in the top bar tells you at a glance which source is locked.</div>
+  </div>
+  <div class="card">
+    <h2>Sources <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">green = linked · amber = enabled, waiting · grey = off</span></h2>
+    <div id="sources"></div>
+  </div>
+  <div class="card">
+    <h2>MIDI / OSC</h2>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6">
+      OSC: <code>/frx/&lt;param&gt; f</code> · <code>/frx/tap</code> · <code>/frx/beat1</code> · <code>/frx/bpm f</code> · <code>/frx/preset s|i</code> · <code>/frx/auto_&lt;param&gt; 0|1</code> on udp/9000.<br>
+      MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; 35 tap · 34 set beat 1 · 33/32 projectM next/prev · 31/30 video next/prev · 29 video restart · 28 LIVE.<br>
+      Video OSC: <code>/frx/video i|s</code> · <code>/frx/video_next</code> · <code>/frx/video_prev</code> · <code>/frx/video_restart</code> · <code>/frx/video_live</code>.<br>
+      Last CC seen: <b id="last-cc" style="color:var(--text)">—</b>
+      <select id="learn-param" class="btn small"></select>
+      <button class="btn small" id="learn">Map last CC →</button>
+    </div>
+</section>
 
 <section id="media" hidden>
   <div class="card">
@@ -562,7 +684,7 @@
   <div class="card">
     <h2>Outputs <span class="spacer"></span><span class="sub">where the rig's picture and tempo go, besides the projectors</span></h2>
     <div class="toc" style="display:flex;gap:6px;flex-wrap:wrap">
-      <a class="btn small" href="#o-live">Live from projectors</a><a class="btn small" href="#o-mapping">Projection mapping</a><a class="btn small" href="#o-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#o-ndi">NDI video</a><a class="btn small" href="#o-led">LED pixel strips</a>
+      <a class="btn small" href="#o-live">Live from projectors</a><a class="btn small" href="#o-mapping">Projection mapping</a><a class="btn small" href="#o-ndi">NDI video</a>
     </div>
   </div>
 
@@ -604,18 +726,6 @@
     </div>
   </div>
 
-  <div class="card" id="o-resolume">
-    <h2>Resolume &amp; Ableton Link <span class="spacer"></span><span class="pill"><i class="dot" id="res-dot"></i><span id="res-label">OSC out</span></span><span class="pill"><i class="dot" id="link-dot"></i><span id="link-label">Link</span></span></h2>
-    <h4 style="margin:6px 0;color:var(--accent2);font-size:13px">Ableton Link — shared tempo &amp; bar phase with Resolume / Ableton / Traktor</h4>
-    <div class="field"><label>Link</label><div class="row"><button class="toggle" id="link-toggle"></button><span class="seg"><button data-lm="follow" id="lm-follow">follow session</button><button data-lm="lead" id="lm-lead">lead (push CDJ tempo)</button></span><span style="font-size:12px;color:var(--muted)" id="link-status"></span></div></div>
-    <div class="hint">Enable Link in Resolume (Preferences → Tempo → Ableton Link) and it appears as a peer. <b>Follow</b>: the rig takes tempo and bar phase from the session. <b>Lead</b>: the rig pushes its tempo (Pro DJ Link / tap) into the session and forces bar 1 on SET BEAT 1 — so Resolume follows the decks via us.</div>
-    <h4 style="margin:14px 0 6px;color:var(--accent2);font-size:13px">OSC to Resolume — tempo, bar resync, scene → column, parameter map</h4>
-    <div class="field"><label>Send OSC</label><div class="row"><button class="toggle" id="res-toggle"></button><input class="text" id="res-host" placeholder="Resolume PC IP" style="max-width:160px"><input class="text" id="res-port" type="number" placeholder="7000" style="max-width:90px"><button class="btn small" id="res-apply">apply</button></div></div>
-    <div class="field"><label>Options</label><div class="row"><label style="font-size:12px"><input type="checkbox" id="res-tempo"> send tempo (normalised, 20–500 BPM)</label><label style="font-size:12px"><input type="checkbox" id="res-resync"> resync on SET BEAT 1</label></div></div>
-    <div class="field"><label>Test</label><div class="row"><button class="btn small" id="res-test-resync">send resync</button><button class="btn small" id="res-test-tempo">send tempo now</button><button class="btn small" id="res-test-col">connect column 1</button><span style="font-family:var(--mono);font-size:11px;color:var(--muted)" id="res-stats"></span></div></div>
-    <div class="field"><label>Scene → column</label><div class="row" id="res-cols"></div></div>
-    <div class="field"><label>Param → OSC</label><div style="min-width:0"><div id="res-map"></div><div class="row" style="margin-top:6px"><select id="res-map-param" class="btn small"></select><input class="text" id="res-map-addr" placeholder="/composition/layers/1/video/effects/hue/effect/hue"><button class="btn small" id="res-map-add">add</button></div><div class="hint">Values go out normalised 0–1 whenever the parameter changes (max 20/s). Any Resolume parameter's OSC address is shown in its shortcut panel (Shortcuts → OSC → edit). Resolume can also send OSC back to <code>/frx/&lt;param&gt;</code> on udp/9000.</div></div></div>
-  </div>
 
   <div class="card" id="o-ndi">
     <h2>NDI video <span class="spacer"></span><span class="sub">publish a Pi's picture as an NDI source for Resolume / OBS / vMix</span></h2>
@@ -626,8 +736,11 @@
     <div class="hint">Simplest, most robust path into Resolume is still an <b>HDMI capture card</b> (Cam Link 4K, Magewell) on any Pi's second HDMI port — zero software. NDI is the network alternative: install the NDI SDK on a Pi with <code>setup/install-ndi.sh &lt;tar.gz&gt;</code>, add <code>--ndi</code> to that renderer's arguments, and "Fractal Rig (pi-name)" appears in Resolume's Sources → NDI. A Pi 5 does 1080p at scale 0.6 / 30 fps comfortably.</div>
   </div>
 
+</section>
+
+<section id="leds" hidden>
   <div class="card" id="o-led">
-    <h2>LED pixel strips <span class="spacer"></span><span class="pill"><i class="dot" id="led-dot"></i><span id="led-label">off</span></span></h2>
+    <h2>LED pixel strips <span class="spacer"></span><span class="sub">zones sampled from the projected picture · drag them on the canvas</span><span class="pill"><i class="dot" id="led-dot"></i><span id="led-label">off</span></span></h2>
     <div class="field"><label>Output</label><div class="row"><button class="toggle" id="led-toggle"></button><span style="font-size:12px;color:var(--muted)">sample from</span><select id="led-source" class="btn small"><option value="">freshest renderer</option></select><span style="font-size:12px;color:var(--muted)">at</span><input class="text" id="led-fps" type="number" min="1" max="60" style="max-width:70px"><span style="font-size:12px;color:var(--muted)">fps</span></div></div>
     <div class="field"><label>Brightness / gamma</label><div class="row"><input type="range" id="led-bri" min="0" max="1" step="0.01" style="flex:1;max-width:220px;accent-color:var(--accent2)"><span class="val" id="led-bri-v" style="font-family:var(--mono);font-size:12px;width:40px"></span><input type="range" id="led-gam" min="1" max="3" step="0.05" style="flex:1;max-width:220px;accent-color:var(--accent2)"><span class="val" id="led-gam-v" style="font-family:var(--mono);font-size:12px;width:40px"></span></div></div>
     <div class="field"><label>Test pattern</label><div class="row"><span class="seg" id="led-test"><button data-t="off">off</button><button data-t="white">white</button><button data-t="rgb">R/G/B</button><button data-t="chase">chase</button></span><span style="font-family:var(--mono);font-size:11px;color:var(--muted)" id="led-stats"></span></div></div>
@@ -636,7 +749,7 @@
     <div class="tablewrap" style="margin-top:10px">
       <table class="striptable"><thead><tr><th>on</th><th>name</th><th>controller IP</th><th>protocol</th><th>universe</th><th>start ch</th><th>order</th><th>pixels</th><th>x0</th><th>y0</th><th>x1</th><th>y1</th><th>universes used</th><th></th></tr></thead><tbody id="strips"></tbody></table>
     </div>
-    <div class="row" style="margin-top:8px"><button class="btn small" id="strip-add">+ add strip</button><button class="btn small" id="strip-matrix">+ add matrix…</button><button class="btn small primary" id="strips-apply">apply to master</button><span class="hint" id="strips-msg" style="margin:0"></span></div>
+    <div class="row" style="margin-top:8px"><button class="btn small" id="strip-add">+ add zone</button><button class="btn small" id="strip-matrix">+ add matrix…</button><button class="btn small primary" id="strips-apply">apply to master</button><span class="hint" id="strips-msg" style="margin:0"></span></div>
     <div class="hint" id="led-errors"></div>
     <div class="hint"><b>Protocols:</b> <b>DDP</b> (udp 4048) for WLED — one strip = one WLED device, universes ignored. <b>Art-Net</b> (udp 6454) for Advatek / PixLite / Falcon / Art-Net WLED — 170 RGB pixels per universe, a long strip automatically uses consecutive universes from the one you set. <b>sACN / E1.31</b> (udp 5568) — same universe rule; set IP to <code>multicast</code> to use the standard 239.255.x.y groups. <b>Order</b>: WS2812/WS2815 are GRB, SK6812 RGBW is not supported (use RGB mode on the controller), APA102 usually BGR.</div>
   </div>
@@ -644,11 +757,21 @@
 
 <section id="status" hidden>
   <div class="card wide" style="margin-bottom:16px">
-    <h2>Status &amp; debugging <span class="spacer"></span>
+    <h2>Rig <span class="spacer"></span><span class="sub">every Pi, its health, and the master's own diagnostics</span>
       <button class="btn small" id="diag-copy">Copy diagnostics JSON</button>
       <button class="btn small" id="diag-refresh">Refresh MIDI / audio lists</button>
     </h2>
     <div id="st-summary" class="hint"></div>
+  </div>
+  <div class="grid" style="margin-bottom:16px">
+    <div class="card wide" style="grid-column:1/-1">
+      <h2>Projectors <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">heartbeats every second from each renderer</span></h2>
+      <div class="tablewrap"><table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>media</th><th>age</th></tr></thead><tbody id="fleet"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Log</h2>
+      <div class="log" id="log"></div>
+    </div>
   </div>
   <div class="grid" id="st-grid"></div>
 </section>
@@ -658,7 +781,7 @@
     <h3>Fractal Rig — how it all fits together</h3>
     <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master renders too, so it is projector #1). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 20 parameters — in one 120-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet.</p>
     <div class="toc">
-      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-video">Video &amp; HDMI capture</a><a class="btn small" href="#i-mapping">Projection mapping</a><a class="btn small" href="#i-outres">Output resolution</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
+      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-resolume2">Resolume tab</a><a class="btn small" href="#i-video">Video &amp; HDMI capture</a><a class="btn small" href="#i-mapping">Projection mapping</a><a class="btn small" href="#i-outres">Output resolution</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
     </div>
   </div>
 
@@ -796,7 +919,6 @@ sudo bash setup/install.sh master</pre>
     <p>Packet: magic <code>FRX1</code>, version, param count, sequence, flags, <code>t</code> (master clock, f64), <code>beat_t</code> (clock time of the last beat, f64), <code>bpm</code>, <code>bar_beat</code>, then 20 floats in the order of <code>master/params.py</code>. Renderers store <code>(t, arrival)</code> and render at <code>t + (now − arrival)</code> — re-anchored 60× a second, so there is no drift to correct. Continuous params are smoothed (τ 60 ms) identically on every Pi; discrete ones (scene, iterations, kaleido) snap. Beats are never sent as a phase — the shader computes <code>fract((t − beat_t)·bpm/60)</code> itself, so it can't wrap mid-interpolation. Lose the master for 3 s and a Pi freewheels on its own clock, then re-locks silently. HDMI outputs are not genlocked, so adjacent projectors can be up to one frame (16 ms) apart — invisible at normal speeds. Full detail in <code>PROTOCOL.md</code>.</p>
   </div>
 
-
   <div class="card" id="i-perform">
     <h3>Perform mode &amp; touchscreen console</h3>
     <p><b>▶ PERFORM</b> (header button, key <kbd>P</kbd>, or open <code>?perf=1</code>) replaces the whole page with big touch controls in four swipeable pages — <b>Show</b> (TAP, SET BEAT 1, engine, scenes, blackout / freeze / auto), <b>Presets</b> (shader presets, projectM prev / random / next / hold, your ★ favourites as tiles), <b>Feel</b> (brightness, contrast, glow, beat pulse, bar swing, warp, speed, auto depth, zoom / kaleidoscope / detail steppers) and <b>Colour</b> (hue swatches and sliders). Swipe or tap the page names; <b>✕ EXIT</b> (or <kbd>Esc</kbd>) returns to the full GUI with every micro-control. The mode is remembered per browser.</p>
@@ -825,6 +947,11 @@ sudo bash setup/install.sh master</pre>
   <div class="card" id="i-ndi">
     <h3>NDI video</h3>
     <p>NDI publishes a Pi's picture as a network video source for Resolume, OBS, vMix, TouchDesigner… The NDI SDK is a free licence-click download, so it can't ship in the repo: download <i>NDI SDK for Linux</i> from ndi.video, then on the Pi <code>sudo bash setup/install-ndi.sh ~/Install_NDI_SDK_v6_Linux.tar.gz</code> (installs headers + libndi, rebuilds the renderer with NDI), and add <code>--ndi</code> to that renderer's arguments (<code>sudo systemctl edit fractal-renderer</code>). The source appears as <b>"Fractal Rig (pi-name)"</b>. Frames are sent at the render scale (1080p × 0.6 = 1152×648) at up to <code>--ndi-fps</code> (30 default) — a Pi 5 is comfortable there; ~40 Mbit/s on the LAN. The Outputs tab shows per-Pi NDI state (off / publishing / receiver connected). Use a wired switch; NDI over Wi-Fi is not a good evening.</p>
+  </div>
+
+  <div class="card" id="i-resolume2">
+    <h3>Resolume tab (two-way)</h3>
+    <p><b>Picture out:</b> the master renderer runs <code>--ndi</code> (headless on the rig, <code>--headless --ndi</code>) and appears in Resolume's Sources → NDI Servers. <b>Picture back:</b> Resolume's NDI screen (Output → Advanced → + Screen → NDI) is picked up on Outputs → NDI → <b>Use as LIVE</b> and multicast to every projector. <b>Feed mix</b> (<code>live_mix</code>, blend <code>live_blend</code>: crossfade / add / multiply / screen / difference) fades each projector between its own picture and that feed — works on every scene except while a video clip plays (one decoder per Pi). <b>Control out:</b> the clip pad (layers × columns, labels are yours), column launch, layer opacity / bypass / solo, composition master, tap and resync all send OSC to Resolume's OSC input (Preferences → OSC, default port 7000, set the host on the Connection card). <b>Control in:</b> turn on Resolume's OSC <em>output</em> aimed at the master, port 9000; move a knob, choose a rig parameter, press Map — Resolume's 0–1 values drive it. Mappings, pad size and labels are saved with a show.</p>
   </div>
 
   <div class="card" id="i-video">
@@ -928,7 +1055,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
-      <tr><td>v0.7.0</td><td><b>Video scene</b> (9): clip library on the master with drag-and-drop upload and ffmpeg conversion, byte-sorted index synced to every Pi by <code>fractal-media-sync</code>, libmpv playback frame-locked to the master clock, playlist / auto-advance / bar sync, Perform clip tiles, OSC + MIDI triggers; <b>LIVE</b> multicast stream from an NDI source (Resolume over the network, via <code>setup/ndi-recv</code>), an HDMI capture dongle, any V4L2 camera, a file or test bars. <b>Projection mapping</b> per projector from the Outputs tab (keystone, masks with feather, edge blend, brightness/gamma, test pattern) applied live. <b>Output resolution</b> selector on the top bar (Auto / 1080p / 4K). Per-Pi status page on port 8082. Perform pages scroll. Sources card moved to the bottom of Control. Packet is now 156 bytes / 29 params — update every Pi together.</td></tr>
+      <tr><td>v0.7.0</td><td><b>Video scene</b> (9): clip library on the master with drag-and-drop upload and ffmpeg conversion, byte-sorted index synced to every Pi by <code>fractal-media-sync</code>, libmpv playback frame-locked to the master clock, playlist / auto-advance / bar sync, Perform clip tiles, OSC + MIDI triggers; <b>LIVE</b> multicast stream from an NDI source (Resolume over the network, via <code>setup/ndi-recv</code>), an HDMI capture dongle, any V4L2 camera, a file or test bars. <b>Projection mapping</b> per projector from the Outputs tab (keystone, masks with feather, edge blend, brightness/gamma, test pattern) applied live. <b>Output resolution</b> selector on the top bar (Auto / 1080p / 4K). Per-Pi status page on port 8082. Perform pages scroll. Tabs reorganised: <b>Shows</b> (whole-rig setups per venue — look, presets, every projector's mapping, playlist, outputs, resolution; save / load / update / download / import), <b>Inputs</b> (sources + MIDI/OSC moved off Control), <b>LEDs</b> (own tab; colour-coded zones you drag on the picture), <b>Rig</b> (projectors table, log and diagnostics together), <b>Resolume</b> (feed crossfade, clip pad, layer faders, OSC-in learn). Perform mode rebuilt: page rail on the left, one scrolling page at a time, Presets with save/update, Clips page with LIVE + feed mix, Shows page. NDI streams table in Outputs. Packet now 164 bytes / 31 params. Packet is now 156 bytes / 29 params — update every Pi together.</td></tr>
       <tr><td>v0.6.1</td><td>Pi 4 renderer fix: SDL now opens the DRM device that actually has a connected HDMI output (Pi 4 exposes the 3D core as <code>card0</code> with no outputs, which made KMSDRM fail on every start). Also tries <code>card0..3</code> as a fallback; <code>SDL_KMSDRM_DEVICE_INDEX</code> still overrides.</td></tr>
       <tr><td>v0.6.0</td><td><b>Inputs monitor</b> on the Control tab: 4-bar beat grid with playhead and lock badge (Pro DJ Link deck / Ableton Link peers / free-running), BPM stability readout, per-deck lanes, Link phase, audio waveform + 16-band spectrum + energy/bass meters streamed from the master, MIDI / OSC / Pro DJ Link activity chips; slim beat grid in Perform mode. Master streams <code>audio_wave</code> / <code>audio_bands</code> / <code>audio_levels</code> and the followed deck in the state snapshot.</td></tr>
       <tr><td>v0.5.0</td><td><b>Outputs</b> tab: live thumbnails from every renderer; Ableton Link (follow / lead); OSC to Resolume (tempo, bar resync, scene → column, parameter map); NDI publishing (<code>install-ndi.sh</code> + <code>--ndi</code>); LED pixel output over DDP / Art-Net / sACN with a strip layout editor, matrix builder, test patterns and live canvas preview. <b>Perform mode</b> — big touch controls in swipeable pages — plus <code>install-kiosk.sh</code> for a Pi touchscreen console and <code>--display</code> on the renderer.</td></tr>
@@ -945,11 +1072,23 @@ sudo bash setup/install.sh master</pre>
     <div class="bpm"><span id="pf-bpm">—</span><small>BPM</small></div>
     <span class="pill" id="pf-src">no tempo</span>
     <div class="spacer"></div>
-    <div class="tabs" id="pf-tabs"><button data-pg="0" class="active">Show</button><button data-pg="1">Presets</button><button data-pg="2">Feel</button><button data-pg="3">Colour</button></div>
+    <span class="pill" id="pf-scene-pill">—</span>
     <button class="btn small" id="perf-exit">✕ EXIT to full controls</button>
   </div>
+  <div class="perf-body">
+  <div class="perf-rail" id="pf-tabs">
+    <button data-pg="0" class="active">SHOW<small>tempo · scene</small></button>
+    <button data-pg="1">PRESETS<small>looks you saved</small></button>
+    <button data-pg="4">CLIPS<small>video · LIVE</small></button>
+    <button data-pg="2">FEEL<small>speed · pulse</small></button>
+    <button data-pg="3">COLOUR<small>hue · rotation</small></button>
+    <button data-pg="5">SHOWS<small>venue setups</small></button>
+    <span class="spacer"></span>
+    <button id="pf-black-rail" class="danger">BLACK<small>hold to toggle</small></button>
+  </div>
   <div class="perf-pages" id="pf-pages">
-    <div class="ppage" data-pg="0">
+    <div class="pscroll"><button id="pf-up" title="scroll up">▲</button><button id="pf-down" title="scroll down">▼</button></div>
+    <div class="ppage on" data-pg="0">
       <div class="pgrid c2"><button class="pbtn huge primary" id="pf-tap">TAP<small>space</small></button><button class="pbtn huge" id="pf-beat1">SET BEAT 1<small>re-align the bar</small></button></div>
       <canvas id="pf-grid" class="pf-grid" aria-label="beat grid"></canvas>
       <div class="plabel">Engine</div>
@@ -960,17 +1099,15 @@ sudo bash setup/install.sh master</pre>
       <div class="pgrid c3"><button class="pbtn danger" id="pf-blackout">BLACKOUT<small>brightness → 0</small></button><button class="pbtn" id="pf-freeze">FREEZE<small>clock speed → 0</small></button><button class="pbtn" id="pf-autotoggle">AUTO DRIFT<small>on / off</small></button></div>
     </div>
     <div class="ppage" data-pg="1">
-      <div class="plabel">Shader presets</div>
+      <div class="plabel">Saved looks <span class="pf-hint">— tap to recall · the scene switches with it</span></div>
       <div class="pgrid c3" id="pf-presets"></div>
+      <div class="pgrid c2"><button class="pbtn" id="pf-preset-save">+ SAVE CURRENT LOOK<small>name it</small></button><button class="pbtn" id="pf-preset-update">UPDATE LAST LOADED<small id="pf-preset-last">—</small></button></div>
       <div class="plabel">projectM</div>
       <div style="font-family:var(--mono);font-size:16px;color:var(--accent2)" id="pf-pm-name">—</div>
       <div class="pgrid c3"><button class="pbtn" id="pf-pm-prev">◀ PREV</button><button class="pbtn primary" id="pf-pm-random">RANDOM</button><button class="pbtn" id="pf-pm-next">NEXT ▶</button></div>
       <div class="pgrid c2"><button class="pbtn" id="pf-pm-hold">HOLD<small>pause auto-cycle</small></button><button class="pbtn" id="pf-pm-fav">☆ FAVOURITE</button></div>
       <div class="plabel">Favourite presets</div>
       <div class="pgrid c2" id="pf-pm-favs"></div>
-      <div class="plabel">Video clips</div>
-      <div class="pgrid c3"><button class="pbtn" id="pf-vid-prev">◀ PREV</button><button class="pbtn primary" id="pf-vid-restart">↻ RESTART</button><button class="pbtn" id="pf-vid-next">NEXT ▶</button></div>
-      <div class="pgrid c3" id="pf-clips"></div>
     </div>
     <div class="ppage" data-pg="2">
       <div class="pslider"><label>Brightness</label><input type="range" data-pk="brightness" min="0" max="2" step="0.01"><span class="v"></span></div>
@@ -994,8 +1131,26 @@ sudo bash setup/install.sh master</pre>
       <div class="pslider"><label>Rotation</label><input type="range" data-pk="rotation" min="0" max="6.2832" step="0.01"><span class="v"></span></div>
       <div class="pslider"><label>Shader mix<small style="display:block;color:var(--muted);font-size:11px">projectM only</small></label><input type="range" data-pk="pm_mix" min="0" max="1" step="0.01"><span class="v"></span></div>
     </div>
+    <div class="ppage" data-pg="4">
+      <div class="plabel">Now playing</div>
+      <div style="font-family:var(--mono);font-size:18px;color:var(--accent2)" id="pf-vid-name">—</div>
+      <div class="pgrid c3"><button class="pbtn" id="pf-vid-prev">◀ PREV</button><button class="pbtn primary" id="pf-vid-restart">↻ RESTART</button><button class="pbtn" id="pf-vid-next">NEXT ▶</button></div>
+      <div class="pgrid c3" id="pf-clips"></div>
+      <div class="plabel">Playback</div>
+      <div class="pgrid c3"><button class="pbtn" id="pf-vid-loop">LOOP</button><button class="pbtn" id="pf-vid-barsync">BAR SYNC<small>restart on beat 1</small></button><button class="pbtn" id="pf-vid-cycle">AUTO-ADVANCE<small id="pf-vid-cycle-sub">—</small></button></div>
+      <div class="plabel">LIVE feed <span class="pf-hint">— HDMI capture / NDI from Resolume (set up on the Media tab)</span></div>
+      <div class="pgrid c2"><button class="pbtn huge" id="pf-live-go">● LIVE<small id="pf-live-sub">—</small></button><button class="pbtn" id="pf-live-stop">STOP FEED</button></div>
+      <div class="plabel">Feed mix <span class="pf-hint">— crossfade every projector between its own picture and the feed (any scene except a clip)</span></div>
+      <div class="pslider"><label>Renderer ⇄ feed</label><input type="range" data-pk="live_mix" min="0" max="1" step="0.005"><span class="v"></span></div>
+      <div class="pgrid c4"><button class="pbtn" data-pfeed="0">RENDERER</button><button class="pbtn" data-pfeed="0.33">⅓ FEED</button><button class="pbtn" data-pfeed="0.66">⅔ FEED</button><button class="pbtn" data-pfeed="1">FEED</button></div>
+    </div>
+    <div class="ppage" data-pg="5">
+      <div class="plabel">Venue / scenario setups <span class="pf-hint">— loads the whole rig: look, presets, mapping, playlist, outputs</span></div>
+      <div class="pgrid c2" id="pf-shows"><span class="hint">loading…</span></div>
+      <div class="pgrid c2"><button class="pbtn" id="pf-show-update">UPDATE CURRENT SHOW<small id="pf-show-cur">—</small></button><button class="pbtn" id="pf-show-save">+ SAVE RIG AS NEW SHOW</button></div>
+    </div>
   </div>
-  <div class="pdots" id="pf-dots"><i class="on"></i><i></i><i></i><i></i></div>
+  </div>
 </section>
 
 <footer>Fractal Rig · a Sonor side-project · one master, N synced Raspberry Pi projectors · <a href="https://github.com/sonorltd/sonor-fractal-rig">source</a></footer>
@@ -1115,7 +1270,8 @@ function connect(url) {
   ws.onopen = () => { clearTimeout(timer); S.live = true; BR.connectedAt = Date.now(); if (BR.pingTimer) clearInterval(BR.pingTimer); BR.pingTimer = setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ping: performance.now()})); }, 2000); if (demoTimer) { clearInterval(demoTimer); demoTimer = null; } $('demo-banner').hidden = true; setConn('ok', 'master ' + new URL(url).host); $('pill-live').textContent = 'live'; };
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
-    if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); S.pm_presets = m.pm_presets || []; buildControls(); buildPmList(); $('pill-ver').textContent = 'v' + m.version; return; }
+    if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); S.pm_presets = m.pm_presets || []; if (m.resolume_grid) RGRID = m.resolume_grid; buildControls(); buildPmList(); $('pill-ver').textContent = 'v' + m.version; return; }
+    if (m.type === 'resolume_grid') { RGRID = m.resolume_grid; renderPad(); return; }
     if (m.type === 'pm_presets') { S.pm_presets = m.pm_presets || []; buildPmList(); return; }
     if (m.type === 'mapping') { MP.list = m.mapping || []; mapRenderList(); return; }
     if (m.type === 'pong') { BR.rtt = Math.round((performance.now() - m.ping) * 10) / 10; BR.rttMax = Math.max(BR.rttMax, BR.rtt); BR.clockSkew = Math.round((Date.now() / 1000 - m.t) * 1000 - BR.rtt / 2); return; }
@@ -1125,7 +1281,7 @@ function connect(url) {
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
       clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
       auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, prodj_dev: m.prodj_dev, pm: m.pm || S.pm, outputs: m.outputs || S.outputs,
-      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video});
+      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video, osc_in_map: m.osc_in_map || {}, osc_last: m.osc_last || null});
     S.t = m.t; S.tRecv = performance.now();
     noteBpm(m.bpm);
     S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
@@ -1200,6 +1356,7 @@ function renderControls() {
   renderLog();
   if (!$('status').hidden) renderStatus();
   if (!$('outputs').hidden) renderOutputs();
+  renderResolume();
   renderPerf();
 }
 let srcBuilt = '';
@@ -1668,7 +1825,7 @@ function frame(now) {
   // preview clock follows the master's clock exactly like a Pi does: anchor + extrapolate
   const t = S.t + (now - S.tRecv) / 1000 * (S.live ? S.clock_speed : 0);
   if (!document.hidden && !$('perf').hidden) drawPerfGrid(t);
-  if (document.querySelector('main').hidden || document.hidden) return;   // preview only renders on the Control tab
+  if (document.querySelector('main').hidden || document.hidden || perfOn) return;   // preview (WebGL + Butterchurn) only on the Control tab — never behind Perform on the touchscreen Pi
   try { drawInputMonitor(now, t); } catch (e) { BR.errors.push('inmon: ' + e.message); BR.errors = BR.errors.slice(-8); }
   if (videoFrame(now, t) || bcFrame(now, t)) { if (++fpsN >= 30) { BR.previewFps = Math.round(fpsN / ((now - fpsT) / 1000)); $('pill-fps').textContent = BR.previewFps + ' fps'; fpsN = 0; fpsT = now; } $('pill-t').textContent = 't ' + t.toFixed(1); return; }
   const target = PARAMS.map(p => S.out[p.key]);
@@ -1690,7 +1847,6 @@ function frame(now) {
   $('pill-t').textContent = 't ' + t.toFixed(1);
   if (++fpsN >= 30) { BR.previewFps = Math.round(fpsN / ((now - fpsT) / 1000)); $('pill-fps').textContent = BR.previewFps + ' fps'; fpsN = 0; fpsT = now; }
 }
-
 
 // ------------------------------------------------------------ status / debugging tab
 const kv = rows => `<table class="kvt">${rows.filter(r => r).map(([k, v, cls]) => `<tr><td>${k}</td><td class="${cls || ''}">${v == null || v === '' ? '<span class="mute">—</span>' : v}</td></tr>`).join('')}</table>`;
@@ -1827,15 +1983,16 @@ $('diag-copy').onclick = async () => {
 };
 $('diag-refresh').onclick = () => { renderStatus(); };
 
-
 // ------------------------------------------------------------ Outputs tab
 let stripsDraft = null, stripsDirty = false, thumbTimer = null, outBuilt = false;
 const PROTO_PORT = {ddp: 4048, artnet: 6454, sacn: 5568};
 function universesUsed(st) { const p = (st.protocol || 'ddp'); if (p === 'ddp') return '—'; const n = Math.ceil((+st.count || 1) / 170); const u = +st.universe || 0; return n === 1 ? String(u) : `${u}–${u + n - 1}`; }
+const ZONE_COLORS = ['#4bb9d3', '#f5d05c', '#78ba57', '#e37c59', '#e67eb1', '#8058a1', '#ec6061', '#ad9978', '#5080ff', '#40e0c0'];
+const zoneColor = i => ZONE_COLORS[i % ZONE_COLORS.length];
 function stripRow(st, i) {
   const opt = (v, cur, list) => list.map(o => `<option value="${o}" ${o === cur ? 'selected' : ''}>${o}</option>`).join('');
   return `<tr data-i="${i}">
-    <td><input type="checkbox" data-k="enabled" ${st.enabled !== false ? 'checked' : ''}></td>
+    <td><span class="zone-sw" style="background:${zoneColor(i)}"></span><input type="checkbox" data-k="enabled" ${st.enabled !== false ? 'checked' : ''}></td>
     <td><input class="nm" data-k="name" value="${esc(st.name || '')}"></td>
     <td><input class="ip" data-k="ip" value="${esc(st.ip || '')}" placeholder="192.168.1.50"></td>
     <td><select data-k="protocol">${opt(0, st.protocol || 'ddp', ['ddp', 'artnet', 'sacn'])}</select></td>
@@ -1859,7 +2016,8 @@ function renderStrips(force) {
   const sig = JSON.stringify(list); if (!force && sig === stripsSig) return; stripsSig = sig;
   $('strips').innerHTML = list.map(stripRow).join('') || '<tr><td colspan="14" style="color:var(--muted)">no strips yet — add one</td></tr>';
   $('strips').querySelectorAll('input,select').forEach(el => el.oninput = () => { stripsDraft = readStrips(); stripsDirty = true; $('strips-msg').innerHTML = '<b>unsaved</b> — press apply'; el.closest('tr').querySelector('.univ').textContent = universesUsed(stripsDraft[+el.closest('tr').dataset.i]); drawLed(); });
-  $('strips').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { stripsDraft = readStrips(); stripsDraft.splice(+b.dataset.del, 1); stripsDirty = true; renderStrips(true); $('strips-msg').innerHTML = '<b>unsaved</b> — press apply'; });
+  $('strips').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { stripsDraft = readStrips(); stripsDraft.splice(+b.dataset.del, 1); stripsDirty = true; ledSel = null; renderStrips(true); $('strips-msg').innerHTML = '<b>unsaved</b> — press apply'; });
+  $('strips').querySelectorAll('tr[data-i]').forEach(tr => { tr.onclick = () => { ledSel = {i: +tr.dataset.i}; drawLed(); }; if (ledSel && +tr.dataset.i === ledSel.i) tr.style.outline = `1px solid ${zoneColor(ledSel.i)}`; });
 }
 $('strip-add').onclick = () => { stripsDraft = readStrips(); const n = stripsDraft.length; stripsDraft.push({name: 'strip' + (n + 1), ip: '', protocol: 'ddp', universe: 0, start_channel: 0, order: 'GRB', count: 150, x0: 0, y0: Math.min(0.95, 0.1 + n * 0.12), x1: 1, y1: Math.min(0.95, 0.1 + n * 0.12), enabled: true}); stripsDirty = true; renderStrips(true); };
 $('strip-matrix').onclick = () => {
@@ -1891,6 +2049,100 @@ $('lm-follow').onclick = () => send({source: {name: 'link', enabled: !!(S.source
 $('lm-lead').onclick = () => send({source: {name: 'link', enabled: !!(S.sources.link && S.sources.link.enabled), mode: 'lead'}});
 
 let thumbImgs = {};
+
+
+// ------------------------------------------------------------ Resolume tab (two-way) + feed mix
+let RGRID = {layers: 4, columns: 8, names: {}}, rpadLit = null;
+const rsend = (addr, ...args) => send({resolume: {send: {addr, args}}});
+function renderPad() {
+  const L = RGRID.layers, C = RGRID.columns; const names = RGRID.names || {};
+  let h = '<thead><tr><th></th>' + Array.from({length: C}, (_, c) => `<th class="col" data-col="${c + 1}" title="launch column ${c + 1}">col ${c + 1}</th>`).join('') + '</tr></thead><tbody>';
+  for (let l = L; l >= 1; l--) h += `<tr><th>layer ${l}</th>` + Array.from({length: C}, (_, c) => { const k = `${l}:${c + 1}`; return `<td><button data-l="${l}" data-c="${c + 1}" class="${rpadLit === k ? 'on' : ''}">${esc(names[k] || (c + 1))}</button></td>`; }).join('') + '</tr>';
+  $('rpad').innerHTML = h + '</tbody>';
+  $('rpad').querySelectorAll('td button').forEach(b => { b.onclick = () => { rsend(`/composition/layers/${b.dataset.l}/clips/${b.dataset.c}/connect`, 1); rpadLit = `${b.dataset.l}:${b.dataset.c}`; renderPad(); };
+    b.ondblclick = () => { const k = `${b.dataset.l}:${b.dataset.c}`; const n = prompt(`Label for layer ${b.dataset.l} / column ${b.dataset.c}`, RGRID.names[k] || ''); if (n === null) return; RGRID.names[k] = n; if (!n) delete RGRID.names[k]; send({resolume: {grid: RGRID}}); renderPad(); }; });
+  $('rpad').querySelectorAll('th.col').forEach(t => t.onclick = () => rsend(`/composition/columns/${t.dataset.col}/connect`, 1));
+  if (document.activeElement !== $('rg-layers')) $('rg-layers').value = L; if (document.activeElement !== $('rg-cols')) $('rg-cols').value = C;
+  if ($('rlayers').children.length !== L) {
+    $('rlayers').innerHTML = Array.from({length: L}, (_, i) => L - i).map(l => `<div class="rlayer"><label>Layer ${l}</label><input type="range" data-rl="${l}" min="0" max="1" step="0.005" value="1"><span class="v">1.00</span><span class="row" style="gap:4px"><button class="btn small" data-bypass="${l}" title="bypass layer">bypass</button><button class="btn small" data-solo="${l}" title="solo layer">solo</button></span></div>`).join('');
+    $('rlayers').querySelectorAll('input[data-rl]').forEach(r => r.oninput = () => { r.nextElementSibling.textContent = (+r.value).toFixed(2); rsend(`/composition/layers/${r.dataset.rl}/video/opacity`, +r.value); });
+    $('rlayers').querySelectorAll('[data-bypass]').forEach(b => b.onclick = () => { b.classList.toggle('active'); rsend(`/composition/layers/${b.dataset.bypass}/bypassed`, b.classList.contains('active') ? 1 : 0); });
+    $('rlayers').querySelectorAll('[data-solo]').forEach(b => b.onclick = () => { b.classList.toggle('active'); rsend(`/composition/layers/${b.dataset.solo}/solo`, b.classList.contains('active') ? 1 : 0); });
+  }
+}
+$('rg-layers').onchange = $('rg-cols').onchange = () => { RGRID.layers = Math.max(1, Math.min(16, +$('rg-layers').value || 4)); RGRID.columns = Math.max(1, Math.min(32, +$('rg-cols').value || 8)); send({resolume: {grid: RGRID}}); renderPad(); };
+$('rp-disconnect').onclick = () => { rsend('/composition/disconnectall', 1); rpadLit = null; renderPad(); };
+$('rp-tap').onclick = () => rsend('/composition/tempocontroller/tempotap', 1);
+$('rp-resync').onclick = () => rsend('/composition/tempocontroller/resync', 1);
+$('r-master').oninput = () => { $('r-master-v').textContent = (+$('r-master').value).toFixed(2); rsend('/composition/master', +$('r-master').value); };
+// feed mix (both faders)
+const feedSet = v => send({set: {live_mix: Math.max(0, Math.min(1, v))}});
+['feed-mix', 'feed-mix2'].forEach(id => $(id).oninput = () => { $(id).dataset.touch = performance.now(); $(id + '-v').textContent = (+$(id).value).toFixed(2); feedSet(+$(id).value); });
+document.querySelectorAll('[data-feed]').forEach(b => b.onclick = () => feedSet(+b.dataset.feed));
+$('feed-blend').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {live_blend: +b.dataset.b}}));
+$('feed-more').onclick = e => { e.preventDefault(); $('nav').querySelector('[data-view=resolume]').click(); };
+// OSC in (learn)
+$('rin-map').onclick = () => send({resolume: {learn: $('rin-param').value}});
+function renderResolume(force) {
+  if ($('resolume').hidden && !force) { /* still keep the Control-tab fader current */ } 
+  ['feed-mix', 'feed-mix2'].forEach(id => { const r = $(id); if (!(r.dataset.touch && performance.now() - r.dataset.touch < 800)) { r.value = S.base.live_mix || 0; $(id + '-v').textContent = (+(S.base.live_mix || 0)).toFixed(2); } });
+  if ($('resolume').hidden && !force) return;
+  $('feed-blend').querySelectorAll('button').forEach(b => b.classList.toggle('active', +b.dataset.b === Math.round(S.base.live_blend || 0)));
+  const lv = (S.video && S.video.live) || {}; const on9 = Math.round(S.base.mode) === 9;
+  $('feed-state').textContent = on9 ? (S.video.index === 255 ? 'scene is the LIVE feed itself — fader not used' : 'video clip playing — feed mix unavailable on the Pis until you leave the clip') : lv.running ? `feed: ${lv.source || 'running'}` : 'no feed running — start one on the Media tab or Outputs → NDI';
+  if (!$('rpad').children.length || $('rpad').dataset.sig !== `${RGRID.layers}x${RGRID.columns}`) { $('rpad').dataset.sig = `${RGRID.layers}x${RGRID.columns}`; renderPad(); }
+  if (!$('rin-param').options.length) $('rin-param').innerHTML = PARAMS.filter(p => p.group !== 'video' && p.group !== 'output').map(p => `<option value="${p.key}">${p.label} (${p.key})</option>`).join('');
+  const last = S.osc_last; $('rin-last').textContent = last ? `${last.addr} = ${last.value}` : '— (nothing received yet — enable OSC output in Resolume and move something)';
+  const map = S.osc_in_map || {}; const msig = JSON.stringify(map);
+  if ($('rin-list').dataset.sig !== msig) { $('rin-list').dataset.sig = msig; $('rin-list').innerHTML = Object.keys(map).length ? kv(Object.entries(map).map(([a, k]) => [`<code>${esc(a)}</code>`, `→ <b>${esc(k)}</b> <button class="btn small" data-unmap="${esc(a)}">✕</button>`])) : '<span class="hint">no mappings yet</span>'; $('rin-list').querySelectorAll('[data-unmap]').forEach(b => b.onclick = () => send({resolume: {unmap: b.dataset.unmap}})); }
+}
+
+// ------------------------------------------------------------ shows (whole-rig setups)
+let SHOWS = {list: [], last: null};
+async function showsFetch() {
+  if (!S.live) { $('show-list').innerHTML = '<div class="hint">Demo mode — shows live on the master.</div>'; return; }
+  try { SHOWS = await (await fetch('/api/shows')).json(); } catch (e) { $('show-list').innerHTML = '<div class="hint">could not load shows</div>'; return; }
+  renderShows();
+}
+function showParts() { return [...document.querySelectorAll('.show-part')].filter(c => c.checked).map(c => c.value); }
+function renderShows() {
+  $('show-current').textContent = SHOWS.last ? 'current: ' + SHOWS.last : 'no show loaded';
+  const list = SHOWS.list || [];
+  if (!list.length) { $('show-list').innerHTML = '<div class="hint">No shows yet — set the rig up, then save it above.</div>'; return; }
+  $('show-list').innerHTML = list.map(sh => sh.broken ? `<div class="show"><h4>${esc(sh.name)}</h4><div class="meta">file unreadable</div><div class="acts"><button class="btn small" data-del="${esc(sh.name)}">Delete</button></div></div>` : `
+    <div class="show ${sh.name === SHOWS.last ? 'current' : ''}">
+      <h4>${esc(sh.name)}${sh.name === SHOWS.last ? ' <span class="pill ok">loaded</span>' : ''}</h4>
+      <div class="meta">${sh.venue ? esc(sh.venue) + ' · ' : ''}saved ${new Date(sh.saved * 1000).toLocaleString()}<br>scene ${MODE_NAMES[Math.round(sh.scene || 0)] || sh.scene} · ${sh.presets} presets · ${sh.clips} clips in playlist · res ${['auto', '1080p', '4K'][sh.out_res] || 'auto'}<br>projectors: ${sh.projectors.length ? sh.projectors.map(esc).join(', ') : 'none mapped'}</div>
+      ${sh.notes ? `<div class="notes">${esc(sh.notes)}</div>` : ''}
+      <div class="acts">
+        <button class="btn small primary" data-load="${esc(sh.name)}">LOAD</button>
+        <button class="btn small" data-update="${esc(sh.name)}" title="re-capture the rig as it is now into this show">Update</button>
+        <button class="btn small" data-rename="${esc(sh.name)}">Rename</button>
+        <a class="btn small" href="/api/shows/${encodeURIComponent(sh.name)}?download=1">Download</a>
+        <button class="btn small" data-del="${esc(sh.name)}" style="margin-left:auto">✕</button>
+      </div>
+    </div>`).join('');
+  const post = async (url, body) => { const r = await fetch(url, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body || {})}); return r.json(); };
+  $('show-list').querySelectorAll('[data-load]').forEach(b => b.onclick = async () => { const parts = showParts(); if (!parts.length) return alert('tick at least one part to load'); if (!confirm(`Load "${b.dataset.load}"?\nThis changes the live rig: ${parts.join(', ')}.`)) return; b.textContent = 'loading…'; await post(`/api/shows/${encodeURIComponent(b.dataset.load)}/load`, {parts: parts.length === 7 ? null : parts}); logLocal('show loaded: ' + b.dataset.load); showsFetch(); mapFetch(); });
+  $('show-list').querySelectorAll('[data-update]').forEach(b => b.onclick = async () => { if (!confirm(`Overwrite "${b.dataset.update}" with the rig as it is now?`)) return; await post(`/api/shows/${encodeURIComponent(b.dataset.update)}`, {update: true}); showsFetch(); });
+  $('show-list').querySelectorAll('[data-rename]').forEach(b => b.onclick = async () => { const n = prompt('New name', b.dataset.rename); if (!n || n === b.dataset.rename) return; await post(`/api/shows/${encodeURIComponent(b.dataset.rename)}/rename`, {new: n}); showsFetch(); });
+  $('show-list').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (!confirm(`Delete show "${b.dataset.del}"? (the rig itself is not changed)`)) return; await fetch(`/api/shows/${encodeURIComponent(b.dataset.del)}`, {method: 'DELETE'}); showsFetch(); });
+}
+$('show-save').onclick = async () => {
+  const name = $('show-name').value.trim(); if (!name) return alert('give the show a name');
+  if (!S.live) return alert('Connect to a master first.');
+  if ((SHOWS.list || []).some(x => x.name === name) && !confirm(`"${name}" exists — overwrite it with the current rig?`)) return;
+  await fetch(`/api/shows/${encodeURIComponent(name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({venue: $('show-venue').value.trim(), notes: $('show-notes').value.trim(), update: true})});
+  $('show-name').value = ''; logLocal('show saved: ' + name); showsFetch();
+};
+$('show-import').onchange = async () => {
+  const f = $('show-import').files[0]; if (!f) return;
+  try { const d = JSON.parse(await f.text()); const name = prompt('Import as', d.name || f.name.replace(/\.fractalshow\.json$|\.json$/, '')); if (!name) return;
+    const r = await (await fetch(`/api/shows/${encodeURIComponent(name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({import: d})})).json(); if (!r.ok) alert('import failed'); showsFetch(); }
+  catch (e) { alert('not a show file: ' + e.message); }
+  $('show-import').value = '';
+};
+
 // ------------------------------------------------------------ NDI streams on the LAN (Outputs → NDI)
 let ndiScanning = false;
 async function ndiScan() {
@@ -2116,7 +2368,7 @@ function mapFinishMask() {
 })();
 
 function renderOutputs(force) {
-  if ($('outputs').hidden && !force) return;
+  if ($('outputs').hidden && $('leds').hidden && !force) return;
   const o = S.outputs || {}, res = o.resolume || {}, led = o.led || {}, lk = S.sources.link || {}, ol = o.link || {};
   // ---- thumbnails
   const th = o.thumbs || {}; const names = Object.keys(th);
@@ -2126,7 +2378,7 @@ function renderOutputs(force) {
     if (names.join() !== Object.keys(thumbImgs).join()) { $('thumbs').innerHTML = names.map(n => `<figure><img id="th-${esc(n)}" alt="${esc(n)}"><figcaption><span>${esc(n)}</span><span id="thc-${esc(n)}"></span></figcaption></figure>`).join(''); thumbImgs = {}; names.forEach(n => thumbImgs[n] = 0); }
     names.forEach(n => { const c = document.getElementById('thc-' + n); if (c) c.textContent = `${th[n].fps} fps · ${th[n].ip}${th[n].age > 2 ? ' · stale' : ''}`; });
   }
-  if (!thumbTimer) thumbTimer = setInterval(() => { if ($('outputs').hidden || !S.live) return; Object.keys(thumbImgs).forEach(n => { const im = document.getElementById('th-' + n); if (im) im.src = `/thumb/${encodeURIComponent(n)}?t=${Date.now()}`; }); drawLed(); }, 400);
+  if (!thumbTimer) thumbTimer = setInterval(() => { if (($('outputs').hidden && $('leds').hidden) || !S.live) return; Object.keys(thumbImgs).forEach(n => { const im = document.getElementById('th-' + n); if (im) im.src = `/thumb/${encodeURIComponent(n)}?t=${Date.now()}`; }); drawLed(); }, 400);
   // ---- resolume / link
   $('res-dot').className = 'dot ' + (S.sources.resolume ? (!S.sources.resolume.enabled ? '' : S.sources.resolume.ok ? 'ok' : 'warn') : '');
   $('res-label').textContent = res.enabled ? `OSC → ${res.host}:${res.port} · ${res.sent || 0} sent` : 'OSC out off';
@@ -2164,26 +2416,75 @@ function renderOutputs(force) {
 }
 const ledCanvas = $('led-canvas'), lctx = ledCanvas.getContext('2d');
 let ledBg = new Image(); ledBg.onload = () => drawLed();
+let ledSel = null;   // {i, part: 'a'|'b'|'line'} — selected / dragged zone on the canvas
+function ledZones() { return stripsDraft || ((S.outputs.led && S.outputs.led.strips) || []); }
 function drawLed() {
-  const W = ledCanvas.width, H = ledCanvas.height; const led = S.outputs.led || {}; const strips = stripsDraft || led.strips || [];
+  const W = ledCanvas.width, H = ledCanvas.height; const led = S.outputs.led || {}; const strips = ledZones();
   lctx.fillStyle = '#000'; lctx.fillRect(0, 0, W, H);
-  if (S.live && Object.keys(thumbImgs).length) { const n = led.source && thumbImgs[led.source] != null ? led.source : Object.keys(thumbImgs)[0]; const im = document.getElementById('th-' + n); if (im && im.complete && im.naturalWidth) { lctx.imageSmoothingEnabled = true; lctx.globalAlpha = 0.55; lctx.drawImage(im, 0, 0, W, H); lctx.globalAlpha = 1; } }
+  if (S.live && Object.keys(thumbImgs).length) { const n = led.source && thumbImgs[led.source] != null ? led.source : Object.keys(thumbImgs)[0]; const im = document.getElementById('th-' + n); if (im && im.complete && im.naturalWidth) lctx.drawImage(im, 0, 0, W, H); }
   else { lctx.globalAlpha = 0.35; lctx.drawImage(canvas, 0, 0, W, H); lctx.globalAlpha = 1; }   // demo: our own preview
   lctx.strokeStyle = 'rgba(255,255,255,.15)'; lctx.lineWidth = 1; for (let i = 1; i < 4; i++) { lctx.beginPath(); lctx.moveTo(W * i / 4, 0); lctx.lineTo(W * i / 4, H); lctx.stroke(); lctx.beginPath(); lctx.moveTo(0, H * i / 4); lctx.lineTo(W, H * i / 4); lctx.stroke(); }
   const colors = led.colors || {};
   strips.forEach((st, i) => {
-    if (st.enabled === false) return;
+    const zc = zoneColor(i), sel = ledSel && ledSel.i === i, off = st.enabled === false;
     const x0 = (+st.x0 || 0) * W, y0 = (st.y0 == null ? 0.5 : +st.y0) * H, x1 = (st.x1 == null ? 1 : +st.x1) * W, y1 = (st.y1 == null ? 0.5 : +st.y1) * H;
-    const cols = colors[st.name]; const n = Math.max(1, Math.min(200, +st.count || 1));
-    lctx.lineWidth = 7; lctx.lineCap = 'round';
-    if (cols && cols.length) { const segs = cols.length; for (let k = 0; k < segs; k++) { const a = k / segs, b = (k + 1) / segs; lctx.strokeStyle = `rgb(${cols[k][0]},${cols[k][1]},${cols[k][2]})`; lctx.beginPath(); lctx.moveTo(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a); lctx.lineTo(x0 + (x1 - x0) * b, y0 + (y1 - y0) * b); lctx.stroke(); } }
-    else { lctx.strokeStyle = 'rgba(75,185,211,.8)'; lctx.setLineDash([6, 6]); lctx.beginPath(); lctx.moveTo(x0, y0); lctx.lineTo(x1, y1); lctx.stroke(); lctx.setLineDash([]); }
-    lctx.fillStyle = '#fff'; lctx.font = '12px DM Mono, monospace'; lctx.fillText(`${st.name || 'strip'} · ${st.count}px`, Math.min(W - 120, x0 + 6), Math.max(12, y0 - 8));
-    lctx.fillStyle = '#4bb9d3'; lctx.beginPath(); lctx.arc(x0, y0, 5, 0, 7); lctx.fill(); lctx.fillStyle = '#e67eb1'; lctx.beginPath(); lctx.arc(x1, y1, 5, 0, 7); lctx.fill();
+    const cols = colors[st.name];
+    // zone halo in its own colour (thicker when selected), then the live pixel colours on top
+    lctx.lineCap = 'round'; lctx.globalAlpha = off ? 0.35 : 1;
+    lctx.strokeStyle = zc; lctx.lineWidth = sel ? 16 : 12; lctx.globalAlpha *= 0.35; lctx.beginPath(); lctx.moveTo(x0, y0); lctx.lineTo(x1, y1); lctx.stroke(); lctx.globalAlpha = off ? 0.35 : 1;
+    lctx.lineWidth = 6;
+    if (cols && cols.length && !off) { const segs = cols.length; for (let k = 0; k < segs; k++) { const a = k / segs, b = (k + 1) / segs; lctx.strokeStyle = `rgb(${cols[k][0]},${cols[k][1]},${cols[k][2]})`; lctx.beginPath(); lctx.moveTo(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a); lctx.lineTo(x0 + (x1 - x0) * b, y0 + (y1 - y0) * b); lctx.stroke(); } }
+    else { lctx.strokeStyle = zc; lctx.setLineDash([6, 6]); lctx.beginPath(); lctx.moveTo(x0, y0); lctx.lineTo(x1, y1); lctx.stroke(); lctx.setLineDash([]); }
+    // label chip
+    const label = `${i + 1} · ${st.name || 'zone'} · ${st.count}px${st.ip ? ' · ' + st.ip : ''}`; lctx.font = '12px DM Mono, monospace'; const tw = lctx.measureText(label).width + 12;
+    const lx = Math.min(W - tw - 4, Math.max(4, Math.min(x0, x1) + 8)), ly = Math.max(4, Math.min(y0, y1) - 26);
+    lctx.fillStyle = zc; lctx.globalAlpha *= 0.9; lctx.fillRect(lx, ly, tw, 18); lctx.globalAlpha = off ? 0.35 : 1; lctx.fillStyle = '#0f1115'; lctx.fillText(label, lx + 6, ly + 13);
+    // endpoints: filled = first pixel, ring = last pixel
+    lctx.fillStyle = zc; lctx.beginPath(); lctx.arc(x0, y0, sel ? 9 : 7, 0, 7); lctx.fill(); lctx.strokeStyle = '#fff'; lctx.lineWidth = 2; lctx.stroke();
+    lctx.fillStyle = '#0f1115'; lctx.beginPath(); lctx.arc(x1, y1, sel ? 9 : 7, 0, 7); lctx.fill(); lctx.strokeStyle = zc; lctx.lineWidth = 3; lctx.stroke();
+    lctx.globalAlpha = 1;
   });
-  if (!strips.length) { lctx.fillStyle = 'rgba(255,255,255,.6)'; lctx.font = '14px DM Sans, sans-serif'; lctx.fillText('add a strip below — blue dot = first pixel, pink = last', 20, 30); }
+  if (!strips.length) { lctx.fillStyle = 'rgba(255,255,255,.6)'; lctx.font = '14px DM Sans, sans-serif'; lctx.fillText('add a zone below, then drag it into place — solid dot = first pixel, ring = last', 20, 30); }
+  else if (!ledSel) { lctx.fillStyle = 'rgba(255,255,255,.5)'; lctx.font = '12px DM Sans, sans-serif'; lctx.fillText('drag a dot to move one end · drag the line to move the zone · Shift snaps to the grid · Delete removes the selected zone', 12, H - 10); }
 }
-
+// drag zones on the canvas
+(() => {
+  const pos = ev => { const r = ledCanvas.getBoundingClientRect(); return [(ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height]; };
+  const near = (ax, ay, bx, by, px) => { const r = ledCanvas.getBoundingClientRect(); return Math.hypot((ax - bx) * r.width, (ay - by) * r.height) < px; };
+  const hit = (x, y) => {
+    const z = ledZones();
+    for (let i = z.length - 1; i >= 0; i--) { const st = z[i]; if (near(x, y, +st.x0 || 0, st.y0 == null ? 0.5 : +st.y0, 14)) return {i, part: 'a'}; if (near(x, y, st.x1 == null ? 1 : +st.x1, st.y1 == null ? 0.5 : +st.y1, 14)) return {i, part: 'b'}; }
+    for (let i = z.length - 1; i >= 0; i--) { const st = z[i], r = ledCanvas.getBoundingClientRect(); const ax = (+st.x0 || 0) * r.width, ay = (st.y0 == null ? 0.5 : +st.y0) * r.height, bx = (st.x1 == null ? 1 : +st.x1) * r.width, by = (st.y1 == null ? 0.5 : +st.y1) * r.height, px = x * r.width, py = y * r.height;
+      const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy; const t = L2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2)) : 0; if (Math.hypot(px - (ax + dx * t), py - (ay + dy * t)) < 10) return {i, part: 'line'}; }
+    return null;
+  };
+  const snap = (v, on) => on ? Math.round(v * 40) / 40 : v;
+  const clamp = v => Math.min(1, Math.max(0, v));
+  let drag = null;
+  const markDirty = () => { stripsDirty = true; $('strips-msg').innerHTML = '<b>unsaved</b> — press apply'; };
+  const syncRow = i => { const tr = $('strips').querySelector(`tr[data-i="${i}"]`); if (!tr) return; const st = ledZones()[i]; ['x0', 'y0', 'x1', 'y1'].forEach(k => { const el = tr.querySelector(`[data-k="${k}"]`); if (el && document.activeElement !== el) el.value = (+st[k]).toFixed(3); }); };
+  ledCanvas.addEventListener('pointerdown', ev => {
+    ev.preventDefault(); const [x, y] = pos(ev); const h = hit(x, y); ledSel = h ? {i: h.i} : null;
+    if (h) { if (!stripsDraft) stripsDraft = JSON.parse(JSON.stringify(ledZones())); const st = stripsDraft[h.i]; drag = {h, x, y, o: {x0: +st.x0 || 0, y0: st.y0 == null ? 0.5 : +st.y0, x1: st.x1 == null ? 1 : +st.x1, y1: st.y1 == null ? 0.5 : +st.y1}}; ledCanvas.setPointerCapture(ev.pointerId); }
+    drawLed();
+  });
+  ledCanvas.addEventListener('pointermove', ev => {
+    const [x, y] = pos(ev);
+    if (!drag) { const h = hit(x, y); ledCanvas.style.cursor = h ? (h.part === 'line' ? 'move' : 'grab') : 'crosshair'; return; }
+    const st = stripsDraft[drag.h.i], dx = x - drag.x, dy = y - drag.y, sn = ev.shiftKey;
+    if (drag.h.part === 'a' || drag.h.part === 'line') { st.x0 = clamp(snap(drag.o.x0 + dx, sn)); st.y0 = clamp(snap(drag.o.y0 + dy, sn)); }
+    if (drag.h.part === 'b' || drag.h.part === 'line') { st.x1 = clamp(snap(drag.o.x1 + dx, sn)); st.y1 = clamp(snap(drag.o.y1 + dy, sn)); }
+    markDirty(); syncRow(drag.h.i); drawLed();
+  });
+  ledCanvas.addEventListener('pointerup', () => { if (drag) { drag = null; renderStrips(true); drawLed(); } });
+  document.addEventListener('keydown', ev => {
+    if ($('leds').hidden || !ledSel || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    if (ev.key === 'Delete' || ev.key === 'Backspace') { stripsDraft = JSON.parse(JSON.stringify(ledZones())); stripsDraft.splice(ledSel.i, 1); ledSel = null; markDirty(); renderStrips(true); drawLed(); ev.preventDefault(); return; }
+    if (ev.key === 'Escape') { ledSel = null; drawLed(); return; }
+    const step = ev.shiftKey ? 0.025 : 0.0025, dx = ev.key === 'ArrowLeft' ? -step : ev.key === 'ArrowRight' ? step : 0, dy = ev.key === 'ArrowUp' ? -step : ev.key === 'ArrowDown' ? step : 0;
+    if (dx || dy) { if (!stripsDraft) stripsDraft = JSON.parse(JSON.stringify(ledZones())); const st = stripsDraft[ledSel.i]; st.x0 = clamp((+st.x0 || 0) + dx); st.x1 = clamp((st.x1 == null ? 1 : +st.x1) + dx); st.y0 = clamp((st.y0 == null ? 0.5 : +st.y0) + dy); st.y1 = clamp((st.y1 == null ? 0.5 : +st.y1) + dy); markDirty(); syncRow(ledSel.i); drawLed(); ev.preventDefault(); }
+  });
+})();
 
 // ------------------------------------------------------------ performance mode (big touch controls)
 let perfOn = false, pfBlackPrev = null, pfFreezePrev = null;
@@ -2195,9 +2496,43 @@ function perfEnter(on) {
 $('perf-enter').onclick = () => perfEnter(true);
 $('out-res').onchange = () => send({set: {out_res: +$('out-res').value}});
 $('perf-exit').onclick = () => perfEnter(false);
-function pfPage(i) { const pg = $('pf-pages'); pg.scrollTo({left: pg.clientWidth * i, behavior: 'smooth'}); }
-$('pf-tabs').querySelectorAll('button').forEach(b => b.onclick = () => pfPage(+b.dataset.pg));
-$('pf-pages').addEventListener('scroll', () => { const i = Math.round($('pf-pages').scrollLeft / Math.max(1, $('pf-pages').clientWidth)); $('pf-tabs').querySelectorAll('button').forEach(b => b.classList.toggle('active', +b.dataset.pg === i)); [...$('pf-dots').children].forEach((d, k) => d.classList.toggle('on', k === i)); });
+let pfCur = 0;
+function pfPage(i) {
+  pfCur = i;
+  $('pf-pages').querySelectorAll('.ppage').forEach(p => p.classList.toggle('on', +p.dataset.pg === i));
+  $('pf-tabs').querySelectorAll('button[data-pg]').forEach(b => b.classList.toggle('active', +b.dataset.pg === i));
+  try { localStorage.setItem('frx.perfpage', String(i)); } catch (e) {}
+  if (i === 5) pfShowsFetch();
+  renderPerf();
+}
+$('pf-tabs').querySelectorAll('button[data-pg]').forEach(b => b.onclick = () => pfPage(+b.dataset.pg));
+const pfCurPage = () => $('pf-pages').querySelector('.ppage.on');
+$('pf-up').onclick = () => { const p = pfCurPage(); if (p) p.scrollBy({top: -p.clientHeight * 0.8, behavior: 'smooth'}); };
+$('pf-down').onclick = () => { const p = pfCurPage(); if (p) p.scrollBy({top: p.clientHeight * 0.8, behavior: 'smooth'}); };
+$('pf-black-rail').onclick = () => $('pf-blackout').click();
+try { const pp = +localStorage.getItem('frx.perfpage'); if (pp >= 0 && pp <= 5) pfPage(pp); } catch (e) {}
+// presets: save / update from Perform
+let pfLastPreset = null;
+$('pf-preset-save').onclick = () => { const n = prompt('Name for this look'); if (n && n.trim()) { send({preset: {save: n.trim()}}); pfLastPreset = n.trim(); } };
+$('pf-preset-update').onclick = () => { if (!pfLastPreset) return alert('load or save a look first'); if (confirm(`Overwrite "${pfLastPreset}" with the current look?`)) send({preset: {save: pfLastPreset}}); };
+// clips page extras
+$('pf-vid-loop').onclick = () => send({video: {loop: !(S.base.video_loop > 0.5)}});
+$('pf-vid-barsync').onclick = () => send({video: {bar_sync: !S.video.bar_sync}});
+$('pf-vid-cycle').onclick = () => { const order = ['end', 'bars', 'off']; send({video: {cycle: order[(order.indexOf(S.video.cycle) + 1) % 3]}}); };
+$('pf-live-go').onclick = () => send({video: {live: 1}});
+$('perf').querySelectorAll('[data-pfeed]').forEach(b => b.onclick = () => send({set: {live_mix: +b.dataset.pfeed}}));
+$('pf-live-stop').onclick = () => { send({video: {live_stop: 1}}); setTimeout(() => fetchMedia(true), 800); };
+// shows page
+let PF_SHOWS = null;
+async function pfShowsFetch() { if (!S.live) { $('pf-shows').innerHTML = '<span class="hint">shows live on the master</span>'; return; } try { PF_SHOWS = await (await fetch('/api/shows')).json(); } catch (e) { return; } pfRenderShows(); }
+function pfRenderShows() {
+  if (!PF_SHOWS) return; const list = PF_SHOWS.list || [];
+  $('pf-shows').innerHTML = list.map(sh => `<button class="pbtn pf-show ${sh.name === PF_SHOWS.last ? 'active' : ''}" data-s="${esc(sh.name)}">${esc(sh.name)}<small>${sh.venue ? esc(sh.venue) + ' · ' : ''}${sh.projectors.length} projector${sh.projectors.length === 1 ? '' : 's'} · ${MODE_NAMES[Math.round(sh.scene || 0)] || ''}</small></button>`).join('') || '<span class="hint">no shows saved yet — set the rig up and press SAVE</span>';
+  $('pf-shows').querySelectorAll('[data-s]').forEach(b => b.onclick = async () => { if (!confirm(`Load show "${b.dataset.s}"? This changes the whole rig.`)) return; b.textContent = 'loading…'; await fetch(`/api/shows/${encodeURIComponent(b.dataset.s)}/load`, {method: 'POST', headers: {'content-type': 'application/json'}, body: '{}'}); pfShowsFetch(); });
+  $('pf-show-cur').textContent = PF_SHOWS.last || 'none loaded';
+}
+$('pf-show-update').onclick = async () => { const n = PF_SHOWS && PF_SHOWS.last; if (!n) return alert('no show loaded — use SAVE'); if (!confirm(`Overwrite show "${n}" with the rig as it is now?`)) return; await fetch(`/api/shows/${encodeURIComponent(n)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({update: true})}); pfShowsFetch(); };
+$('pf-show-save').onclick = async () => { const n = prompt('Name for this show (venue / scenario)'); if (!n || !n.trim()) return; await fetch(`/api/shows/${encodeURIComponent(n.trim())}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({update: true})}); pfShowsFetch(); };
 $('pf-tap').onclick = () => send({tap: 1});
 $('pf-beat1').onclick = () => send({beat1: 1});
 $('pf-eng-shader').onclick = () => send({set: {mode: lastShaderMode}});
@@ -2232,7 +2567,13 @@ function renderPerf() {
   $('pf-scenes').querySelectorAll('button').forEach(b => b.className = 'pbtn' + (+b.dataset.m === Math.round(S.base.mode) ? ' active' : ''));
   $('pf-blackout').className = 'pbtn danger' + (S.base.brightness === 0 ? ' active' : ''); $('pf-freeze').className = 'pbtn' + (S.clock_speed === 0 ? ' active' : ''); $('pf-autotoggle').className = 'pbtn' + (S.auto_enabled ? ' active' : '');
   const names = Object.keys(S.presets || {});
-  const psig = names.join('|'); if ($('pf-presets').dataset.sig !== psig) { $('pf-presets').dataset.sig = psig; $('pf-presets').innerHTML = names.map(n => `<button class="pbtn pm-tile" data-p="${esc(n)}">${esc(n)}</button>`).join('') || '<span class="hint">no presets saved</span>'; $('pf-presets').querySelectorAll('[data-p]').forEach(b => b.onclick = () => send({preset: {load: b.dataset.p}})); }
+  const psig = names.join('|') + '#' + pfLastPreset; if ($('pf-presets').dataset.sig !== psig) { $('pf-presets').dataset.sig = psig; $('pf-presets').innerHTML = names.map(n => { const pr = S.presets[n] || {}; const sc = MODE_NAMES[Math.round(pr.mode || 0)] || ''; return `<button class="pbtn pf-preset ${n === pfLastPreset ? 'active' : ''}" data-p="${esc(n)}">${esc(n)}<small>${sc}${pr.pm_preset != null && Math.round(pr.mode) === 8 ? ' #' + Math.round(pr.pm_preset) : ''}</small></button>`; }).join('') || '<span class="hint">no looks saved yet — set one up and press SAVE CURRENT LOOK</span>'; $('pf-presets').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { pfLastPreset = b.dataset.p; send({preset: {load: b.dataset.p}}); renderPerf(); }); }
+  $('pf-preset-last').textContent = pfLastPreset || 'nothing loaded yet';
+  $('pf-scene-pill').textContent = (MODE_NAMES[Math.round(S.base.mode)] || '') + (on8 && S.pm.name ? ' · ' + shortName(S.pm.name) : on9p && S.video.name ? ' · ' + S.video.name : '');
+  $('pf-vid-name').textContent = S.video.name ? (S.video.index === 255 ? 'LIVE feed' : `#${S.video.index} · ${S.video.name}`) + (S.video.duration ? ` · ${Math.floor(S.video.position)}s / ${Math.floor(S.video.duration)}s` : '') : 'no clip';
+  $('pf-vid-loop').className = 'pbtn' + (S.base.video_loop > 0.5 ? ' active' : ''); $('pf-vid-barsync').className = 'pbtn' + (S.video.bar_sync ? ' active' : '');
+  $('pf-vid-cycle').className = 'pbtn' + (S.video.cycle !== 'off' ? ' active' : ''); $('pf-vid-cycle-sub').textContent = S.video.cycle === 'end' ? 'when the clip ends' : S.video.cycle === 'bars' ? `every ${S.video.cycle_bars} bars` : 'off';
+  const lv = S.video.live || {}; $('pf-live-go').className = 'pbtn huge' + (on9p && S.video.index === 255 ? ' active' : ''); $('pf-live-sub').textContent = lv.running ? (lv.source || 'feed running') : 'no feed running — start one on the Media tab';
   const list = S.pm_presets || [], nm = list[S.pm.index] || '';
   $('pf-pm-name').textContent = list.length ? `#${S.pm.index} · ${shortName(nm)}` : 'projectM presets not available';
   $('pf-pm-hold').className = 'pbtn' + (S.pm.cycle_bars === 0 && pmHeld ? ' active' : ''); $('pf-pm-fav').textContent = (pmFavs.has(nm) ? '★' : '☆') + ' FAVOURITE';
@@ -2244,18 +2585,21 @@ function renderPerf() {
 }
 
 // ------------------------------------------------------------ views
+$('pill-fleet').onclick = () => $('nav').querySelector('[data-view=status]').click();
 $('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
   $('nav').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
   const v = b.dataset.view;
-  document.querySelector('main').hidden = v !== 'control'; $('info').hidden = v !== 'info'; $('status').hidden = v !== 'status'; $('outputs').hidden = v !== 'outputs'; $('media').hidden = v !== 'media';
+  document.querySelector('main').hidden = v !== 'control'; for (const id of ['shows', 'inputs', 'media', 'outputs', 'resolume', 'leds', 'status', 'info']) $(id).hidden = v !== id;
   if (v === 'status') renderStatus();
   if (v === 'media') { fetchMedia(true); }
   if (v === 'outputs') { renderOutputs(true); mapFetch(); if (S.live) ndiScan(); }
+  if (v === 'leds') { renderOutputs(true); renderStrips(true); drawLed(); }
+  if (v === 'resolume') { renderOutputs(true); renderResolume(true); }
+  if (v === 'shows') showsFetch();
   try { localStorage.setItem('frx.view', b.dataset.view); } catch (e) {}
   if (!info) window.scrollTo(0, 0);
 });
 try { const sv = localStorage.getItem('frx.view'); if (sv && sv !== 'control' && $('nav').querySelector(`[data-view=${sv}]`)) $('nav').querySelector(`[data-view=${sv}]`).click(); } catch (e) {}
-
 
 // ------------------------------------------------------------ projectM browser simulation (Butterchurn = Milkdrop 2 in WebGL)
 // The Pis run libprojectM; the browser runs Butterchurn with the SAME-NAMED preset where the packs overlap,

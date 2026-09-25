@@ -56,6 +56,10 @@ PARAMS = [
     # output mode — global, picked on the web UI top bar. Renderers on KMSDRM modeset by restarting (~3 s black);
     # a renderer started with --out-res pins its own mode and ignores this.
     ("out_res",      "Output",         0,     2,     0,     'i', False, "output", "0 Auto (screen native) · 1 1080p · 2 4K"),
+    # LIVE feed mixed over whatever the renderer is drawing (Resolume return / HDMI capture): 0 = pure renderer,
+    # 1 = pure feed. Works on every scene except a video clip (one decoder per Pi); LIVE as the clip = feed only.
+    ("live_mix",     "Feed mix",       0,     1,     0.0,   'f', False, "feed",   "crossfade the LIVE feed over the picture: 0 renderer · 1 feed"),
+    ("live_blend",   "Feed blend",     0,     4,     0,     'i', False, "feed",   "0 crossfade · 1 add · 2 multiply · 3 screen · 4 difference"),
 ]
 
 NPARAMS = len(PARAMS)

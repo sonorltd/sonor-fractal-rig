@@ -18,20 +18,20 @@ config. Wired gigabit switch strongly recommended; on Wi-Fi many APs throttle
 multicast to 1–6 Mbps and drop it under load (our stream is 58 kbit/s, so it
 usually still works, but jitter goes from <1 ms to 20–50 ms).
 
-## Packet (156 bytes, little-endian)
+## Packet (164 bytes, little-endian)
 
 ```
 offset  type   field       meaning
 0       4s     magic       'FRX1'
 4       u16    version     1
-6       u16    nparams     29 — receivers reject packets whose count differs
+6       u16    nparams     31 — receivers reject packets whose count differs
 8       u32    seq         wraps; renderers count gaps as "lost"
 12      u32    flags       bit0 beat this tick · bit1 Pro DJ Link locked · bit2 audio live
 16      f64    t           master animation clock, seconds
 24      f64    beat_t      animation-clock time of the most recent beat
 32      f32    bpm         0 = no tempo
 36      f32    bar_beat    beat-within-bar (1..4) at beat_t, 0 = unknown
-40      f32×29 params      in the order defined in master/params.py
+40      f32×31 params      in the order defined in master/params.py
 ```
 
 `master/params.py` is the single source of truth for the parameter table.
@@ -114,6 +114,12 @@ Clip **255 = LIVE**: the master's ffmpeg multicasts MPEG-TS to `udp://239.255.42
 (output-space polygon, any number of lines), `feather f`, `edge l r t b`, `bright b`,
 `gamma g`, `test 0|1`. The renderer reports the file's FNV-1a hash in the heartbeat;
 `master/mapping.py to_text()` must stay byte-identical to what the Pi hashes.
+
+## Feed mix
+
+`live_mix` (0..1) and `live_blend` (0 crossfade · 1 add · 2 multiply · 3 screen · 4 difference) blend
+the LIVE multicast feed over whatever the renderer draws (renderer `shaders/mix.frag`). While scene 9
+plays a file the single decoder is busy, so the mix is skipped there; clip 255 is the feed itself.
 
 ## Output resolution
 

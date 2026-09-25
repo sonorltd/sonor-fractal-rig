@@ -55,6 +55,7 @@ int  vb_render(unsigned fbo, int w, int h) { (void)fbo; (void)w; (void)h; return
 int  vb_has_frame(void) { return 0; }
 double vb_position(void) { return 0; }
 double vb_duration(void) { return 0; }
+double vb_frame_age(void) { return 1e9; }
 const char *vb_status(void) { return g_status; }
 void vb_shutdown(void) {}
 #else
@@ -69,6 +70,7 @@ static int    g_loaded = -2;          /* clip index currently loaded (-2 none, 2
 static int    g_has_frame = 0, g_loop = -1, g_paused = -1;
 static double g_dur = 0, g_pos = 0, g_last_check = 0, g_load_time = 0;
 static double g_speed_set = 1.0;
+static double g_frame_t = 0;
 
 static void *get_proc(void *ctx, const char *name) { (void)ctx; return SDL_GL_GetProcAddress(name); }
 static double mono(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec + ts.tv_nsec * 1e-9; }
@@ -112,7 +114,7 @@ static void load(int clip) {
     const char *file = NULL; char path[1024];
     if (clip == 255) file = g_live;
     else if (clip >= 0 && clip < g_count) { snprintf(path, sizeof path, "%s/%s", g_dir, g_names[clip]); file = path; }
-    g_has_frame = 0; g_dur = 0; g_pos = 0; g_loaded = clip; g_load_time = mono();
+    g_has_frame = 0; g_dur = 0; g_pos = 0; g_loaded = clip; g_load_time = mono(); g_frame_t = 0;
     if (!file) { cmd("stop", NULL, NULL); return; }
     if (clip == 255) { setopt("profile", "low-latency"); setopt("cache", "no"); setopt("untimed", "yes"); }
     else { setopt("cache", "yes"); setopt("untimed", "no"); }
@@ -164,7 +166,7 @@ void vb_update(int clip, double t0, double speed, int loop, double anim_t) {
 int vb_render(unsigned fbo, int w, int h) {
     if (!g_rc || g_loaded < 0) return 0;
     uint64_t flags = mpv_render_context_update(g_rc);
-    (void)flags;   /* we render every frame regardless: the FBO must hold the picture for the post-pass */
+    if (flags & MPV_RENDER_UPDATE_FRAME) g_frame_t = mono();   /* a genuinely new picture — used to detect a dead LIVE feed */
     mpv_opengl_fbo mfbo = {.fbo = (int)fbo, .w = w, .h = h, .internal_format = 0};
     int flip = 1;
     mpv_render_param p[] = {{MPV_RENDER_PARAM_OPENGL_FBO, &mfbo}, {MPV_RENDER_PARAM_FLIP_Y, &flip}, {0, NULL}};
@@ -175,6 +177,7 @@ int vb_render(unsigned fbo, int w, int h) {
 int    vb_has_frame(void) { return g_has_frame; }
 double vb_position(void) { return g_pos; }
 double vb_duration(void) { return g_dur; }
+double vb_frame_age(void) { return g_frame_t > 0 ? mono() - g_frame_t : (g_load_time > 0 ? mono() - g_load_time : 1e9); }
 const char *vb_status(void) { return g_status; }
 void vb_shutdown(void) {
     if (g_rc) { mpv_render_context_free(g_rc); g_rc = NULL; }

@@ -18,5 +18,6 @@ int         vb_render(unsigned fbo, int w, int h);
 int         vb_has_frame(void);
 double      vb_position(void);
 double      vb_duration(void);
+double      vb_frame_age(void);               /* seconds since the last NEW decoded frame (huge when none) */
 const char *vb_status(void);                  /* short human string for the heartbeat / log */
 void        vb_shutdown(void);
