@@ -64,7 +64,8 @@ static struct {
     int thumb_port; int thumb_hz; int no_thumb;
     int ndi; char ndi_name[64]; int ndi_fps; int display;
     char media_dir[512]; char live_url[256]; char mapping[512]; char state_file[512]; int no_video;
-    int out_res_pin, out_res_pin_set;   /* --out-res: 0 auto 1 1080p 2 4K (pinned — ignores the master's out_res) */
+    int out_res_pin, out_res_pin_set;
+    int headless;      /* --headless: no screen at all (SDL offscreen) — for a master that only publishes NDI / thumbnails */   /* --out-res: 0 auto 1 1080p 2 4K (pinned — ignores the master's out_res) */
 } cfg = { 0, 0, 0, 1, 0.6f, 1, 1, 0, 0, 0, 0, 0, "239.255.42.1", 5005, 5006, "", "", "", 0, "",
           "/usr/local/share/projectM/presets", "/usr/local/share/projectM/textures", 5007, 0,
           5008, 20, 0, 0, "Fractal Rig", 30, 0,
@@ -116,6 +117,8 @@ static void usage(void) {
            "  --state-file FILE   where to note the master's IP for fractal-media-sync\n"
            "  --no-video          disable libmpv video even if built in\n"
            "  --out-res auto|1080|4k  pin this output's mode (default: follow the master's Output selector)\n"
+           "  --headless          render with no screen (SDL offscreen, 1080p unless --window) — e.g. a master Pi whose\n"
+           "                      HDMI is used by something else but should still publish NDI / thumbnails\n"
            "  --thumb-hz N        live thumbnail rate to the master (default 20, 0 = off)\n"
            "  --ndi               publish this renderer's picture as an NDI source (needs HAVE_NDI build)\n"
            "  --ndi-name STR      NDI source name (default 'Fractal Rig'; the Pi name is appended)\n"
@@ -139,6 +142,7 @@ static void parse_args(int argc, char **argv) {
         else if (!strcmp(a, "--name"))  strncpy(cfg.name, NEXT(), 63);
         else if (!strcmp(a, "--shaders")) strncpy(cfg.shader_dir, NEXT(), 511);
         else if (!strcmp(a, "--novsync")) cfg.vsync = 0;
+        else if (!strcmp(a, "--headless")) { cfg.headless = 1; cfg.windowed = 1; if (!cfg.win_w) { cfg.win_w = 1920; cfg.win_h = 1080; } }
         else if (!strcmp(a, "--display")) cfg.display = atoi(NEXT());
         else if (!strcmp(a, "--media-dir") && i + 1 < argc) snprintf(cfg.media_dir, sizeof cfg.media_dir, "%s", argv[++i]);
         else if (!strcmp(a, "--live-url") && i + 1 < argc) snprintf(cfg.live_url, sizeof cfg.live_url, "%s", argv[++i]);
@@ -376,6 +380,7 @@ static int drm_card_with_output(void) {
     closedir(d); return best;
 }
 static int sdl_init_video(void) {
+    if (cfg.headless) setenv("SDL_VIDEODRIVER", "offscreen", 1);   /* beats the unit's KMSDRM env */
     const char *vd = getenv("SDL_VIDEODRIVER");
     int kms = vd && !strcasecmp(vd, "KMSDRM");
     if (kms && !getenv("SDL_KMSDRM_DEVICE_INDEX")) {
@@ -623,6 +628,10 @@ int main(int argc, char **argv) {
             }
         }
         SDL_GL_SwapWindow(win);
+        if (cfg.headless) {   /* offscreen has no vblank: pace to 60 fps so we don't burn a core for nothing */
+            static double next_t = 0; double t2 = now_s(); if (next_t < t2 - 0.1) next_t = t2;
+            next_t += 1.0 / 60.0; double wait = next_t - t2; if (wait > 0) SDL_Delay((Uint32)(wait * 1000));
+        }
 
         frames++;
         if (now - fps_t >= 2.0) { fps = frames / (float)(now - fps_t); frames = 0; fps_t = now;

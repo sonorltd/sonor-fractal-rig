@@ -620,6 +620,9 @@
   <div class="card" id="o-ndi">
     <h2>NDI video <span class="spacer"></span><span class="sub">publish a Pi's picture as an NDI source for Resolume / OBS / vMix</span></h2>
     <div id="ndi-status"></div>
+    <h3 style="margin:14px 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">NDI streams on the network <button class="btn small" id="ndi-scan" style="margin-left:8px">↻ Scan</button> <span id="ndi-scan-state" style="text-transform:none;letter-spacing:0;margin-left:6px"></span></h3>
+    <div class="tablewrap"><table><thead><tr><th>source</th><th>from</th><th></th></tr></thead><tbody id="ndi-sources"><tr><td colspan="3" style="color:var(--muted)">press Scan</td></tr></tbody></table></div>
+    <div class="hint">Everything currently sending NDI on this LAN — Resolume's NDI screen (Output → Advanced → + Screen → NDI), OBS, vMix, another Pi. <b>Use as LIVE</b> starts the master's receiver on that stream and switches every projector to it (clip 255); the stream keeps going until you press STOP on the Media tab or pick another source. Scans take ~3 s.</div>
     <div class="hint">Simplest, most robust path into Resolume is still an <b>HDMI capture card</b> (Cam Link 4K, Magewell) on any Pi's second HDMI port — zero software. NDI is the network alternative: install the NDI SDK on a Pi with <code>setup/install-ndi.sh &lt;tar.gz&gt;</code>, add <code>--ndi</code> to that renderer's arguments, and "Fractal Rig (pi-name)" appears in Resolume's Sources → NDI. A Pi 5 does 1080p at scale 0.6 / 30 fps comfortably.</div>
   </div>
 
@@ -1888,6 +1891,26 @@ $('lm-follow').onclick = () => send({source: {name: 'link', enabled: !!(S.source
 $('lm-lead').onclick = () => send({source: {name: 'link', enabled: !!(S.sources.link && S.sources.link.enabled), mode: 'lead'}});
 
 let thumbImgs = {};
+// ------------------------------------------------------------ NDI streams on the LAN (Outputs → NDI)
+let ndiScanning = false;
+async function ndiScan() {
+  if (ndiScanning) return; ndiScanning = true;
+  $('ndi-scan-state').textContent = S.live ? 'scanning…' : 'demo mode — no master';
+  $('ndi-scan').disabled = true;
+  try {
+    if (!S.live) return;
+    const j = await (await fetch('/api/media/devices?ndi=1')).json();
+    const list = j.ndi || [], live = (S.video && S.video.live) || {};
+    if (!j.have_ndi) { $('ndi-sources').innerHTML = '<tr><td colspan="3" style="color:var(--warn)">NDI receiver not installed on the master — <code>sudo bash setup/install-ndi.sh</code> (downloads the SDK), then re-scan</td></tr>'; $('ndi-scan-state').textContent = ''; return; }
+    $('ndi-sources').innerHTML = list.length ? list.map(d => { const on = live.running && live.source === 'ndi:' + d.name; const host = (d.name.match(/^([^(]+)\s*\(/) || [])[1] || ''; return `<tr><td><b>${esc(d.name)}</b>${on ? ' <span class="pill ok">LIVE now</span>' : ''}</td><td style="color:var(--muted)">${esc(d.url || host)}</td><td style="text-align:right"><button class="btn small ${on ? '' : 'primary'}" data-ndi="${esc(d.name)}">${on ? 'restart' : 'Use as LIVE'}</button></td></tr>`; }).join('')
+      : '<tr><td colspan="3" style="color:var(--muted)">no NDI senders found — in Resolume: Output → Advanced → + Screen → NDI; check the laptop is on the same wired network and its firewall allows Resolume</td></tr>';
+    $('ndi-sources').querySelectorAll('[data-ndi]').forEach(b => b.onclick = () => { b.textContent = 'starting…'; b.disabled = true; send({video: {live_start: {kind: 'ndi', source: b.dataset.ndi, low: false}}}); setTimeout(() => { send({video: {live: 1}}); fetchMedia(true); ndiScan(); }, 4000); });
+    $('ndi-scan-state').textContent = list.length + (list.length === 1 ? ' stream' : ' streams') + ' · ' + new Date().toLocaleTimeString();
+  } catch (e) { $('ndi-scan-state').textContent = 'scan failed'; }
+  finally { ndiScanning = false; $('ndi-scan').disabled = false; }
+}
+$('ndi-scan').onclick = ndiScan;
+
 // ------------------------------------------------------------ projection mapping editor (Outputs)
 const MP = {list: [], name: null, m: null, saved: null, sel: null, adding: null, drag: null, img: new Image(), imgName: null, imgT: 0, timer: null, pushT: null};
 const MP_ID = {quad: [0, 0, 1, 0, 1, 1, 0, 1], masks: [], feather: 0, edge: [0, 0, 0, 0], bright: 1, gamma: 1, test: 0};
@@ -2227,7 +2250,7 @@ $('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
   document.querySelector('main').hidden = v !== 'control'; $('info').hidden = v !== 'info'; $('status').hidden = v !== 'status'; $('outputs').hidden = v !== 'outputs'; $('media').hidden = v !== 'media';
   if (v === 'status') renderStatus();
   if (v === 'media') { fetchMedia(true); }
-  if (v === 'outputs') { renderOutputs(true); mapFetch(); }
+  if (v === 'outputs') { renderOutputs(true); mapFetch(); if (S.live) ndiScan(); }
   try { localStorage.setItem('frx.view', b.dataset.view); } catch (e) {}
   if (!info) window.scrollTo(0, 0);
 });

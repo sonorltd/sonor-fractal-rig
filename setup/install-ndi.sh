@@ -29,9 +29,11 @@ fi
 tar xzf "$TAR" -C "$TMP"
 SH=$(find "$TMP" -maxdepth 1 -name "Install_NDI_SDK*.sh" | head -1)
 [ -n "$SH" ] || { echo "no installer script in tarball"; exit 1; }
-( cd "$TMP" && yes | PAGER=cat bash "$SH" >/dev/null )       # accepts the licence you already agreed to on download
+# the SDK's own installer just shows the licence and asks y/n — answer yes (you agreed to it on download).
+# NB: not `yes |` — with pipefail, yes dying of SIGPIPE made the whole script exit silently.
+( cd "$TMP" && printf 'y\ny\ny\n' | PAGER=cat bash "$SH" >/dev/null 2>&1 ) || true
 SDK=$(find "$TMP" -maxdepth 1 -type d -name "NDI SDK for Linux*" | head -1)
-[ -d "$SDK" ] || { echo "SDK dir not found after extract"; exit 1; }
+[ -d "$SDK" ] || { echo "SDK dir not found after extract — contents of $TMP:"; ls -la "$TMP"; exit 1; }
 ARCH=$(uname -m); case "$ARCH" in aarch64) LIBDIR="$SDK/lib/aarch64-rpi4-linux-gnueabi";; x86_64) LIBDIR="$SDK/lib/x86_64-linux-gnu";; armv7l) LIBDIR="$SDK/lib/arm-rpi4-linux-gnueabihf";; *) LIBDIR="";; esac
 [ -d "$LIBDIR" ] || LIBDIR=$(find "$SDK/lib" -maxdepth 1 -type d | grep -i "$ARCH" | head -1)
 [ -d "$LIBDIR" ] || { echo "no lib dir for $ARCH in $SDK/lib:"; ls "$SDK/lib"; exit 1; }
