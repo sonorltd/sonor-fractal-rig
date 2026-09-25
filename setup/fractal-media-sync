@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+"""fractal-media-sync — keeps a renderer's media folder + mapping.txt in step with the master.
+
+Runs as a small systemd service on every Pi (setup/install.sh installs it). Stdlib only.
+
+  1. read the renderer's state file (/var/lib/fractal-rig/state, written by `fractal` once it hears the
+     master):  master=<ip>  name=<hostname>  media_dir=<dir>  mapping=<file>
+  2. GET http://<master>:<port>/api/media  (tries 8080 then 8081 — the studio test rig runs on 8081)
+  3. download every clip whose size+fingerprint differs from the local copy (into .part, then rename),
+     delete local *.mp4 the master no longer has — the byte-sorted list must match exactly or the
+     `video_clip` index points at the wrong file
+  4. GET /api/mapping/<name>.txt → mapping file (404 = identity → remove the local file)
+  5. sleep, repeat. Mapping is checked every SYNC_SECONDS (default 2, one tiny GET) so the mapping
+     editor feels live; the media list every 5th pass — cheap when nothing changed.
+  6. serves a small status page on http://<this-pi>:8082/ (STATUS_PORT) — renderer log tail, sync state,
+     temperature / throttling, clip list, mapping, and a link to the master's web UI.
+"""
+import hashlib
+import json
+import os
+import sys
+import time
+import urllib.request
+import urllib.error
+
+STATE = os.environ.get("FRACTAL_STATE", "/var/lib/fractal-rig/state")
+PORTS = [int(p) for p in os.environ.get("FRACTAL_MASTER_PORTS", "8080,8081").split(",") if p.strip()]
+PERIOD = float(os.environ.get("SYNC_SECONDS", "2"))
+STATUS_PORT = int(os.environ.get("STATUS_PORT", "8082"))
+TIMEOUT = 8
+
+
+LOG = []
+INFO = dict(master=None, base=None, last_pass=0, last_ok=0, clips=0, mapping=False, error="")
+
+
+def log(msg):
+    print(f"[sync] {msg}", flush=True)
+    LOG.append(time.strftime("%H:%M:%S ") + msg)
+    del LOG[:-60]
+
+
+def read_state():
+    st = {}
+    try:
+        for line in open(STATE):
+            if "=" in line:
+                k, v = line.rstrip("\n").split("=", 1)
+                st[k.strip()] = v.strip()
+    except OSError:
+        return None
+    return st if st.get("master") else None
+
+
+def fingerprint(path):
+    """Must match master/media.py sha1_of(): size + first/last 1 MB."""
+    h = hashlib.sha1()
+    try:
+        s = os.stat(path)
+        h.update(str(s.st_size).encode())
+        with open(path, "rb") as f:
+            h.update(f.read(1 << 20))
+            if s.st_size > (2 << 20):
+                f.seek(-(1 << 20), 2)
+                h.update(f.read(1 << 20))
+    except OSError:
+        return ""
+    return h.hexdigest()[:16]
+
+
+def get(url, binary=False):
+    with urllib.request.urlopen(url, timeout=TIMEOUT) as r:
+        return r.read() if binary else json.loads(r.read().decode())
+
+
+def find_base(master):
+    for p in PORTS:
+        base = f"http://{master}:{p}"
+        try:
+            get(base + "/api/state")
+            return base
+        except Exception:
+            continue
+    return None
+
+
+def download(url, dest):
+    tmp = dest + ".part"
+    with urllib.request.urlopen(url, timeout=60) as r, open(tmp, "wb") as f:
+        while True:
+            chunk = r.read(1 << 20)
+            if not chunk:
+                break
+            f.write(chunk)
+    os.replace(tmp, dest)
+
+
+def sync_media(base, media_dir):
+    os.makedirs(media_dir, exist_ok=True)
+    clips = get(base + "/api/media").get("clips", [])
+    want = {c["file"]: c for c in clips}
+    changed = 0
+    for fn, c in want.items():
+        dest = os.path.join(media_dir, fn)
+        if os.path.exists(dest) and os.path.getsize(dest) == c.get("size") and fingerprint(dest) == c.get("sha1"):
+            continue
+        log(f"fetch {fn} ({c.get('size', 0) // 1024} KB)")
+        try:
+            download(base + "/media/" + urllib.request.quote(fn), dest)
+            changed += 1
+        except Exception as ex:
+            log(f"fetch {fn} failed: {ex}")
+            try:
+                os.remove(dest + ".part")
+            except OSError:
+                pass
+    for fn in os.listdir(media_dir):
+        if fn.lower().endswith(".mp4") and fn not in want:
+            log(f"remove {fn} (gone on master)")
+            try:
+                os.remove(os.path.join(media_dir, fn))
+                changed += 1
+            except OSError:
+                pass
+        elif fn.endswith(".part"):
+            try:
+                os.remove(os.path.join(media_dir, fn))
+            except OSError:
+                pass
+    INFO["clips"] = len(want)
+    if changed:
+        os.utime(media_dir)          # bump dir mtime so the renderer's vb_scan() rescans at once
+        log(f"media: {len(want)} clips, {changed} changed")
+
+
+def sync_mapping(base, name, path):
+    if not path:
+        return
+    url = base + "/api/mapping/" + urllib.request.quote(name) + ".txt"
+    try:
+        text = get(url, binary=True)
+    except urllib.error.HTTPError as ex:
+        if ex.code == 404:
+            INFO["mapping"] = False
+            if os.path.exists(path):
+                os.remove(path)
+                log("mapping: identity (removed local file)")
+            return
+        raise
+    INFO["mapping"] = True
+    old = open(path, "rb").read() if os.path.exists(path) else None
+    if old != text:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path + ".tmp", "wb") as f:
+            f.write(text)
+        os.replace(path + ".tmp", path)
+        log(f"mapping: updated ({len(text)} bytes)")
+
+
+def sh(cmd):
+    try:
+        import subprocess
+        return subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5).stdout.strip()
+    except Exception as ex:
+        return f"({ex})"
+
+
+def status_html():
+    import html
+    st = read_state() or {}
+    name = st.get("name") or os.uname().nodename
+    temp = sh("vcgencmd measure_temp 2>/dev/null || cat /sys/class/thermal/thermal_zone0/temp")
+    thr = sh("vcgencmd get_throttled 2>/dev/null")
+    svc = sh("systemctl is-active fractal-renderer 2>/dev/null")
+    jr = sh("journalctl -u fractal-renderer -n 25 --no-pager -o cat 2>/dev/null")
+    ip = sh("hostname -I")
+    media_dir = st.get("media_dir") or "/var/lib/fractal-rig/media"
+    clips = sorted(f for f in os.listdir(media_dir) if f.endswith(".mp4")) if os.path.isdir(media_dir) else []
+    mp = st.get("mapping") or ""
+    mtxt = open(mp).read() if mp and os.path.exists(mp) else "(identity — no mapping file)"
+    thr_bad = thr and thr not in ("throttled=0x0",)
+    master_link = f'<a href="{INFO["base"]}/">{INFO["base"]}/</a>' if INFO.get("base") else (st.get("master") or "not heard yet")
+    e = html.escape
+    return f"""<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="5">
+<title>{e(name)} · Fractal Rig renderer</title>
+<style>body{{font:14px/1.5 -apple-system,system-ui,sans-serif;background:#0f1115;color:#e6e6e6;margin:0;padding:18px;max-width:900px}}h1{{font-size:18px;margin:0 0 4px}}h2{{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8a8f98;margin:18px 0 6px}}
+pre{{background:#161a21;border:1px solid #262b34;border-radius:8px;padding:10px;overflow:auto;font-size:12px;white-space:pre-wrap}}a{{color:#4bb9d3}}.ok{{color:#78ba57}}.bad{{color:#ec6061}}.pill{{display:inline-block;border:1px solid #262b34;border-radius:999px;padding:2px 10px;margin:2px 4px 2px 0;font-size:12px}}</style>
+<h1>{e(name)} <span style="color:#8a8f98;font-weight:normal">— Fractal Rig renderer</span></h1>
+<div>master: {master_link} &nbsp;·&nbsp; this Pi: {e(ip)}</div>
+<div style="margin-top:8px"><span class="pill">renderer service: <b class="{'ok' if svc == 'active' else 'bad'}">{e(svc or '?')}</b></span><span class="pill">{e(temp)}</span><span class="pill {'bad' if thr_bad else 'ok'}">{e(thr or 'throttle: n/a')}{' — check the power supply!' if thr_bad else ''}</span><span class="pill">clips synced: {len(clips)}</span><span class="pill">mapping: {'custom' if INFO.get('mapping') else 'identity'}</span></div>
+<h2>Renderer log (last 25 lines)</h2><pre>{e(jr or '(no journal access — run: sudo usermod -aG systemd-journal ' + e(os.environ.get('USER', 'pi')) + ')')}</pre>
+<h2>Sync</h2><pre>{e(chr(10).join(LOG[-15:]) or '(nothing yet)')}</pre>
+<h2>Clips ({len(clips)}) — index order</h2><pre>{e(chr(10).join(f'{i:3d}  {c}' for i, c in enumerate(clips)) or '(none)')}</pre>
+<h2>Mapping — {e(mp)}</h2><pre>{e(mtxt)}</pre>
+<h2>Fix-it commands</h2><pre>ssh sonorpi@{e(name)}.local
+journalctl -fu fractal-renderer          # live renderer log
+sudo systemctl restart fractal-renderer  # restart the picture
+sudo systemctl restart fractal-media-sync
+cd ~/sonor-fractal-rig && git pull && sudo bash setup/install.sh slave</pre>"""
+
+
+def serve_status():
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            if self.path.startswith("/api"):
+                body = json.dumps(dict(INFO, state=read_state(), log=LOG[-20:])).encode()
+                ct = "application/json"
+            else:
+                body = status_html().encode()
+                ct = "text/html; charset=utf-8"
+            self.send_response(200)
+            self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    try:
+        srv = ThreadingHTTPServer(("0.0.0.0", STATUS_PORT), H)
+    except OSError as ex:
+        log(f"status page: port {STATUS_PORT} busy ({ex})")
+        return
+    import threading
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    log(f"status page on http://0.0.0.0:{STATUS_PORT}/")
+
+
+def main():
+    once = "--once" in sys.argv
+    if not once:
+        serve_status()
+    base = None
+    last_master = None
+    n = 0
+    while True:
+        st = read_state()
+        if not st:
+            if n % 15 == 0:
+                log(f"waiting for renderer state file {STATE} (renderer must hear the master first)")
+        else:
+            INFO["master"] = st["master"]
+            if st["master"] != last_master or base is None:
+                base = find_base(st["master"])
+                last_master = st["master"]
+                INFO["base"] = base
+                log(f"master {st['master']} → {base or 'no web port answering'}")
+            if base:
+                try:
+                    if n % 5 == 0 or once:
+                        sync_media(base, st.get("media_dir") or "/var/lib/fractal-rig/media")
+                    sync_mapping(base, st.get("name") or os.uname().nodename, st.get("mapping"))
+                    INFO["last_ok"] = time.time()
+                    INFO["error"] = ""
+                except Exception as ex:
+                    log(f"pass failed: {ex}")
+                    INFO["error"] = str(ex)
+                    base = None
+            INFO["last_pass"] = time.time()
+        if once:
+            return 0
+        n += 1
+        time.sleep(PERIOD)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

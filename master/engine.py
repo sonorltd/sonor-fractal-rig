@@ -88,6 +88,15 @@ class Engine:
         self.pm_history = []
         self._pm_last_bar = None
         self._pm_last_switch = 0.0
+        # video (scene 9) — the Media object (master.media) owns the files; the engine owns playback state
+        self.media = None                               # set by master.py
+        self.mapping = None                             # MappingStore, set by master.py
+        self.video_playlist = list(cfg.get("video_playlist", []))   # clip names, in order
+        self.video_cycle = cfg.get("video_cycle", "end")             # "end" = advance when the clip ends · "bars" = every N bars · "off"
+        self.video_cycle_bars = int(cfg.get("video_cycle_bars", 8) or 8)
+        self.video_bar_sync = bool(cfg.get("video_bar_sync", False))  # restart the clip on SET BEAT 1 / Pro DJ Link bar 1
+        self._video_last_bar = None
+        self._video_pl_pos = 0
         self.audio_stream = None                        # pm.AudioStream when audio is running
         # fleet
         self.fleet = {}                                 # name -> heartbeat dict
@@ -182,6 +191,8 @@ class Engine:
         self._beat_flag = True
         self.event("bar resync: beat 1")
         self._fire("beat1")
+        if self.video_bar_sync and int(self.base[INDEX["mode"]]) == 9:
+            self.video_restart("beat 1")
 
     def set_bpm(self, bpm):
         self.bpm = clamp(float(bpm), 0, 300)
@@ -224,6 +235,88 @@ class Engine:
     def pm_find(self, text):
         t = text.lower()
         return [i for i, n in enumerate(self.pm_presets) if t in n.lower()][:50]
+
+    # ------------------------------------------------------------ video (scene 9)
+    def video_clips(self):
+        return self.media.clips() if self.media else []
+
+    def video_index(self):
+        return int(self.base[INDEX["video_clip"]])
+
+    def video_name(self, i=None):
+        i = self.video_index() if i is None else i
+        if i == 255:
+            return "LIVE"
+        clips = self.video_clips()
+        return clips[i]["name"] if 0 <= i < len(clips) else None
+
+    def video_play(self, i, why="ui", switch_scene=True):
+        """Start clip i (or 255 = live stream) from its beginning NOW on the shared clock."""
+        clips = self.video_clips()
+        if i != 255:
+            if not clips:
+                return False
+            i = int(i) % len(clips)
+        self.set("video_clip", i, why)
+        self.set("video_t0", self.t, why)
+        if switch_scene:
+            self.set("mode", 9, why)
+        self._video_last_bar = None
+        if i != 255 and self.video_playlist and self.video_name(i) in self.video_playlist:
+            self._video_pl_pos = self.video_playlist.index(self.video_name(i))
+        self.event(f"video: ▶ {self.video_name(i)} ({why})")
+        return True
+
+    def video_play_name(self, name, why="ui"):
+        if name == "LIVE":
+            return self.video_play(255, why)
+        idx = self.media.index_of(name) if self.media else None
+        return self.video_play(idx, why) if idx is not None else False
+
+    def video_restart(self, why="ui"):
+        self.set("video_t0", self.t, why)
+        self.event(f"video: restart ({why})")
+
+    def video_step(self, d=1, why="ui"):
+        """Next/previous — through the playlist if one is set, else through the whole library."""
+        names = [n for n in self.video_playlist if self.media and self.media.index_of(n) is not None] if self.video_playlist else [c["name"] for c in self.video_clips()]
+        if not names:
+            return False
+        cur = self.video_name()
+        pos = names.index(cur) if cur in names else (self._video_pl_pos if self.video_playlist else -1)
+        nxt = names[(pos + d) % len(names)]
+        self._video_pl_pos = names.index(nxt)
+        return self.video_play_name(nxt, why)
+
+    def video_position(self):
+        """(position seconds, duration seconds, ended?) for the UI — the same maths the renderers do."""
+        i = self.video_index()
+        clips = self.video_clips()
+        if i == 255 or not (0 <= i < len(clips)):
+            return 0.0, 0.0, False
+        dur = float(clips[i].get("duration") or 0)
+        el = max(0.0, self.t - self.base[INDEX["video_t0"]]) * self.base[INDEX["video_speed"]]
+        if dur <= 0:
+            return el, 0.0, False
+        if self.base[INDEX["video_loop"]] >= 0.5:
+            return el % dur, dur, False
+        return min(el, dur), dur, el >= dur
+
+    def _video_autocycle(self, now):
+        if int(self.out[INDEX["mode"]]) != 9 or self.video_cycle == "off" or self.video_index() == 255:
+            return
+        if self.video_cycle == "end":
+            pos, dur, _ = self.video_position()
+            el = max(0.0, self.t - self.base[INDEX["video_t0"]]) * self.base[INDEX["video_speed"]]
+            if dur > 0 and el >= dur - 0.05 and (self.video_playlist or len(self.video_clips()) > 1):
+                self.video_step(1, "auto: clip ended")
+        elif self.video_cycle == "bars" and self.bpm > 0:
+            bars = math.floor((self.t - self.beat_t) * self.bpm / 60.0 / 4.0)
+            if self._video_last_bar is None:
+                self._video_last_bar = bars
+            if bars - self._video_last_bar >= self.video_cycle_bars:
+                self._video_last_bar = bars
+                self.video_step(1, f"auto: {self.video_cycle_bars} bars")
 
     def _pm_autocycle(self, now):
         """Switch preset every N bars (or every ~N*2 s without a tempo) while scene 8 is showing."""
@@ -284,6 +377,7 @@ class Engine:
             self.out[INDEX["bass"]] = self.audio_bass
 
         self._pm_autocycle(now)
+        self._video_autocycle(now)
         if now - getattr(self, "_params_hook_t", 0) > 0.05:
             self._params_hook_t = now
             self._fire("params", KEYS, self.base, self.out)
@@ -323,12 +417,19 @@ class Engine:
             pm_n = int(parts[13]) if len(parts) > 13 else None       # -1 = renderer built without projectM
             pm_cur = int(parts[14]) if len(parts) > 14 else None
             audio_pk = int(parts[15]) if len(parts) > 15 else None
-            ndi = parts[16] if len(parts) > 16 else None                 # v4: "ndi:on" / "ndi:off" / "ndi:none"
+            # v4+: trailing key:value tokens — ndi:on|off|live|none, v5: media:N (clip count, -1 = no libmpv),
+            # map:%08x (mapping.txt hash, 0 = identity/none), video:ok|idle|none
+            kv = dict(p.split(":", 1) for p in parts[16:] if ":" in p)
+            ndi = ("ndi:" + kv["ndi"]) if "ndi" in kv else None
+            media_n = int(kv["media"]) if "media" in kv else None
+            map_hash = kv.get("map")
+            video = kv.get("video")
             prev = self.fleet.get(name, {})
             self.fleet[name] = dict(ip=addr[0], fps=float(fps), res=res, tile=f"{tx},{ty} of {tc}x{tr}",
                                     packets=int(pk), lost=int(lost), version=appver, seen=time.time(),
                                     temp=temp, first_seen=prev.get("first_seen", time.time()), hb=prev.get("hb", 0) + 1,
-                                    pm_presets=pm_n, pm_current=pm_cur, audio_packets=audio_pk, ndi=ndi)
+                                    pm_presets=pm_n, pm_current=pm_cur, audio_packets=audio_pk, ndi=ndi,
+                                    media=media_n, map=map_hash, video=video)
         except Exception:
             pass
 
@@ -401,6 +502,12 @@ class Engine:
         except Exception as e:
             self.event(f"state load failed: {e}")
 
+    def _video_snapshot(self):
+        pos, dur, ended = self.video_position()
+        return dict(index=self.video_index(), name=self.video_name(), position=round(pos, 2), duration=dur, ended=ended,
+                    playlist=self.video_playlist, cycle=self.video_cycle, cycle_bars=self.video_cycle_bars, bar_sync=self.video_bar_sync,
+                    count=len(self.video_clips()), live=(self.media.live if self.media else None))
+
     # ------------------------------------------------------------ snapshot for UI
     def snapshot(self):
         now = time.time()
@@ -418,6 +525,7 @@ class Engine:
             tick_gap_ms=round(getattr(self, "_tick_gap_last", 0.0) * 1000, 1), uptime=round(time.time() - self.started),
             prodj_raw=self.prodj_raw, audio_wave=self.audio_wave if self.audio_ok else [], audio_bands=self.audio_bands if self.audio_ok else [],
             audio_levels=dict(energy=round(self.audio_energy, 3), bass=round(self.audio_bass, 3)) if self.audio_ok else None,
+            video=self._video_snapshot(),
             pm=dict(count=len(self.pm_presets), dir=self.pm_dir, index=self.pm_index(), name=self.pm_name(),
                     cycle_bars=self.pm_cycle_bars, shuffle=self.pm_shuffle,
                     audio=self.audio_stream.stats() if self.audio_stream else None),

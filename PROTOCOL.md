@@ -18,20 +18,20 @@ config. Wired gigabit switch strongly recommended; on Wi-Fi many APs throttle
 multicast to 1–6 Mbps and drop it under load (our stream is 58 kbit/s, so it
 usually still works, but jitter goes from <1 ms to 20–50 ms).
 
-## Packet (136 bytes, little-endian)
+## Packet (156 bytes, little-endian)
 
 ```
 offset  type   field       meaning
 0       4s     magic       'FRX1'
 4       u16    version     1
-6       u16    nparams     20 — receivers reject packets whose count differs
+6       u16    nparams     29 — receivers reject packets whose count differs
 8       u32    seq         wraps; renderers count gaps as "lost"
 12      u32    flags       bit0 beat this tick · bit1 Pro DJ Link locked · bit2 audio live
 16      f64    t           master animation clock, seconds
 24      f64    beat_t      animation-clock time of the most recent beat
 32      f32    bpm         0 = no tempo
 36      f32    bar_beat    beat-within-bar (1..4) at beat_t, 0 = unknown
-40      f32×24 params      in the order defined in master/params.py
+40      f32×29 params      in the order defined in master/params.py
 ```
 
 `master/params.py` is the single source of truth for the parameter table.
@@ -82,13 +82,45 @@ kick/hat from `t`, `beat_t` and `bpm` instead — identical on every Pi.
 ## Heartbeat (renderer → master)
 
 ```
-HB 4 <name> <fps> <WxH> <cols> <rows> <x> <y> <packets> <lost> <version> <cpuTempC> <pmPresets> <pmCurrent> <audioPkts> ndi:<off|on|live|unavailable>
+HB 5 <name> <fps> <WxH> <cols> <rows> <x> <y> <packets> <lost> <version> <cpuTempC> <pmPresets> <pmCurrent> <audioPkts> ndi:<off|on|live|unavailable> media:<N> map:<hash8> video:<ok|idle|none>
 ```
 
-`pmPresets` = −1 when the renderer was built without libprojectM. v1/v2
-heartbeats with fewer fields are still accepted.
+`pmPresets` = −1 when the renderer was built without libprojectM. Everything after
+`<audioPkts>` is `key:value` and order-free: `media` = number of synced clips (−1 when
+built without libmpv), `map` = FNV-1a hash of the applied `mapping.txt` (00000000 =
+identity), `video` = whether a frame is being decoded. Older heartbeats with fewer
+fields are still accepted.
 
 The master lists live renderers in the web UI (name, IP, fps, tile, loss, age).
+
+## Video (scene 9) — files, not frames
+
+The packet carries `video_clip` (index), `video_t0` (master-clock start), `video_speed`,
+`video_loop`. Every renderer has the same files: `fractal-media-sync` (setup/) reads the
+renderer's state file (`/var/lib/fractal-rig/state`, written by `fractal` once it hears the
+master: `master=<ip> name=… media_dir=… mapping=…`), then polls the master's HTTP API
+(ports 8080 then 8081): `GET /api/media` → `{clips:[{file,size,sha1,…}]}`, downloads
+`/media/<file>` when size or fingerprint (sha1 of size + first/last MB) differ, deletes
+local files the master no longer lists. **Index contract:** both sides byte-sort `*.mp4`
+file names (`master/media.py clips()` ⇄ `renderer/video_bridge.c vb_scan()`).
+Clip **255 = LIVE**: the master's ffmpeg multicasts MPEG-TS to `udp://239.255.42.2:5010`
+(pkt_size 1316); renderers open that URL with mpv's low-latency profile.
+
+## Projection mapping
+
+`GET /api/mapping/<name>.txt` (404 = identity) → written by the sync helper to
+`/var/lib/fractal-rig/mapping.txt`; `renderer/mapping.c` re-reads it on change. Format
+(top-left-origin 0..1): `quad x0 y0 x1 y1 x2 y2 x3 y3` (TL TR BR BL), `mask x y …`
+(output-space polygon, any number of lines), `feather f`, `edge l r t b`, `bright b`,
+`gamma g`, `test 0|1`. The renderer reports the file's FNV-1a hash in the heartbeat;
+`master/mapping.py to_text()` must stay byte-identical to what the Pi hashes.
+
+## Output resolution
+
+`out_res` (0 auto, 1 1080p, 2 4K) is an ordinary param. A KMSDRM renderer that sees a
+different value than it started with for 1.5 s writes it to `<state_file>.res` and exits
+(code 3); systemd restarts it and it picks the largest mode ≤ the target at ≤ 60 Hz.
+`--out-res` pins a renderer and makes it ignore the param.
 
 ## Extending
 

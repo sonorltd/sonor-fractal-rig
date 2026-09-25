@@ -118,6 +118,20 @@ Scenes 0–7 share one shader, so kaleidoscope, rotation, palette and beat contr
 
 `setup/install-projectm.sh` builds libprojectM 4 with GLES from source on each Pi (~15 min), pulls the original Milkdrop preset pack (`--cream` adds Cream of the Crop, ~10k presets) and the texture pack, and rebuilds the renderer with `HAVE_PROJECTM`. The master owns preset selection (`pm_preset` index into the byte-sorted preset list — identical on every Pi as long as the packs are identical; the Renderers table flags mismatches), prev/next/random/search/auto-cycle-every-N-bars in the UI, OSC `/frx/pm_next|pm_prev|pm_random`, MIDI notes 33/32. The master multicasts its audio input as PCM (udp/5007) so presets react to the room; without audio every Pi synthesises the same beat-locked kick from the shared clock. `pm_mix` runs projectM's output through our post-pass (kaleido, rotation, zoom, hue, beat pulse). The web UI's Live preview simulates scene 8 in the browser with [Butterchurn](https://github.com/jberg/butterchurn) (Milkdrop 2 in WebGL, vendored in `web/vendor/`), showing the same-named preset where the packs overlap. **Sync caveat:** Milkdrop presets use their own timing and randomness — Pis look alike (same preset, same audio, same switch frame) but are not pixel-identical, so use scenes 0–7 for seamless tiled walls and projectM for identical-image or family layouts.
 
+## Video (v0.7)
+
+Scene 9 plays **video clips frame-locked on every projector without streaming**: drop files on the
+Media tab, the master converts them (ffmpeg → ≤1080p H.264), every Pi pulls the library over HTTP
+(`fractal-media-sync`) and decodes its local copy with libmpv, tracking the master clock. Playlist,
+auto-advance (clip end / every N bars), bar sync, Perform tiles, OSC `/frx/video …`, MIDI notes 31/30/29/28.
+**LIVE** (clip 255) is the one real stream: an HDMI capture dongle (UVC), any V4L2 camera, a looping
+file or test bars → ffmpeg → multicast MPEG-TS → every Pi within ~0.5 s.
+
+**Projection mapping** (Outputs tab, per projector, applied live): keystone corners, black-out mask
+polygons with feather, soft-edge blend, brightness/gamma, test pattern. **Output resolution** selector
+on the top bar (Auto / 1080p / 4K — a Pi 4 on a 4K TV wants 1080p). Every Pi has a status page on
+port 8082 (renderer log, temperature/throttling, synced clips, mapping, link to the master).
+
 ## Outputs (v0.5)
 
 | output | how |

@@ -24,14 +24,14 @@ from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
 import inputs, outputs
 
-APP_VERSION = "0.6.1"
+APP_VERSION = "0.7.0"
 osc_out = led = thumbs = link = None
 
 
 LOCAL_CFG = os.path.join(HERE, "config.local.json")
 
 
-def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device")):
+def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync")):
     """Persist the UI-editable parts of the config to config.local.json (config.json stays pristine in git)."""
     try:
         cur = json.load(open(LOCAL_CFG)) if os.path.exists(LOCAL_CFG) else {}
@@ -167,6 +167,9 @@ async def diag_task(engine, cfg):
         await asyncio.sleep(2)
 
 
+from media import VIDEO_EXT, clean_name   # noqa: E402
+from mapping import MappingStore, to_text, is_identity   # noqa: E402
+
 def inputs_pm_scan(engine):
     from pm import scan_presets
     lst = scan_presets(engine.pm_dir)
@@ -204,6 +207,30 @@ async def web_app(engine, cfg):
                     engine.tap()
                 if "beat1" in m:
                     engine.beat_one()
+                if "video" in m:
+                    q = m["video"]; media = engine.media
+                    if "play" in q: (engine.video_play_name(q["play"]) if isinstance(q["play"], str) else engine.video_play(int(q["play"])))
+                    if q.get("live"): engine.video_play(255)
+                    if q.get("next"): engine.video_step(1)
+                    if q.get("prev"): engine.video_step(-1)
+                    if q.get("restart"): engine.video_restart()
+                    if "loop" in q: engine.set("video_loop", 1 if q["loop"] else 0, "ui")
+                    if "speed" in q: engine.set("video_speed", float(q["speed"]), "ui")
+                    if "playlist" in q: engine.video_playlist = [str(x) for x in q["playlist"]][:64]; cfg["video_playlist"] = engine.video_playlist; save_local_config(cfg)
+                    if "cycle" in q: engine.video_cycle = q["cycle"] if q["cycle"] in ("end", "bars", "off") else "end"; cfg["video_cycle"] = engine.video_cycle; save_local_config(cfg)
+                    if "cycle_bars" in q: engine.video_cycle_bars = max(1, int(q["cycle_bars"])); cfg["video_cycle_bars"] = engine.video_cycle_bars; save_local_config(cfg)
+                    if "bar_sync" in q: engine.video_bar_sync = bool(q["bar_sync"]); cfg["video_bar_sync"] = engine.video_bar_sync; save_local_config(cfg)
+                    if q.get("delete") and media: media.delete(str(q["delete"]))
+                    if q.get("rename") and media: media.rename(str(q["rename"].get("old")), str(q["rename"].get("new")))
+                    if q.get("live_start") and media: await media.live_start(str(q["live_start"].get("source", "")), q["live_start"].get("kind", "file"), q["live_start"])
+                    if q.get("live_stop") and media: await media.live_stop()
+                    if q.get("rethumb") and media: await media.thumbnail(str(q["rethumb"]))
+                if "mapping" in m and engine.mapping:
+                    q = m["mapping"]
+                    if "put" in q and q.get("name"): engine.mapping.put(q["name"], q["put"])
+                    if q.get("copy_from") and q.get("name"): engine.mapping.put(q["name"], engine.mapping.get(q["copy_from"]))
+                    if q.get("clear") and q.get("name"): engine.mapping.put(q["name"], {})
+                    await ws.send_json(dict(type="mapping", mapping=engine.mapping.manifest()))
                 if "pm" in m:
                     q = m["pm"]
                     if "index" in q: engine.pm_set(q["index"])
@@ -337,6 +364,82 @@ async def web_app(engine, cfg):
         return web.Response(body=_png(f["w"], f["h"], f["rgb"]), content_type="image/png", headers={"Cache-Control": "no-store"})
     app.router.add_get("/thumb/{name}", api_thumb)
     app.router.add_get("/thumb", api_thumb)
+
+    # ---- media library (Video scene): manifest for the UI and the renderers' sync script, uploads, files
+    media = engine.media
+    async def api_media(request):
+        return web.json_response(media.manifest() if media else dict(clips=[], jobs=[], live=None, ffmpeg=False))
+    async def api_media_devices(request):
+        return web.json_response(media.v4l2_devices() if media else [])
+    async def api_media_upload(request):
+        if not media:
+            raise web.HTTPServiceUnavailable(text="media disabled")
+        reader = await request.multipart()
+        jobs = []
+        while True:
+            part = await reader.next()
+            if part is None:
+                break
+            if part.name != "file" or not part.filename:
+                continue
+            ext = os.path.splitext(part.filename)[1].lower()
+            if ext not in VIDEO_EXT:
+                jobs.append(dict(name=part.filename, state="failed", msg=f"not a video ({ext or 'no extension'})")); continue
+            tmp = os.path.join(media.incoming, f"{int(time.time()*1000)}-{clean_name(part.filename)}{ext}")
+            size = 0
+            with open(tmp, "wb") as f:
+                while True:
+                    chunk = await part.read_chunk(1 << 20)
+                    if not chunk:
+                        break
+                    size += len(chunk); f.write(chunk)
+            mode = "force" if request.query.get("force") else "convert"
+            jobs.append(await media.enqueue(tmp, part.filename, mode))
+        return web.json_response(dict(jobs=jobs))
+    async def api_media_file(request):
+        name = request.match_info["name"]
+        if "/" in name or name.startswith(".") or not name.endswith(".mp4"):
+            raise web.HTTPNotFound()
+        p = os.path.join(media.root, name) if media else ""
+        if not p or not os.path.exists(p):
+            raise web.HTTPNotFound()
+        return web.FileResponse(p, headers={"Cache-Control": "no-cache"})
+    async def api_media_thumb(request):
+        name = request.match_info["name"]
+        p = os.path.join(media.thumbs, name) if media and "/" not in name else ""
+        if not p or not os.path.exists(p):
+            raise web.HTTPNotFound()
+        return web.FileResponse(p, headers={"Cache-Control": "max-age=60"})
+    async def api_mapping(request):
+        return web.json_response(dict(renderers=engine.mapping.manifest() if engine.mapping else []))
+
+    async def api_mapping_get(request):
+        name = request.match_info["name"]
+        if name.endswith(".txt"):          # what fractal-media-sync fetches; 404 = identity → delete the local file
+            name = name[:-4]
+            if not engine.mapping or is_identity(engine.mapping.get(name)):
+                raise web.HTTPNotFound(text="identity")
+            return web.Response(text=engine.mapping.text(name), content_type="text/plain")
+        return web.json_response(engine.mapping.get(name) if engine.mapping else {})
+
+    async def api_mapping_put(request):
+        if not engine.mapping:
+            raise web.HTTPServiceUnavailable(text="mapping store disabled")
+        name = request.match_info["name"]
+        try:
+            body = await request.json()
+        except Exception:
+            raise web.HTTPBadRequest(text="json body expected")
+        return web.json_response(engine.mapping.put(name, body))
+
+    app.router.add_get("/api/mapping", api_mapping)
+    app.router.add_get("/api/mapping/{name}", api_mapping_get)
+    app.router.add_put("/api/mapping/{name}", api_mapping_put)
+    app.router.add_get("/api/media", api_media)
+    app.router.add_get("/api/media/devices", api_media_devices)
+    app.router.add_post("/api/media/upload", api_media_upload)
+    app.router.add_get("/media/thumb/{name}", api_media_thumb)
+    app.router.add_get("/media/{name}", api_media_file)
     app.router.add_get("/params.js", lambda r: web.FileResponse(os.path.join(WEB, "params.js")))
     app.router.add_static("/web/", WEB)
     app.router.add_static("/vendor/", os.path.join(WEB, "vendor"))
@@ -384,6 +487,18 @@ async def main():
     cfg = load_config(args)
     engine = Engine(cfg)
     engine.verbose = not args.quiet
+    try:
+        from media import Media
+        engine.media = Media(engine, cfg, cfg.get("media_dir") or os.path.join(ROOT, "master", "media"))
+        asyncio.get_running_loop().create_task(engine.media.worker())
+        engine.event(f"video: {len(engine.media.clips())} clips in {engine.media.root} · ffmpeg {'ok' if engine.media.have_ffmpeg else 'MISSING (sudo apt install ffmpeg)'}")
+    except Exception as ex:
+        engine.event(f"video: media library disabled ({ex})")
+    try:
+        engine.mapping = MappingStore(engine, cfg.get("mapping_dir") or os.path.join(ROOT, "master", "mapping"))
+    except Exception as ex:
+        engine.mapping = None
+        engine.event(f"mapping: store disabled ({ex})")
     engine.event(f"Fractal Rig master v{APP_VERSION} — {len(KEYS)} params")
     engine.event(f"projectM: {len(engine.pm_presets)} presets in {engine.pm_dir}" if engine.pm_presets else
                  f"projectM: no presets in {engine.pm_dir} (run setup/install-projectm.sh) — scene 8 shows plasma")

@@ -5,12 +5,12 @@ window.FRX_PARAMS = [
   "key": "mode",
   "label": "Scene",
   "min": 0,
-  "max": 8,
+  "max": 9,
   "def_": 0,
   "kind": "i",
   "auto": false,
   "group": "shape",
-  "tip": "0 Mandelbrot \u00b7 1 Julia \u00b7 2 Burning Ship \u00b7 3 Tricorn \u00b7 4 Plasma \u00b7 5 Tunnel \u00b7 6 Starfield \u00b7 7 Waves \u00b7 8 projectM"
+  "tip": "0 Mandelbrot \u00b7 1 Julia \u00b7 2 Burning Ship \u00b7 3 Tricorn \u00b7 4 Plasma \u00b7 5 Tunnel \u00b7 6 Starfield \u00b7 7 Waves \u00b7 8 projectM \u00b7 9 Video"
  },
  {
   "key": "iterations",
@@ -264,5 +264,60 @@ window.FRX_PARAMS = [
   "auto": true,
   "group": "projectm",
   "tip": "0 = pure projectM \u00b7 1 = projectM warped through our zoom/rotate/kaleido/hue post-pass"
+ },
+ {
+  "key": "video_clip",
+  "label": "Clip #",
+  "min": 0,
+  "max": 255,
+  "def_": 0,
+  "kind": "i",
+  "auto": false,
+  "group": "video",
+  "tip": "index into the sorted media list (same files on every Pi) \u00b7 255 = LIVE stream"
+ },
+ {
+  "key": "video_t0",
+  "label": "Clip start (t)",
+  "min": 0,
+  "max": 10000000.0,
+  "def_": 0.0,
+  "kind": "f",
+  "auto": false,
+  "group": "video",
+  "tip": "master clock time the clip started \u2014 position = (t \u2212 t0) \u00d7 speed"
+ },
+ {
+  "key": "video_speed",
+  "label": "Speed",
+  "min": 0.1,
+  "max": 4,
+  "def_": 1.0,
+  "kind": "f",
+  "auto": false,
+  "group": "video",
+  "tip": "playback rate"
+ },
+ {
+  "key": "video_loop",
+  "label": "Loop",
+  "min": 0,
+  "max": 1,
+  "def_": 1,
+  "kind": "i",
+  "auto": false,
+  "group": "video",
+  "tip": "1 = loop, 0 = hold last frame"
+ },
+ {
+  "key": "out_res",
+  "label": "Output",
+  "min": 0,
+  "max": 2,
+  "def_": 0,
+  "kind": "i",
+  "auto": false,
+  "group": "output",
+  "tip": "0 Auto (screen native) \u00b7 1 1080p \u00b7 2 4K"
  }
 ];

@@ -1,9 +1,9 @@
-# STUDIO - Fractal Rig (v0.6.1)
+# STUDIO - Fractal Rig (v0.7.0)
 
-> Current version: 0.6.1 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.7.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
-Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 136-byte UDP multicast
+Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 156-byte UDP multicast
 state packet at 60 Hz, N Pi renderers (C + SDL2 + GLES3) drawing the same GLSL shader to
 projectors over HDMI. Inputs: web UI, MIDI, OSC, Pioneer Pro DJ Link (passive beat listener),
 optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
@@ -89,11 +89,31 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   `Could not queue pageflip: -13` (EACCES) — a systemd service user has no logind seat, so no DRM master.
   `fractal-renderer.service` now sets `AmbientCapabilities=CAP_SYS_ADMIN` + `SupplementaryGroups=video render
   input`. Measured 53 % multicast packet loss Wi-Fi→Wi-Fi through the studio AP — wire the renderers.
+  Root cause of the -13 on `fractal1` turned out to be a **Desktop** image: labwc owned the DRM device. The
+  slave installer now detects `graphical.target` and switches to console boot (`raspi-config B2`,
+  `KEEP_DESKTOP=1` to opt out). The capability lines stay — harmless and correct for Lite.
+
+- 2026-09-25 v0.7.0 — **Video scene 9**: `master/media.py` (upload → ffmpeg convert/remux, thumbnails, byte-sorted
+  clip index, LIVE multicast MPEG-TS from file / v4l2 / HDMI UVC dongle / test bars), engine video state
+  (playlist, auto-cycle end|bars|off, bar sync), `renderer/video_bridge.c` (libmpv render API, HAVE_MPV optional,
+  seek >0.35 s else ±8 % speed trim against `(t − t0) × speed`), `setup/fractal-media-sync` (stdlib Python on every
+  Pi: pulls clips + mapping.txt from the master using the renderer's state file; status page on :8082),
+  OSC `/frx/video*`, MIDI 31/30/29/28. **Projection mapping**: `renderer/mapping.c` + `shaders/warp.frag` (inverse
+  homography, 512×288 mask texture with box-blur feather, edge blend ^1.6, bright/gamma, test grid), `master/mapping.py`
+  store + `/api/mapping/{name}(.txt)` + canvas editor in Outputs (drag corners, draw masks, nudge keys, copy-from,
+  live apply with 150 ms debounce). **Output resolution** param `out_res` (top-bar selector): KMSDRM renderer
+  remembers the request in `<state>.res`, exits 3, systemd restarts it in the new mode; `--out-res` pins.
+  Heartbeat v5 adds `media:` `map:` `video:` tokens; fleet table shows a media column. Perform pages scroll
+  (`.ppage overflow-y:auto`). Sources card moved to the bottom of Control. Packet 156 bytes / 29 params.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.
   libprojectM is the ONE optional extra, isolated behind `pm_bridge.h` and `HAVE_PROJECTM`; the
   renderer must always build and run without it.
+- libmpv is the SECOND optional extra (`video_bridge.h`, `HAVE_MPV`), same rule: renderer builds and runs without it.
+- Clip index is a cross-language contract like presets: `master/media.py clips()` ⇄ `renderer/video_bridge.c vb_scan()`
+  (byte-sorted `*.mp4`). Mapping text is a cross-language contract too: `master/mapping.py to_text()` bytes ⇄
+  `renderer/mapping.c` FNV-1a hash — change the format on both sides or the "applied" pill lies.
 - Preset list ordering is a cross-language contract: `master/pm.py scan_presets` and
   `renderer/pm_bridge.c pm_scan_presets` (recursive, relative path, byte order). Change both or neither.
 - Rendering-side outputs must never block the frame loop: thumbnails/NDI are readbacks of the low-res

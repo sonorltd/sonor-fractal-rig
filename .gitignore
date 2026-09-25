@@ -6,3 +6,5 @@ master/config.local.json
 __pycache__/
 *.ppm
 .DS_Store
+master/media/
+master/mapping/

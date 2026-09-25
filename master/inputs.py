@@ -8,7 +8,7 @@ Input adapters for the master. Each one is optional and degrades gracefully
                UDP 50001. Needs the Pi on the same subnet as the LINK port.
   Midi       — mido/python-rtmidi. CC -> param via config midi_map, notes 36+
                recall presets.
-  Osc        — python-osc. /frx/<param> f, /frx/tap, /frx/preset s, /frx/bpm f
+  Osc        — python-osc. /frx/<param> f, /frx/tap, /frx/preset s, /frx/bpm f, /frx/video i|s, /frx/video_next|prev|restart|live
   Audio      — sounddevice + numpy. RMS energy + low band -> energy/bass params,
                optional onset->beat when no Pro DJ Link is present.
 """
@@ -139,6 +139,14 @@ async def midi_task(engine, cfg):
                         engine.pm_step(1, "midi")
                     elif msg.note == 32:
                         engine.pm_step(-1, "midi")
+                    elif msg.note == 31:
+                        engine.video_step(1, "midi")
+                    elif msg.note == 30:
+                        engine.video_step(-1, "midi")
+                    elif msg.note == 29:
+                        engine.video_restart("midi")
+                    elif msg.note == 28:
+                        engine.video_play(255, "midi")
         except Exception as ex:
             engine.event(f"MIDI error: {ex} — reconnecting")
             engine.source("midi", ok=False, detail="reconnecting")
@@ -176,6 +184,16 @@ async def osc_start(engine, cfg):
             engine.pm_step(-1, "osc")
         elif key == "pm_random":
             engine.pm_random("osc")
+        elif key == "video":            # /frx/video <index|name> — switches to scene 9
+            engine.video_play_name(str(args[0]), "osc") if isinstance(args[0], str) else engine.video_play(int(args[0]), "osc")
+        elif key == "video_next":
+            engine.video_step(1, "osc")
+        elif key == "video_prev":
+            engine.video_step(-1, "osc")
+        elif key == "video_restart":
+            engine.video_restart("osc")
+        elif key == "video_live":
+            engine.video_play(255, "osc")
         elif key == "bpm":
             engine.set_bpm(args[0])
         elif key == "preset":

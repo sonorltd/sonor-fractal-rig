@@ -40,8 +40,10 @@
 #include "params.h"
 #include "pm_bridge.h"
 #include "ndi_out.h"
+#include "video_bridge.h"
+#include "mapping.h"
 
-#define APP_VERSION "0.6.1"
+#define APP_VERSION "0.7.0"
 #define FREEWHEEL_AFTER 3.0      /* s without packets before we run on our own clock */
 #define SMOOTH_TAU 0.06          /* s — exponential smoothing of continuous params */
 #define TAU_D 6.283185307179586
@@ -61,9 +63,12 @@ static struct {
     char preset_dir[512]; char texture_dir[512]; int audio_port; int no_pm;
     int thumb_port; int thumb_hz; int no_thumb;
     int ndi; char ndi_name[64]; int ndi_fps; int display;
+    char media_dir[512]; char live_url[256]; char mapping[512]; char state_file[512]; int no_video;
+    int out_res_pin, out_res_pin_set;   /* --out-res: 0 auto 1 1080p 2 4K (pinned — ignores the master's out_res) */
 } cfg = { 0, 0, 0, 1, 0.6f, 1, 1, 0, 0, 0, 0, 0, "239.255.42.1", 5005, 5006, "", "", "", 0, "",
           "/usr/local/share/projectM/presets", "/usr/local/share/projectM/textures", 5007, 0,
-          5008, 20, 0, 0, "Fractal Rig", 30, 0 };
+          5008, 20, 0, 0, "Fractal Rig", 30, 0,
+          "/var/lib/fractal-rig/media", "udp://239.255.42.2:5010", "/var/lib/fractal-rig/mapping.txt", "/var/lib/fractal-rig/state", 0 };
 
 /* ---------------------------------------------------------------- packet */
 #pragma pack(push, 1)
@@ -105,6 +110,12 @@ static void usage(void) {
            "  --textures DIR      projectM texture directory\n"
            "  --audio-port N      multicast port for the master's PCM stream (default 5007)\n"
            "  --no-pm             disable projectM even if built in\n"
+           "  --media-dir DIR     synced video clips (default /var/lib/fractal-rig/media)\n"
+           "  --live-url URL      the master's live stream (default udp://239.255.42.2:5010)\n"
+           "  --mapping FILE      projection mapping file (default /var/lib/fractal-rig/mapping.txt)\n"
+           "  --state-file FILE   where to note the master's IP for fractal-media-sync\n"
+           "  --no-video          disable libmpv video even if built in\n"
+           "  --out-res auto|1080|4k  pin this output's mode (default: follow the master's Output selector)\n"
            "  --thumb-hz N        live thumbnail rate to the master (default 20, 0 = off)\n"
            "  --ndi               publish this renderer's picture as an NDI source (needs HAVE_NDI build)\n"
            "  --ndi-name STR      NDI source name (default 'Fractal Rig'; the Pi name is appended)\n"
@@ -129,6 +140,12 @@ static void parse_args(int argc, char **argv) {
         else if (!strcmp(a, "--shaders")) strncpy(cfg.shader_dir, NEXT(), 511);
         else if (!strcmp(a, "--novsync")) cfg.vsync = 0;
         else if (!strcmp(a, "--display")) cfg.display = atoi(NEXT());
+        else if (!strcmp(a, "--media-dir") && i + 1 < argc) snprintf(cfg.media_dir, sizeof cfg.media_dir, "%s", argv[++i]);
+        else if (!strcmp(a, "--live-url") && i + 1 < argc) snprintf(cfg.live_url, sizeof cfg.live_url, "%s", argv[++i]);
+        else if (!strcmp(a, "--mapping") && i + 1 < argc) snprintf(cfg.mapping, sizeof cfg.mapping, "%s", argv[++i]);
+        else if (!strcmp(a, "--state-file") && i + 1 < argc) snprintf(cfg.state_file, sizeof cfg.state_file, "%s", argv[++i]);
+        else if (!strcmp(a, "--no-video")) cfg.no_video = 1;
+        else if (!strcmp(a, "--out-res") && i + 1 < argc) { const char *v = argv[++i]; cfg.out_res_pin = (!strcmp(v, "4k") || !strcmp(v, "4K") || !strcmp(v, "2160")) ? 2 : (!strcmp(v, "1080") || !strcmp(v, "1080p")) ? 1 : 0; cfg.out_res_pin_set = 1; }
         else if (!strcmp(a, "--presets")) strncpy(cfg.preset_dir, NEXT(), 511);
         else if (!strcmp(a, "--textures")) strncpy(cfg.texture_dir, NEXT(), 511);
         else if (!strcmp(a, "--audio-port")) cfg.audio_port = atoi(NEXT());
@@ -256,12 +273,15 @@ static float cpu_temp(void) {
 static void send_heartbeat(int s, float fps, int w, int h) {
     if (!have_master_addr) return;
     char buf[256];
-    snprintf(buf, sizeof buf, "HB 4 %s %.1f %dx%d %d %d %d %d %u %u %s %.1f %d %d %u ndi:%s",
+    snprintf(buf, sizeof buf, "HB 5 %s %.1f %dx%d %d %d %d %d %u %u %s %.1f %d %d %u ndi:%s media:%d map:%08x video:%s",
              cfg.name, fps, w, h, cfg.tile_cols, cfg.tile_rows, cfg.tile_x, cfg.tile_y, pkt_count, pkt_lost, APP_VERSION, cpu_temp(),
              pm_available() ? pm_preset_count() : -1, pm_current(), audio_pkts,
-             ndi_available() ? (ndi_connections() > 0 ? "live" : "on") : (cfg.ndi ? "unavailable" : "off"));
+             ndi_available() ? (ndi_connections() > 0 ? "live" : "on") : (cfg.ndi ? "unavailable" : "off"),
+             vb_available() ? vb_count() : -1, map_hash(), vb_available() ? (vb_has_frame() ? "ok" : "idle") : "none");
     struct sockaddr_in to = master_addr; to.sin_port = htons(cfg.hb_port);
     sendto(s, buf, strlen(buf), 0, (struct sockaddr*)&to, sizeof to);
+    /* tell fractal-media-sync where the master is and who we are (it fetches clips + mapping over HTTP) */
+    if (cfg.state_file[0]) { FILE *f = fopen(cfg.state_file, "w"); if (f) { fprintf(f, "master=%s\nname=%s\nmedia_dir=%s\nmapping=%s\n", inet_ntoa(master_addr.sin_addr), cfg.name, cfg.media_dir, cfg.mapping); fclose(f); } }
 }
 
 /* ---- live thumbnail to the master (FRXT): tiny RGB frame, used for the UI and LED sampling */
@@ -313,6 +333,15 @@ static GLuint build_program_named(const char *fragname) {
     return prog;
 }
 static GLuint build_program(void) { return build_program_named("fractal.frag"); }
+static GLuint build_program_plain(const char *fragname) {   /* self-contained shader (warp.frag has its own #version) */
+    char p2[600]; snprintf(p2, sizeof p2, "%s/%s", cfg.shader_dir, fragname);
+    char *b = read_file(p2); if (!b) exit(2);
+    GLuint vs = compile(GL_VERTEX_SHADER, VS), fs = compile(GL_FRAGMENT_SHADER, b);
+    GLuint prog = glCreateProgram(); glAttachShader(prog, vs); glAttachShader(prog, fs); glLinkProgram(prog);
+    GLint ok; glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+    if (!ok) { char log[4096]; glGetProgramInfoLog(prog, sizeof log, NULL, log); fprintf(stderr, "link error (%s):\n%s\n", fragname, log); exit(2); }
+    free(b); glDeleteShader(vs); glDeleteShader(fs); return prog;
+}
 
 static GLuint make_fbo(int w, int h, GLuint *tex_out) {
     GLuint fbo, tex; glGenFramebuffers(1, &fbo); glGenTextures(1, &tex);
@@ -364,7 +393,27 @@ static int sdl_init_video(void) {
     return -1;
 }
 
-/* ---------------------------------------------------------------- main */
+/* ---------------------------------------------------------------- output mode (1080p / 4K selector)
+ * The master broadcasts out_res (0 auto, 1 1080p, 2 4K). Under KMSDRM we can only pick a mode when the
+ * window is created, so a change is applied by remembering it in <state_file>.res and exiting — systemd
+ * restarts us within ~2 s and we come back in the new mode. If the screen has no such mode we take the
+ * closest smaller one and still record the request, so we never restart-loop. */
+static int res_file_path(char *out, size_t n) { if (!cfg.state_file[0]) return 0; snprintf(out, n, "%s.res", cfg.state_file); return 1; }
+static int read_requested_res(void) { char p[600]; if (!res_file_path(p, sizeof p)) return 0; FILE *f = fopen(p, "r"); if (!f) return 0; int v = 0; fscanf(f, "%d", &v); fclose(f); return v < 0 || v > 2 ? 0 : v; }
+static void write_requested_res(int v) { char p[600]; if (!res_file_path(p, sizeof p)) return; FILE *f = fopen(p, "w"); if (f) { fprintf(f, "%d\n", v); fclose(f); } }
+static int pick_mode(int display, int want, SDL_DisplayMode *out) {   /* 1 = a mode was chosen */
+    int tw = want == 2 ? 3840 : 1920, th = want == 2 ? 2160 : 1080;
+    int n = SDL_GetNumDisplayModes(display), best = -1; SDL_DisplayMode bm = {0};
+    for (int i = 0; i < n; i++) {
+        SDL_DisplayMode m; if (SDL_GetDisplayMode(display, i, &m) != 0) continue;
+        if (m.w > tw || m.h > th || m.refresh_rate > 60) continue;              /* never above the target, never > 60 Hz */
+        int better = best < 0 || m.w * m.h > bm.w * bm.h || (m.w * m.h == bm.w * bm.h && m.refresh_rate > bm.refresh_rate);
+        if (better) { best = i; bm = m; }
+    }
+    if (best < 0) return 0;
+    *out = bm; return 1;
+}
+
 int main(int argc, char **argv) {
     parse_args(argc, argv);
     memcpy(target, FRX_PARAM_DEFAULTS, sizeof target); memcpy(cur, target, sizeof cur);
@@ -374,10 +423,18 @@ int main(int argc, char **argv) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    Uint32 flags = SDL_WINDOW_OPENGL | (cfg.windowed ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+    /* output mode: pinned by --out-res, else whatever the master last asked for (remembered across restarts) */
+    int out_res = cfg.out_res_pin_set ? cfg.out_res_pin : read_requested_res();
+    int kms = SDL_GetCurrentVideoDriver() && !strcmp(SDL_GetCurrentVideoDriver(), "KMSDRM");
+    SDL_DisplayMode want_mode; int have_mode = 0;
+    if (!cfg.windowed && out_res && kms) have_mode = pick_mode(cfg.display, out_res, &want_mode);
+    Uint32 flags = SDL_WINDOW_OPENGL | (cfg.windowed ? 0 : have_mode ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_FULLSCREEN_DESKTOP);
     SDL_Window *win = SDL_CreateWindow("Fractal Rig", SDL_WINDOWPOS_CENTERED_DISPLAY(cfg.display), SDL_WINDOWPOS_CENTERED_DISPLAY(cfg.display),
-                                       cfg.windowed ? cfg.win_w : 1920, cfg.windowed ? cfg.win_h : 1080, flags);
+                                       cfg.windowed ? cfg.win_w : have_mode ? want_mode.w : 1920, cfg.windowed ? cfg.win_h : have_mode ? want_mode.h : 1080, flags);
     if (!win) { fprintf(stderr, "window: %s\n", SDL_GetError()); return 1; }
+    if (have_mode) { if (SDL_SetWindowDisplayMode(win, &want_mode) != 0) fprintf(stderr, "[out] mode set failed: %s\n", SDL_GetError());
+        fprintf(stderr, "[out] requested %s → %dx%d@%d\n", out_res == 2 ? "4K" : "1080p", want_mode.w, want_mode.h, want_mode.refresh_rate); }
+    else if (out_res && !cfg.windowed) fprintf(stderr, "[out] %s requested but %s — using the screen's current mode\n", out_res == 2 ? "4K" : "1080p", kms ? "no such mode on this screen" : "not on KMSDRM (compositor owns the mode)");
     SDL_GLContext ctx = SDL_GL_CreateContext(win);
     if (!ctx) { fprintf(stderr, "GL context: %s\n", SDL_GetError()); return 1; }
     SDL_GL_SetSwapInterval(cfg.vsync ? 1 : 0);
@@ -408,6 +465,20 @@ int main(int argc, char **argv) {
     int asock = pm_ok ? open_audio_socket() : -1;
     glBindVertexArray(vao);   /* projectM init may have changed GL state */
 
+    /* video (scene 9) — optional libmpv; shares pm_fbo/pm_tex + the post-pass with projectM */
+    int vb_ok = cfg.no_video ? 0 : vb_init(cfg.media_dir, cfg.live_url, rw, rh);
+    fprintf(stderr, "[video] %s%s (%s)\n", vb_ok ? "ready · " : "scene 9 falls back to plasma · ", vb_status(), cfg.media_dir);
+    glBindVertexArray(vao);
+    double vb_scan_last = 0;
+
+    /* projection mapping — final full-res pass when mapping.txt is not identity */
+    GLuint warp = build_program_plain("warp.frag");
+    GLint w_tex = glGetUniformLocation(warp, "u_tex"), w_mask = glGetUniformLocation(warp, "u_mask"), w_has_mask = glGetUniformLocation(warp, "u_has_mask"),
+          w_res = glGetUniformLocation(warp, "u_res"), w_inv = glGetUniformLocation(warp, "u_inv"), w_edge = glGetUniformLocation(warp, "u_edge"),
+          w_bright = glGetUniformLocation(warp, "u_bright"), w_gamma = glGetUniformLocation(warp, "u_gamma"), w_test = glGetUniformLocation(warp, "u_test");
+    map_init(cfg.mapping);
+    double map_poll_last = 0;
+
     /* thumbnail FBO (80x45) + optional NDI */
     const int tw = 80, th = 45; GLuint th_tex; GLuint th_fbo = make_fbo(tw, th, &th_tex);
     static unsigned char th_px[80 * 45 * 4];
@@ -422,6 +493,7 @@ int main(int argc, char **argv) {
     float view[3] = { cfg.view_zoom, cfg.view_rot, cfg.view_hue };
 
     double last = now_s(), hb_last = last, fps_t = last; int frames = 0; float fps = 0;
+    double out_res_seen_t = 0; int out_res_restart = 0;
     int running = 1;
     while (running) {
         SDL_Event e;
@@ -442,7 +514,30 @@ int main(int argc, char **argv) {
             cur[i] = FRX_PARAM_DISCRETE[i] ? target[i] : cur[i] + (target[i] - cur[i]) * a;
 
         int scene = (int)floorf(cur[P_MODE] + 0.5f);
-        if (scene == 8 && pm_ok) {
+        /* Output selector: when the master asks for a different mode, remember it and restart (systemd brings us back) */
+        if (!cfg.out_res_pin_set && !cfg.windowed && kms && have_master) {
+            int want_res = (int)floorf(cur[P_OUT_RES] + 0.5f);
+            if (want_res != out_res) { if (out_res_seen_t == 0) out_res_seen_t = now;
+                if (now - out_res_seen_t > 1.5) { fprintf(stderr, "[out] master wants %s — restarting in that mode\n", want_res == 2 ? "4K" : want_res == 1 ? "1080p" : "auto"); write_requested_res(want_res); running = 0; out_res_restart = 1; } }
+            else out_res_seen_t = 0;
+        }
+        if (now - map_poll_last >= 1.0) { map_poll_last = now; if (map_poll()) glBindVertexArray(vao); }
+        if (vb_ok && now - vb_scan_last >= 5.0) { vb_scan_last = now; vb_scan(); }
+        if (scene == 9 && vb_ok) {
+            /* ---- video path: libmpv draws the current clip into pm_fbo, then the same post-pass as projectM */
+            vb_update((int)floorf(cur[P_VIDEO_CLIP] + 0.5f), cur[P_VIDEO_T0], cur[P_VIDEO_SPEED], cur[P_VIDEO_LOOP] > 0.5f, anim_t);
+            glBindFramebuffer(GL_FRAMEBUFFER, pm_fbo); glViewport(0, 0, rw, rh);
+            if (!vb_render(pm_fbo, rw, rh)) { glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT); }
+            glBindVertexArray(vao); glDisable(GL_BLEND); glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST);
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo); glViewport(0, 0, rw, rh);
+            glUseProgram(post);
+            glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, pm_tex); glUniform1i(q_tex, 0);
+            glUniform2f(q_res, (float)rw, (float)rh);
+            glUniform1f(q_time, (float)fmod(anim_t, 100000.0)); glUniform1f(q_beat_t, (float)fmod(beat_t, 100000.0));
+            glUniform1f(q_bpm, bpm); glUniform1f(q_bar_beat, bar_beat);
+            glUniform4fv(q_tile, 1, tile); glUniform3fv(q_view, 1, view); glUniform1fv(q_p, FRX_NPARAMS, cur);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+        } else if (scene == 8 && pm_ok) {
             /* ---- projectM path: feed audio, let projectM draw into pm_fbo, then our post-pass into fbo */
             if (asock >= 0) drain_audio(asock);
             if (now - audio_last > AUDIO_STALE) synth_audio(dt, anim_t);
@@ -496,22 +591,37 @@ int main(int argc, char **argv) {
                 ndi_send(); }
         }
 
+        /* final pass: cheap upscale blit, or the mapping warp when mapping.txt is not identity */
+        if (map_identity()) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBlitFramebuffer(0, 0, rw, rh, 0, 0, W, H, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        } else {
+            float inv[9], feather, edge[4], bright, gam; int test;
+            map_inverse(inv); map_params(&feather, edge, &bright, &gam, &test);
+            unsigned mask = map_mask_texture();
+            glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H);
+            glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
+            glUseProgram(warp);
+            glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, tex); glUniform1i(w_tex, 0);
+            glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, mask ? mask : tex); glUniform1i(w_mask, 1);
+            glActiveTexture(GL_TEXTURE0);
+            glUniform1i(w_has_mask, mask ? 1 : 0);
+            glUniform2f(w_res, (float)W, (float)H); glUniformMatrix3fv(w_inv, 1, GL_FALSE, inv);
+            glUniform4fv(w_edge, 1, edge); glUniform1f(w_bright, bright); glUniform1f(w_gamma, gam); glUniform1i(w_test, test);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+        }
         if (cfg.max_frames && frames + 1 >= cfg.max_frames) {
             running = 0;
-            if (cfg.dump[0]) {
-                unsigned char *px = malloc(rw * rh * 4);
-                glReadPixels(0, 0, rw, rh, GL_RGBA, GL_UNSIGNED_BYTE, px);
+            if (cfg.dump[0]) {   /* what the projector sees: after the mapping pass, full output size */
+                unsigned char *px = malloc((size_t)W * H * 4);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0); glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, px);
                 FILE *f = fopen(cfg.dump, "wb");
-                if (f) { fprintf(f, "P6\n%d %d\n255\n", rw, rh);
-                    for (int y = rh - 1; y >= 0; y--) for (int x = 0; x < rw; x++) fwrite(px + (y * rw + x) * 4, 1, 3, f);
-                    fclose(f); fprintf(stderr, "[dump] %s\n", cfg.dump); }
+                if (f) { fprintf(f, "P6\n%d %d\n255\n", W, H);
+                    for (int y = H - 1; y >= 0; y--) for (int x = 0; x < W; x++) fwrite(px + (y * W + x) * 4, 1, 3, f);
+                    fclose(f); fprintf(stderr, "[dump] %s (%dx%d)\n", cfg.dump, W, H); }
                 free(px);
             }
         }
-
-        /* upscale blit */
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        glBlitFramebuffer(0, 0, rw, rh, 0, 0, W, H, GL_COLOR_BUFFER_BIT, GL_LINEAR);
         SDL_GL_SwapWindow(win);
 
         frames++;
@@ -519,7 +629,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[fps] %.1f  t=%.1f  bpm=%.1f  pkts=%u lost=%u %s\n", fps, anim_t, bpm, pkt_count, pkt_lost, have_master ? "" : "(freewheel)"); }
         if (now - hb_last >= 1.0 && sock >= 0) { send_heartbeat(sock, fps, W, H); hb_last = now; }
     }
-    pm_shutdown(); ndi_shutdown();
+    vb_shutdown(); pm_shutdown(); ndi_shutdown();
     SDL_GL_DeleteContext(ctx); SDL_DestroyWindow(win); SDL_Quit();
-    return 0;
+    return out_res_restart ? 3 : 0;   /* 3 = mode change, systemd Restart=always relaunches us */
 }

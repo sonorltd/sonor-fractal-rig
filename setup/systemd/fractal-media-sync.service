@@ -1,0 +1,19 @@
+[Unit]
+Description=Fractal Rig media + mapping sync (pulls clips and mapping.txt from the master)
+After=network-online.target fractal-renderer.service
+Wants=network-online.target
+
+[Service]
+User=@USER@
+Environment=FRACTAL_STATE=/var/lib/fractal-rig/state
+# the studio test rig runs the master web UI on 8081 — both are tried
+Environment=FRACTAL_MASTER_PORTS=8080,8081
+ExecStart=/usr/bin/python3 @REPO@/setup/fractal-media-sync
+Restart=always
+RestartSec=5
+Nice=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

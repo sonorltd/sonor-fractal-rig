@@ -22,7 +22,7 @@ MAGIC = b"FRX1"
 
 PARAMS = [
     # key            label             min    max    default kind auto  group     tip
-    ("mode",         "Scene",          0,     8,     0,     'i', False, "shape",  "0 Mandelbrot · 1 Julia · 2 Burning Ship · 3 Tricorn · 4 Plasma · 5 Tunnel · 6 Starfield · 7 Waves · 8 projectM"),
+    ("mode",         "Scene",          0,     9,     0,     'i', False, "shape",  "0 Mandelbrot · 1 Julia · 2 Burning Ship · 3 Tricorn · 4 Plasma · 5 Tunnel · 6 Starfield · 7 Waves · 8 projectM · 9 Video"),
     ("iterations",   "Iterations",     16,    1024,  160,   'i', False, "shape",  "Detail. Pi 5 is happy to ~300 at 1080p half-res"),
     ("zoom",         "Zoom (log2)",    -2,    28,    0.6,   'f', True,  "shape",  "log2 magnification. Float precision runs out ~22–24"),
     ("center_x",     "Centre X",       -2.5,  2.5,   -0.55, 'f', True,  "shape",  ""),
@@ -47,6 +47,15 @@ PARAMS = [
     ("pm_beat_sens", "Beat sensitivity", 0,   5,     1.0,   'f', False, "projectm", "projectM beat detection gain"),
     ("pm_blend",     "Blend (s)",      0,     10,    2.0,   'f', False, "projectm", "soft-cut crossfade when the preset changes; 0 = hard cut"),
     ("pm_mix",       "Shader mix",     0,     1,     0.0,   'f', True,  "projectm", "0 = pure projectM · 1 = projectM warped through our zoom/rotate/kaleido/hue post-pass"),
+    # video (scene 9) — clips distributed to every Pi and decoded locally; the master only says which clip,
+    # when it started on the shared clock, how fast, and whether it loops. 255 = the live multicast stream.
+    ("video_clip",   "Clip #",         0,     255,   0,     'i', False, "video",  "index into the sorted media list (same files on every Pi) · 255 = LIVE stream"),
+    ("video_t0",     "Clip start (t)", 0,     1e7,   0.0,   'f', False, "video",  "master clock time the clip started — position = (t − t0) × speed"),
+    ("video_speed",  "Speed",          0.1,   4,     1.0,   'f', False, "video",  "playback rate"),
+    ("video_loop",   "Loop",           0,     1,     1,     'i', False, "video",  "1 = loop, 0 = hold last frame"),
+    # output mode — global, picked on the web UI top bar. Renderers on KMSDRM modeset by restarting (~3 s black);
+    # a renderer started with --out-res pins its own mode and ignores this.
+    ("out_res",      "Output",         0,     2,     0,     'i', False, "output", "0 Auto (screen native) · 1 1080p · 2 4K"),
 ]
 
 NPARAMS = len(PARAMS)

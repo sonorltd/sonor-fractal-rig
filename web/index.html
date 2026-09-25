@@ -143,9 +143,12 @@
   .perf-top .bpm { font-size: 28px; }
   .perf-top .tabs { border: 0; margin: 0; }
   .perf-top .tabs button { font-size: 14px; padding: 8px 12px; }
-  .perf-pages { flex: 1; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  /* pages swipe horizontally (snap), each page scrolls vertically on its own. min-height:0 + height:100% are what
+     let a flex child actually scroll instead of growing; touch-action keeps both axes usable on the touch panel. */
+  .perf-pages { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; touch-action: pan-x pan-y; }
   .perf-pages::-webkit-scrollbar { display: none; }
-  .ppage { flex: 0 0 100%; scroll-snap-align: start; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  .ppage { flex: 0 0 100%; height: 100%; min-height: 0; scroll-snap-align: start; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pan-x; padding: 14px 14px 72px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; }
+  .ppage > * { flex: none; }
   .pgrid { display: grid; gap: 10px; }
   .pgrid.c2 { grid-template-columns: 1fr 1fr; } .pgrid.c3 { grid-template-columns: repeat(3, 1fr); } .pgrid.c4 { grid-template-columns: repeat(4, 1fr); }
   .pbtn { min-height: 72px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; font-weight: 700; letter-spacing: .03em; display: grid; place-items: center; gap: 2px; padding: 10px; text-align: center; }
@@ -182,6 +185,13 @@
   .thumbs figure { margin: 0; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   .thumbs img { width: 100%; aspect-ratio: 16/9; display: block; image-rendering: auto; background: #000; }
   .thumbs figcaption { font-family: var(--mono); font-size: 11px; color: var(--muted); padding: 5px 8px; display: flex; justify-content: space-between; }
+  .mapwrap { position: relative; background: #000; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .mapwrap canvas { width: 100%; aspect-ratio: 16/9; display: block; touch-action: none; cursor: crosshair; }
+  .maptools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .maptools .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+  .mapgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 18px; margin-top: 6px; }
+  .mapgrid .param { grid-template-columns: 90px 1fr 44px; }
+  #map-status.ok { color: var(--ok); } #map-status.warn { color: var(--warn); }
   .striptable { width: 100%; border-collapse: collapse; font-size: 12px; }
   .striptable th, .striptable td { padding: 4px 4px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
   .striptable input, .striptable select { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; color: var(--text); width: 100%; min-width: 0; }
@@ -210,7 +220,35 @@
   #info td:first-child { font-family: var(--mono); white-space: nowrap; color: var(--text); }
   #info .toc { display: flex; flex-wrap: wrap; gap: 6px; }
   /* engine switch + extended projectM UI */
-  .engine { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .engine { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  @media (max-width: 700px) { .engine { grid-template-columns: 1fr; } }
+  /* video scene + media library */
+  .vid-big { font-family: var(--mono); font-size: 18px; line-height: 1.25; margin: 4px 0 6px; word-break: break-word; }
+  .vid-big small { display: block; color: var(--muted); font-size: 11px; font-family: var(--font); margin-top: 3px; }
+  .vid-bar { height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; margin-bottom: 10px; }
+  .vid-bar i { display: block; height: 100%; width: 0; background: var(--accent2); transition: width .2s linear; }
+  #video-card .pm-nav { grid-template-columns: 1fr 1.3fr 1fr 1fr; }
+  #video-card.expanded { border-color: var(--accent2); }
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center; transition: border-color .15s, background .15s; }
+  .drop.over { border-color: var(--accent2); background: rgba(75,185,211,.08); }
+  .up { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; font-size: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .up .bar { grid-column: 1 / -1; height: 4px; background: var(--panel2); border-radius: 2px; overflow: hidden; } .up .bar i { display: block; height: 100%; background: var(--accent); }
+  .clipgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .clip { border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); overflow: hidden; display: flex; flex-direction: column; }
+  .clip.on { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2) inset; }
+  .clip .th { aspect-ratio: 16/9; background: #000 center/cover no-repeat; display: grid; place-items: center; color: var(--muted); font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .clip .nm { padding: 6px 8px 0; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .clip .meta { padding: 0 8px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .clip .acts { display: flex; gap: 4px; padding: 6px 8px 8px; flex-wrap: wrap; }
+  .clip .acts .btn { padding: 4px 8px; font-size: 11px; }
+  .pl { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .pl .it { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); font-size: 13px; }
+  .pl .it.on { border-color: var(--accent2); }
+  .pl .it .n { font-family: var(--mono); color: var(--muted); width: 22px; } .pl .it .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pl .it .btn { padding: 2px 7px; font-size: 11px; }
+  .pf-clip { position: relative; overflow: hidden; }
+  .pf-clip .bg { position: absolute; inset: 0; background: center/cover no-repeat; opacity: .35; }
+  .pf-clip span { position: relative; }
   .engine button { border: 1px solid var(--line); background: var(--panel2); border-radius: 10px; padding: 12px 14px; text-align: left; color: var(--text); display: grid; gap: 3px; }
   .engine button b { font-size: 14px; letter-spacing: .04em; }
   .engine button small { color: var(--muted); font-size: 11px; }
@@ -287,9 +325,10 @@
   <span class="pill" id="pill-fleet">0 projectors</span>
   <span class="pill" id="pill-tempo"><i class="dot" id="tempo-dot"></i><span id="tempo-label">no tempo</span></span>
   <div class="spacer"></div>
+  <select class="btn small" id="out-res" title="Output resolution on every projector (Pi renderers on KMSDRM modeset and restart, ~3 s black). A Pi 4 is much smoother at 1080p."><option value="0">Auto res</option><option value="1">1080p</option><option value="2">4K</option></select>
   <button class="btn small primary" id="perf-enter" title="big-button touch mode">▶ PERFORM</button>
-  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="outputs">Outputs</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
-  <span class="pill" id="pill-ver">v0.6.1</span>
+  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="outputs">Outputs</button><button data-view="media">Media</button><button data-view="status">Status</button><button data-view="info">Info</button></nav>
+  <span class="pill" id="pill-ver">v0.7.0</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
@@ -312,18 +351,16 @@
       <div class="engine">
         <button id="eng-shader"><b>SHADER SCENES</b><small id="eng-shader-sub">fractals · plasma · tunnel · starfield · waves — pixel-synced</small></button>
         <button id="eng-pm"><b>PROJECTM · MILKDROP</b><small id="eng-pm-sub">real .milk presets on every Pi</small></button>
+        <button id="eng-video"><b>VIDEO</b><small id="eng-video-sub">clips on every Pi, frame-locked · or a LIVE HDMI feed</small></button>
       </div>
-    </div>
-
-    <div class="card">
-      <h2>Sources <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">green = linked · amber = enabled, waiting · grey = off</span></h2>
-      <div id="sources"></div>
     </div>
 
     <div class="card">
       <h2>Live preview <span class="spacer"></span><span class="pill" id="pill-fps">— fps</span><span class="pill" id="pill-t">t 0.0</span></h2>
       <div class="previewwrap">
         <canvas id="preview" width="960" height="540"></canvas>
+        <video id="pv-video" muted playsinline hidden style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;border-radius:8px"></video>
+        <div id="pv-video-overlay" hidden style="position:absolute;left:10px;top:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;pointer-events:none"><span class="pill"><i class="dot ok"></i><span id="pv-video-label">video</span></span></div>
         <canvas id="pm-canvas" hidden style="position:absolute;inset:0;width:100%;height:100%;border-radius:8px;background:#000"></canvas>
         <div id="pm-overlay" hidden style="position:absolute;left:10px;top:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;pointer-events:none">
           <span class="pill" style="background:rgba(11,12,16,.75)"><i class="dot" id="pm-sim-dot"></i><span id="pm-sim-label">projectM · browser simulation</span></span>
@@ -397,14 +434,44 @@
       <div class="hint pm-ext">Blend, beat sensitivity and shader-mix sliders are in the <b>projectM</b> parameter tab on the right. Presets marked ★ are favourites (saved in this browser). In projectM mode the kaleidoscope / rotation / zoom / hue controls apply through <code>Shader mix</code>.</div>
     </div>
 
+    <div class="card" id="video-card">
+      <h2>Video <span class="spacer"></span><span class="pill" id="video-count">—</span></h2>
+      <div class="vid-big"><span id="video-big-name">—</span><small id="video-big-sub"></small></div>
+      <div class="vid-bar"><i id="video-bar-fill"></i></div>
+      <div class="pm-nav">
+        <button class="btn" id="video-prev">◀ PREV</button>
+        <button class="btn primary" id="video-restart">↻ RESTART</button>
+        <button class="btn" id="video-next">NEXT ▶</button>
+        <button class="btn" id="video-live" title="show the master's live stream (HDMI capture / file loop) on every projector">● LIVE</button>
+      </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <button class="btn small" id="video-loop">loop</button>
+        <label style="font-size:12px;color:var(--muted)">speed</label><input type="range" id="video-speed" min="0.1" max="4" step="0.05" style="flex:1;min-width:120px"><span id="video-speed-v" style="font-family:var(--mono);font-size:12px;width:44px">1.00×</span>
+        <button class="btn small" id="video-barsync" title="restart the clip on SET BEAT 1">bar-sync</button>
+      </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--muted)">auto-advance</label>
+        <select id="video-cycle" class="btn small"><option value="end">when the clip ends</option><option value="bars">every N bars</option><option value="off">never</option></select>
+        <input class="text" id="video-cycle-bars" type="number" min="1" max="256" step="1" style="flex:0 0 72px" title="bars"> <span style="font-size:12px;color:var(--muted)">bars</span>
+        <span class="spacer"></span><button class="btn small" id="video-open-media">Media library →</button>
+      </div>
+      <div class="chips" id="video-chips" style="margin-top:8px"></div>
+      <div class="hint">Clips live on every Pi (pulled from the master automatically); the master only broadcasts <em>which clip, when it started, speed, loop</em>, so all projectors show the same frame. Kaleidoscope / zoom / hue apply through <code>Shader mix</code> in the projectM tab. Upload and manage clips, playlists and the LIVE source in <b>Media</b>.</div>
+    </div>
+
     <div class="card">
       <h2>Projectors <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">heartbeats every second from each renderer</span></h2>
-      <div class="tablewrap"><table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>age</th></tr></thead><tbody id="fleet"></tbody></table></div>
+      <div class="tablewrap"><table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>media</th><th>age</th></tr></thead><tbody id="fleet"></tbody></table></div>
     </div>
 
     <div class="card">
       <h2>Log</h2>
       <div class="log" id="log"></div>
+    </div>
+
+    <div class="card">
+      <h2>Sources <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">green = linked · amber = enabled, waiting · grey = off</span></h2>
+      <div id="sources"></div>
     </div>
   </section>
 
@@ -432,7 +499,8 @@
       <h2>MIDI / OSC</h2>
       <div style="font-size:12px;color:var(--muted);line-height:1.6">
         OSC: <code>/frx/&lt;param&gt; f</code> · <code>/frx/tap</code> · <code>/frx/beat1</code> · <code>/frx/bpm f</code> · <code>/frx/preset s|i</code> · <code>/frx/auto_&lt;param&gt; 0|1</code> on udp/9000.<br>
-        MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; note 35 = tap, note 34 = set beat 1.<br>
+        MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; 35 tap · 34 set beat 1 · 33/32 projectM next/prev · 31/30 video next/prev · 29 video restart · 28 LIVE.<br>
+        Video OSC: <code>/frx/video i|s</code> · <code>/frx/video_next</code> · <code>/frx/video_prev</code> · <code>/frx/video_restart</code> · <code>/frx/video_live</code>.<br>
         Last CC seen: <b id="last-cc" style="color:var(--text)">—</b>
         <select id="learn-param" class="btn small"></select>
         <button class="btn small" id="learn">Map last CC →</button>
@@ -441,17 +509,95 @@
   </aside>
 </main>
 
+<section id="media" hidden>
+  <div class="card">
+    <h2>Upload clips <span class="spacer"></span><span class="pill" id="media-ffmpeg">—</span></h2>
+    <div class="drop" id="media-drop">
+      <input type="file" id="media-file" accept="video/*,.mp4,.mov,.mkv,.m4v,.avi,.webm,.mpg,.ts,.gif" multiple hidden>
+      <div><b>Drop video files here</b> or <button class="btn small" id="media-pick">choose files</button></div>
+      <div class="hint" style="margin:6px 0 0">Anything goes — MP4, MOV, MKV, WebM, GIF… The master converts to 1080p H.264 (no audio) in the background; already-friendly MP4s are just remuxed in seconds. Every renderer picks new clips up within ~15 s.</div>
+    </div>
+    <div id="media-uploads"></div>
+    <div id="media-jobs"></div>
+  </div>
+  <div class="card">
+    <h2>Library <span class="spacer"></span><span class="hint" style="margin:0" id="media-summary"></span></h2>
+    <div class="clipgrid" id="media-grid"></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h2>Playlist &amp; auto-advance</h2>
+      <div class="hint">Order clips for PREV / NEXT and auto-advance. Empty playlist = the whole library in name order.</div>
+      <div id="media-playlist" class="pl"></div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <select id="media-pl-add" class="btn small"></select><button class="btn small" id="media-pl-addbtn">+ add</button>
+        <button class="btn small" id="media-pl-clear">clear</button>
+        <span class="spacer"></span>
+        <select id="media-cycle" class="btn small"><option value="end">advance when the clip ends</option><option value="bars">advance every N bars</option><option value="off">never advance</option></select>
+        <input class="text" id="media-cycle-bars" type="number" min="1" max="256" style="flex:0 0 72px"> <span style="font-size:12px;color:var(--muted)">bars</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>LIVE source <span class="spacer"></span><span class="pill" id="live-state"><i class="dot"></i>off</span></h2>
+      <div class="hint">The master encodes one H.264 stream and multicasts it; projectors show it as the <b>LIVE</b> slot. HDMI in = a USB HDMI capture dongle on the master (UVC, e.g. the MS2109 type or a Cam Link) — plug it in and it appears below.</div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <select id="live-kind" class="btn small"><option value="hdmi">HDMI capture (USB dongle)</option><option value="v4l2">Webcam / V4L2</option><option value="file">Loop a library clip</option><option value="test">Test pattern</option></select>
+        <select id="live-source" class="btn small" style="max-width:260px"></select>
+        <select id="live-size" class="btn small"><option>1920x1080</option><option>1280x720</option><option>960x540</option></select>
+        <button class="btn small" id="live-refresh" title="rescan capture devices">rescan</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="live-start">START stream</button>
+        <button class="btn" id="live-stop">STOP</button>
+        <button class="btn" id="live-show">Show LIVE on projectors</button>
+        <span class="hint" id="live-msg" style="margin:0"></span>
+      </div>
+      <div class="hint">Latency is ~0.3–0.6 s end-to-end; projectors stay within a frame or two of each other. The Pi 5 master manages 1080p30 at "veryfast"; drop to 720p if the master's tick rate suffers (Status tab).</div>
+    </div>
+  </div>
+</section>
+
 <section id="outputs" hidden>
   <div class="card">
     <h2>Outputs <span class="spacer"></span><span class="sub">where the rig's picture and tempo go, besides the projectors</span></h2>
     <div class="toc" style="display:flex;gap:6px;flex-wrap:wrap">
-      <a class="btn small" href="#o-live">Live from projectors</a><a class="btn small" href="#o-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#o-ndi">NDI video</a><a class="btn small" href="#o-led">LED pixel strips</a>
+      <a class="btn small" href="#o-live">Live from projectors</a><a class="btn small" href="#o-mapping">Projection mapping</a><a class="btn small" href="#o-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#o-ndi">NDI video</a><a class="btn small" href="#o-led">LED pixel strips</a>
     </div>
   </div>
 
   <div class="card" id="o-live">
     <h2>Live from projectors <span class="spacer"></span><span class="sub">80×45 thumbnails, 20/s from every renderer · also the LED sampling source</span></h2>
     <div class="thumbs" id="thumbs"></div>
+  </div>
+
+  <div class="card" id="o-mapping">
+    <h2>Projection mapping <span class="spacer"></span><span class="sub">per projector: keystone corners, black-out masks, soft-edge blend, brightness / gamma</span></h2>
+    <div class="maptools">
+      <select id="map-name" class="btn small" title="which renderer to edit"></select>
+      <span id="map-status" class="pill">—</span>
+      <span class="sep"></span>
+      <button class="btn small" id="map-test" title="grid + coloured corners on that projector (red TL · green TR · blue BR · yellow BL)">Test pattern</button>
+      <button class="btn small" id="map-addmask" title="click points on the picture, double-click or Enter to close">+ Mask</button>
+      <button class="btn small" id="map-delmask" title="delete the selected mask (or Delete key)">Delete mask</button>
+      <span class="sep"></span>
+      <select id="map-copy" class="btn small" title="copy another projector's mapping onto this one"><option value="">Copy from…</option></select>
+      <button class="btn small" id="map-reset" title="back to a plain full-screen picture">Reset</button>
+      <span class="spacer"></span>
+      <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px"><input type="checkbox" id="map-live" checked> live</label>
+      <button class="btn small" id="map-revert">Revert</button>
+      <button class="btn small primary" id="map-save">Save</button>
+    </div>
+    <div class="mapwrap"><canvas id="map-canvas" width="960" height="540"></canvas></div>
+    <div class="hint">Drag the four corners onto the surface (the projector shows the same coloured corners with <b>Test pattern</b> on). Arrow keys nudge the selected point by 1 px on the projector, Shift = 10. Masks are drawn in <em>output</em> space, so they stay put when you move the corners — use them to black out a doorway, a speaker, the bit of wall you don't want lit. Edge blend widths feather the source picture's sides for overlapping projectors. With <b>live</b> on, every change goes to the projector within a couple of seconds; Save just makes it explicit.</div>
+    <div class="mapgrid">
+      <div class="param"><label>Mask feather<small>softness of mask edges</small></label><input type="range" id="map-feather" min="0" max="0.2" step="0.002"><span class="val" id="map-feather-v"></span></div>
+      <div class="param"><label>Brightness</label><input type="range" id="map-bright" min="0.2" max="2" step="0.01"><span class="val" id="map-bright-v"></span></div>
+      <div class="param"><label>Gamma</label><input type="range" id="map-gamma" min="0.5" max="2.5" step="0.01"><span class="val" id="map-gamma-v"></span></div>
+      <div class="param"><label>Blend left</label><input type="range" id="map-edge0" min="0" max="0.5" step="0.005"><span class="val" id="map-edge0-v"></span></div>
+      <div class="param"><label>Blend right</label><input type="range" id="map-edge1" min="0" max="0.5" step="0.005"><span class="val" id="map-edge1-v"></span></div>
+      <div class="param"><label>Blend top</label><input type="range" id="map-edge2" min="0" max="0.5" step="0.005"><span class="val" id="map-edge2-v"></span></div>
+      <div class="param"><label>Blend bottom</label><input type="range" id="map-edge3" min="0" max="0.5" step="0.005"><span class="val" id="map-edge3-v"></span></div>
+    </div>
   </div>
 
   <div class="card" id="o-resolume">
@@ -505,7 +651,7 @@
     <h3>Fractal Rig — how it all fits together</h3>
     <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master renders too, so it is projector #1). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 20 parameters — in one 120-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet.</p>
     <div class="toc">
-      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
+      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-video">Video &amp; HDMI capture</a><a class="btn small" href="#i-mapping">Projection mapping</a><a class="btn small" href="#i-outres">Output resolution</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
     </div>
   </div>
 
@@ -674,6 +820,26 @@ sudo bash setup/install.sh master</pre>
     <p>NDI publishes a Pi's picture as a network video source for Resolume, OBS, vMix, TouchDesigner… The NDI SDK is a free licence-click download, so it can't ship in the repo: download <i>NDI SDK for Linux</i> from ndi.video, then on the Pi <code>sudo bash setup/install-ndi.sh ~/Install_NDI_SDK_v6_Linux.tar.gz</code> (installs headers + libndi, rebuilds the renderer with NDI), and add <code>--ndi</code> to that renderer's arguments (<code>sudo systemctl edit fractal-renderer</code>). The source appears as <b>"Fractal Rig (pi-name)"</b>. Frames are sent at the render scale (1080p × 0.6 = 1152×648) at up to <code>--ndi-fps</code> (30 default) — a Pi 5 is comfortable there; ~40 Mbit/s on the LAN. The Outputs tab shows per-Pi NDI state (off / publishing / receiver connected). Use a wired switch; NDI over Wi-Fi is not a good evening.</p>
   </div>
 
+  <div class="card" id="i-video">
+    <h3>Video &amp; HDMI capture (scene 9)</h3>
+    <p><b>How it stays in sync without streaming.</b> Every Pi keeps an identical copy of the clip library (<code>fractal-media-sync</code> pulls it from the master over HTTP and keeps it current). The master never sends frames — it broadcasts <em>clip number, the master-clock time it started, speed and loop</em> in the same 60 Hz packet as everything else. Each renderer decodes its local file with libmpv (hardware H.264 on a Pi 4, software on a Pi 5 — both fine at 1080p) and nudges playback by up to ±8 % or seeks when it drifts more than 0.35 s from <code>(t − t0) × speed</code>. Result: every projector shows the same frame, and the video goes through the same post-pass as projectM, so kaleidoscope / tiling / zoom / hue still apply via <code>Shader mix</code>.</p>
+    <p><b>Uploading.</b> Media tab → drop anything (mp4, mov, mkv, avi, webm, m4v, mpg, ts, gif…). The master converts to ≤1080p H.264 (yuv420p, 2-second keyframes, no audio, fast-start) so a Pi 4 can decode it; files that are already Pi-friendly are only remuxed. The library is byte-sorted by file name and that order <em>is</em> the clip index every Pi uses — the Projectors table shows a <b>media</b> column so you can see a Pi that hasn't caught up (<code>3/4</code>). Names are limited to letters, digits, <code>- _ .</code>.</p>
+    <p><b>Triggers.</b> Engine card → VIDEO, or the clip tiles on the Perform Show page; playlist with auto-advance at clip end / every N bars / off, and <b>bar sync</b> restarts the clip on beat 1. OSC: <code>/frx/video &lt;index|name&gt;</code>, <code>/frx/video_next</code>, <code>/frx/video_prev</code>, <code>/frx/video_restart</code>, <code>/frx/video_live</code>. MIDI notes: 31 next · 30 prev · 29 restart · 28 LIVE (35 tap, 34 beat 1, 33/32 projectM stay as before).</p>
+    <p><b>LIVE (clip 255) and HDMI capture.</b> The one case that <em>is</em> a stream: the master runs ffmpeg and multicasts MPEG-TS on <code>udp://239.255.42.2:5010</code>; every Pi tunes to it with mpv's low-latency profile (about 0.3–0.6 s behind, identical on all projectors). Sources: <b>HDMI</b> — a USB 3 UVC capture dongle (the £15 "HDMI to USB" sticks work; they appear as <code>/dev/videoN</code>, MJPEG 1080p30) plugged into the master; <b>V4L2</b> — any camera; <b>File</b> — loop a clip from the library through the stream; <b>Test</b> — colour bars. Pick the device in the LIVE source card on the Media tab, START, then LIVE on the Video card. Live needs the wired switch just like the sync packets — a Wi-Fi hop drops too many multicast packets for video.</p>
+    <p><b>Files on the Pis.</b> <code>/var/lib/fractal-rig/media/*.mp4</code> (synced), <code>/var/lib/fractal-rig/state</code> (the renderer's note of the master's IP, read by the sync helper). On the master the library is <code>master/media/</code> (gitignored). <code>journalctl -fu fractal-media-sync</code> shows the pulls; each Pi also has a status page on <b>port 8082</b> with the renderer log, temperature/throttling, clip list and a link back here.</p>
+  </div>
+
+  <div class="card" id="i-mapping">
+    <h3>Projection mapping (Outputs → Projection mapping)</h3>
+    <p>Per projector, edited here and applied on the Pi within a couple of seconds: <b>keystone</b> (drag the four corners onto the surface — turn on <b>Test pattern</b> and the projector shows a grid with the same red / green / blue / yellow corners), <b>masks</b> (polygons drawn in output space that are blacked out with an adjustable feather — a doorway, a speaker stack, the ceiling), <b>soft-edge blend</b> widths per side for overlapping projectors (gamma-shaped ramps so the overlap doesn't look brighter), <b>brightness</b> and <b>gamma</b> to match two different projectors. Arrow keys nudge the selected point by one projector pixel, Shift for ten. <b>Copy from…</b> clones another projector's setup as a starting point.</p>
+    <p>Under the hood: the master stores <code>master/mapping/&lt;name&gt;.json</code> and serves it as a small text file (<code>/api/mapping/&lt;name&gt;.txt</code>); <code>fractal-media-sync</code> writes it to <code>/var/lib/fractal-rig/mapping.txt</code> on that Pi; the renderer re-reads it when it changes and, when it's not identity, runs one extra full-resolution pass (inverse homography + mask texture + blend) instead of the plain upscale blit — about 1 ms on a Pi 5, free enough to leave on. The heartbeat reports a hash of the applied file, which is what the status pill ("applied on projector") checks. An identity mapping deletes the file so the Pi goes back to the zero-cost path.</p>
+  </div>
+
+  <div class="card" id="i-outres">
+    <h3>Output resolution (top bar: Auto / 1080p / 4K)</h3>
+    <p>A global choice broadcast to every renderer. <b>Auto</b> = whatever mode the screen came up in (a 4K TV on a Pi 4 means a 4K framebuffer, and the Pi 4 struggles — that was the "laggy / steppy" Pi 4). <b>1080p</b> forces 1920×1080 ≤ 60 Hz on every projector, which is what you want on a Pi 4 and on most projectors anyway; <b>4K</b> forces 3840×2160 where the screen offers it (a Pi 5 can drive it; the internal render scale still applies). Under KMSDRM a mode can only be chosen when the renderer starts, so a change makes each renderer remember the request, exit, and come straight back in the new mode — about 3 seconds of black per projector, so don't do it mid-set. A screen that doesn't have the mode keeps its current one (no restart loop). To pin one Pi regardless of the selector, give its renderer <code>--out-res 1080</code> (or <code>4k</code> / <code>auto</code>) in the install arguments.</p>
+  </div>
+
   <div class="card" id="i-led">
     <h3>LED pixel strips</h3>
     <p>An LED strip is treated as a very thin, very low-resolution projector: a straight line of sample points on the <em>same canvas</em> the projectors show. Each renderer streams an 80×45 thumbnail of its frame to the master 20× a second; the master samples the strip positions, applies gamma and brightness, and sends the pixel data to your controllers at the LED frame rate (40 fps default). Because the sample comes from the same packet-driven frame, the LEDs kick on the exact same beat as the projectors. All of it is configured in <b>Outputs → LED pixel strips</b>.</p>
@@ -755,6 +921,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
+      <tr><td>v0.7.0</td><td><b>Video scene</b> (9): clip library on the master with drag-and-drop upload and ffmpeg conversion, byte-sorted index synced to every Pi by <code>fractal-media-sync</code>, libmpv playback frame-locked to the master clock, playlist / auto-advance / bar sync, Perform clip tiles, OSC + MIDI triggers; <b>LIVE</b> multicast stream from an HDMI capture dongle, any V4L2 camera, a file or test bars. <b>Projection mapping</b> per projector from the Outputs tab (keystone, masks with feather, edge blend, brightness/gamma, test pattern) applied live. <b>Output resolution</b> selector on the top bar (Auto / 1080p / 4K). Per-Pi status page on port 8082. Perform pages scroll. Sources card moved to the bottom of Control. Packet is now 156 bytes / 29 params — update every Pi together.</td></tr>
       <tr><td>v0.6.1</td><td>Pi 4 renderer fix: SDL now opens the DRM device that actually has a connected HDMI output (Pi 4 exposes the 3D core as <code>card0</code> with no outputs, which made KMSDRM fail on every start). Also tries <code>card0..3</code> as a fallback; <code>SDL_KMSDRM_DEVICE_INDEX</code> still overrides.</td></tr>
       <tr><td>v0.6.0</td><td><b>Inputs monitor</b> on the Control tab: 4-bar beat grid with playhead and lock badge (Pro DJ Link deck / Ableton Link peers / free-running), BPM stability readout, per-deck lanes, Link phase, audio waveform + 16-band spectrum + energy/bass meters streamed from the master, MIDI / OSC / Pro DJ Link activity chips; slim beat grid in Perform mode. Master streams <code>audio_wave</code> / <code>audio_bands</code> / <code>audio_levels</code> and the followed deck in the state snapshot.</td></tr>
       <tr><td>v0.5.0</td><td><b>Outputs</b> tab: live thumbnails from every renderer; Ableton Link (follow / lead); OSC to Resolume (tempo, bar resync, scene → column, parameter map); NDI publishing (<code>install-ndi.sh</code> + <code>--ndi</code>); LED pixel output over DDP / Art-Net / sACN with a strip layout editor, matrix builder, test patterns and live canvas preview. <b>Perform mode</b> — big touch controls in swipeable pages — plus <code>install-kiosk.sh</code> for a Pi touchscreen console and <code>--display</code> on the renderer.</td></tr>
@@ -779,7 +946,7 @@ sudo bash setup/install.sh master</pre>
       <div class="pgrid c2"><button class="pbtn huge primary" id="pf-tap">TAP<small>space</small></button><button class="pbtn huge" id="pf-beat1">SET BEAT 1<small>re-align the bar</small></button></div>
       <canvas id="pf-grid" class="pf-grid" aria-label="beat grid"></canvas>
       <div class="plabel">Engine</div>
-      <div class="pgrid c2"><button class="pbtn" id="pf-eng-shader">SHADER SCENES</button><button class="pbtn" id="pf-eng-pm">PROJECTM</button></div>
+      <div class="pgrid c3"><button class="pbtn" id="pf-eng-shader">SHADER SCENES</button><button class="pbtn" id="pf-eng-pm">PROJECTM</button><button class="pbtn" id="pf-eng-video">VIDEO</button></div>
       <div class="plabel">Scene</div>
       <div class="pgrid c3" id="pf-scenes"></div>
       <div class="plabel">Safety</div>
@@ -794,6 +961,9 @@ sudo bash setup/install.sh master</pre>
       <div class="pgrid c2"><button class="pbtn" id="pf-pm-hold">HOLD<small>pause auto-cycle</small></button><button class="pbtn" id="pf-pm-fav">☆ FAVOURITE</button></div>
       <div class="plabel">Favourite presets</div>
       <div class="pgrid c2" id="pf-pm-favs"></div>
+      <div class="plabel">Video clips</div>
+      <div class="pgrid c3"><button class="pbtn" id="pf-vid-prev">◀ PREV</button><button class="pbtn primary" id="pf-vid-restart">↻ RESTART</button><button class="pbtn" id="pf-vid-next">NEXT ▶</button></div>
+      <div class="pgrid c3" id="pf-clips"></div>
     </div>
     <div class="ppage" data-pg="2">
       <div class="pslider"><label>Brightness</label><input type="range" data-pk="brightness" min="0" max="2" step="0.01"><span class="v"></span></div>
@@ -833,7 +1003,7 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 let PARAMS = window.FRX_PARAMS || [];
 const idx = {}; PARAMS.forEach((p, i) => idx[p.key] = i);
 const GROUPS = ['shape', 'colour', 'music', 'projectm'];
-const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'projectM'];
+const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'projectM', 'Video'];
 
 // ------------------------------------------------------------ state (mirrors engine.py)
 const S = {
@@ -841,6 +1011,7 @@ const S = {
   bpm: 0, beat_t: 0, bar_beat: 0, tempo_source: 'none', fleet: {}, log: [], decks: {}, last_cc: null,
   auto_enabled: true, audio_devices: [], audio_device: null, prodj_follow: 0,
   audio_wave: [], audio_bands: [], audio_levels: null, bpm_hist: [], prodj_raw: {},
+  video: {index: 0, name: null, position: 0, duration: 0, playlist: [], cycle: 'end', cycle_bars: 8, bar_sync: false, count: 0, live: null}, media: {clips: [], jobs: [], live: null, ffmpeg: false},
   pm: {count: 0, index: 0, name: null, cycle_bars: 16, shuffle: true, audio: null}, pm_presets: [],
   sources: {
     web:   {enabled: true, ok: true, detail: 'this page'},
@@ -887,6 +1058,7 @@ function applyLocal(m) {   // demo-mode engine — same semantics as engine.py
   if (m.auto) for (const k in m.auto) S.auto[k] = !!m.auto[k];
   if (m.tap) tapLocal();
   if (m.pm) { const q = m.pm, n = (S.pm_presets || []).length || 1; if ('index' in q) S.pm.index = ((+q.index % n) + n) % n; if (q.next) S.pm.index = (S.pm.index + 1) % n; if (q.prev) S.pm.index = (S.pm.index - 1 + n) % n; if (q.random) S.pm.index = Math.floor(Math.random() * n); if ('cycle_bars' in q) S.pm.cycle_bars = +q.cycle_bars; if ('shuffle' in q) S.pm.shuffle = !!q.shuffle; S.base.pm_preset = S.pm.index; }
+  if (m.video) { const q = m.video, cl = S.media.clips || []; if ('play' in q) { const i = typeof q.play === 'string' ? cl.findIndex(c => c.name === q.play) : +q.play; if (i >= 0 || q.play === 255) { S.base.video_clip = q.play === 255 ? 255 : i; S.base.video_t0 = S.t; S.base.mode = 9; } } if (q.live) { S.base.video_clip = 255; S.base.video_t0 = S.t; S.base.mode = 9; } if (q.restart) S.base.video_t0 = S.t; if (q.next || q.prev) { const n = cl.length || 1; S.base.video_clip = ((Math.round(S.base.video_clip) + (q.next ? 1 : -1)) % n + n) % n; S.base.video_t0 = S.t; } if ('loop' in q) S.base.video_loop = q.loop ? 1 : 0; if ('speed' in q) S.base.video_speed = +q.speed; if ('playlist' in q) S.video.playlist = q.playlist; if ('cycle' in q) S.video.cycle = q.cycle; if ('cycle_bars' in q) S.video.cycle_bars = +q.cycle_bars; if ('bar_sync' in q) S.video.bar_sync = !!q.bar_sync; S.video.index = Math.round(S.base.video_clip); S.video.name = S.video.index === 255 ? 'LIVE' : (cl[S.video.index] || {}).name || null; }
   if (m.beat1) { S.beat_t = S.t; S.bar_beat = 1; if (S.bpm) S.tempo_source = 'tap'; logLocal('bar resync: beat 1'); }
   if ('bpm' in m) { S.bpm = clamp(+m.bpm || 0, 0, 300); S.tempo_source = S.bpm ? 'tap' : 'none'; }
   if ('clock_speed' in m) S.clock_speed = +m.clock_speed;
@@ -938,6 +1110,7 @@ function connect(url) {
     const m = JSON.parse(ev.data);
     if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); S.pm_presets = m.pm_presets || []; buildControls(); buildPmList(); $('pill-ver').textContent = 'v' + m.version; return; }
     if (m.type === 'pm_presets') { S.pm_presets = m.pm_presets || []; buildPmList(); return; }
+    if (m.type === 'mapping') { MP.list = m.mapping || []; mapRenderList(); return; }
     if (m.type === 'pong') { BR.rtt = Math.round((performance.now() - m.ping) * 10) / 10; BR.rttMax = Math.max(BR.rttMax, BR.rtt); BR.clockSkew = Math.round((Date.now() / 1000 - m.t) * 1000 - BR.rtt / 2); return; }
     if (m.type !== 'state') return;
     BR.snaps++; BR.lastSnap = performance.now(); if (BR.lastSnap - BR.snapWin > 2000) { BR.snapHz = Math.round(BR.snaps / ((BR.lastSnap - BR.snapWin) / 1000) * 10) / 10; BR.snaps = 0; BR.snapWin = BR.lastSnap; }
@@ -945,7 +1118,7 @@ function connect(url) {
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
       clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
       auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, prodj_dev: m.prodj_dev, pm: m.pm || S.pm, outputs: m.outputs || S.outputs,
-      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null});
+      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video});
     S.t = m.t; S.tRecv = performance.now();
     noteBpm(m.bpm);
     S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
@@ -998,6 +1171,7 @@ function renderControls() {
     a.className = 'auto' + (S.auto[k] ? ' on' : '');
   });
   $('modes').querySelectorAll('button').forEach(b => b.className = 'btn small' + (+b.dataset.mode === Math.round(S.base.mode) ? ' active' : ''));
+  if (document.activeElement !== $('out-res')) $('out-res').value = String(Math.round(S.base.out_res || 0));
   for (const k of ['clock_speed', 'auto_depth', 'auto_rate']) { if (document.activeElement !== $(k)) $(k).value = S[k]; $(k + '_v').textContent = (+S[k]).toFixed(2); }
   $('bpm').textContent = S.bpm ? S.bpm.toFixed(1) : '—';
   const src = {none: 'no tempo', prodj: 'Pro DJ Link', tap: 'tap / manual', audio: 'audio onset', link: 'Ableton Link'}[S.tempo_source] || S.tempo_source;
@@ -1008,11 +1182,14 @@ function renderControls() {
   $('presets').querySelectorAll('[data-p]').forEach(b => b.onclick = e => { if (e.target.dataset.del) { if (confirm('Delete preset "' + e.target.dataset.del + '"?')) send({preset: {delete: e.target.dataset.del}}); } else send({preset: {load: b.dataset.p}}); });
   const fl = Object.entries(S.fleet || {});
   $('pill-fleet').textContent = fl.length + (fl.length === 1 ? ' projector' : ' projectors');
-  $('fleet').innerHTML = fl.length ? fl.map(([n, h]) => `<tr><td>${n}</td><td>${h.ip}</td><td>${h.fps.toFixed(0)}</td><td>${h.res}</td><td>${h.tile}</td><td>${h.lost}</td><td>${h.age}s</td></tr>`).join('')
-    : `<tr><td colspan="7" style="color:var(--muted)">${S.live ? 'no renderers heard yet — start ./fractal on a Pi on this LAN' : 'demo mode — no fleet'}</td></tr>`;
+  const nclips = (S.video && S.video.count != null) ? S.video.count : null;
+  $('fleet').innerHTML = fl.length ? fl.map(([n, h]) => { const mm = h.media == null ? '—' : h.media < 0 ? '<span title="renderer built without libmpv — sudo apt install libmpv-dev, rebuild">no mpv</span>' : (nclips != null && h.media !== nclips ? `<span style="color:var(--warn)" title="master has ${nclips}, this Pi has ${h.media} — fractal-media-sync catching up?">${h.media}/${nclips}</span>` : `${h.media}`);
+    return `<tr><td>${n}</td><td>${h.ip}</td><td>${h.fps.toFixed(0)}</td><td>${h.res}</td><td>${h.tile}</td><td>${h.lost}</td><td>${mm}</td><td>${h.age}s</td></tr>`; }).join('')
+    : `<tr><td colspan="8" style="color:var(--muted)">${S.live ? 'no renderers heard yet — start ./fractal on a Pi on this LAN' : 'demo mode — no fleet'}</td></tr>`;
   $('last-cc').textContent = S.last_cc == null ? '—' : 'CC ' + S.last_cc;
   renderSources();
   renderPm();
+  renderVideo();
   renderLog();
   if (!$('status').hidden) renderStatus();
   if (!$('outputs').hidden) renderOutputs();
@@ -1103,12 +1280,12 @@ function renderPm() {
   if (document.activeElement !== $('pm-select')) $('pm-select').value = String(pm.index || 0);
   if (document.activeElement !== $('pm-cycle')) $('pm-cycle').value = pm.cycle_bars == null ? 16 : pm.cycle_bars;
   $('pm-shuffle').className = 'btn small' + (pm.shuffle ? ' active' : '');
-  const on8 = Math.round(S.base.mode) === 8;
+  const on8 = Math.round(S.base.mode) === 8, on9 = Math.round(S.base.mode) === 9;
   $('pm-card').style.borderColor = on8 ? 'var(--accent)' : '';
   $('pm-card').classList.toggle('expanded', on8);
   document.body.classList.toggle('pm-mode', on8);
-  $('eng-shader').className = on8 ? '' : 'active'; $('eng-pm').className = on8 ? 'active' : '';
-  $('eng-shader-sub').textContent = on8 ? 'switch back to ' + MODE_NAMES[lastShaderMode] : MODE_NAMES[Math.round(S.base.mode)] + ' · fractals · plasma · tunnel · starfield · waves — pixel-synced';
+  $('eng-shader').className = (on8 || on9) ? '' : 'active'; $('eng-pm').className = on8 ? 'active' : ''; $('eng-video').className = on9 ? 'active' : '';
+  $('eng-shader-sub').textContent = (on8 || on9) ? 'switch back to ' + MODE_NAMES[lastShaderMode] : MODE_NAMES[Math.round(S.base.mode)] + ' · fractals · plasma · tunnel · starfield · waves — pixel-synced';
   $('eng-pm-sub').textContent = list.length ? `${list.length} presets · ${pm.cycle_bars ? 'auto-cycle ' + pm.cycle_bars + ' bars' : 'manual'}` : 'real .milk presets on every Pi';
   $('pm-big-name').textContent = list.length ? shortName(name) : '—';
   $('pm-big-sub').textContent = list.length ? `#${pm.index} of ${list.length} · ${name.includes('/') ? name.split('/')[0] + ' pack' : ''}${pmFavs.has(name) ? ' · ★ favourite' : ''}` : '';
@@ -1123,8 +1300,169 @@ function renderPm() {
   if (!on8 && pmCard.previousElementSibling === previewCard) document.querySelector('#fleet').closest('.card').before(pmCard);
   if (!on8) $('pm-overlay').hidden = true;
   if (on8 !== wasOn8) { wasOn8 = on8; if (on8) { activeGroup = 'projectm'; buildControls(); } else if (activeGroup === 'projectm') { activeGroup = 'shape'; buildControls(); } }
-  if (!on8 && Math.round(S.base.mode) !== lastShaderMode) { lastShaderMode = Math.round(S.base.mode); try { localStorage.setItem('frx.lastShader', lastShaderMode); } catch (e) {} }
+  if (!on8 && !on9 && Math.round(S.base.mode) !== lastShaderMode) { lastShaderMode = Math.round(S.base.mode); try { localStorage.setItem('frx.lastShader', lastShaderMode); } catch (e) {} }
 }
+
+// ------------------------------------------------------------ video scene + media library
+const fmtDur = d => { d = Math.max(0, Math.round(+d || 0)); const m = Math.floor(d / 60), s2 = d % 60; return (m ? m + ':' : '0:') + String(s2).padStart(2, '0'); };
+const fmtMB = b => (b / 1048576).toFixed(b > 100 * 1048576 ? 0 : 1) + ' MB';
+let mediaTimer = null, mediaLast = 0;
+async function fetchMedia(force) {
+  if (!S.live) { $('media-ffmpeg').textContent = 'demo — no master'; renderMedia(); return; }
+  if (!force && performance.now() - mediaLast < 4000) return;
+  mediaLast = performance.now();
+  try { const r = await fetch('/api/media'); if (!r.ok) throw 0; S.media = await r.json(); } catch (e) { return; }
+  renderMedia(); renderVideo();
+}
+function videoPos() {   // same maths as engine.video_position / the renderers, on the browser's extrapolated clock
+  const i = Math.round(S.base.video_clip), c = (S.media.clips || [])[i]; if (i === 255 || !c) return {pos: 0, dur: 0, clip: c, i};
+  const t = S.t + (performance.now() - S.tRecv) / 1000 * (S.live ? S.clock_speed : 0);
+  const el = Math.max(0, t - S.base.video_t0) * (S.base.video_speed || 1), dur = +c.duration || 0;
+  if (!dur) return {pos: el, dur: 0, clip: c, i};
+  return {pos: S.base.video_loop >= 0.5 ? el % dur : Math.min(el, dur), dur, clip: c, i, ended: S.base.video_loop < 0.5 && el >= dur};
+}
+function renderVideo() {
+  const v = S.video || {}, clips = S.media.clips || [], on9 = Math.round(S.base.mode) === 9, i = Math.round(S.base.video_clip);
+  const name = i === 255 ? 'LIVE' : (clips[i] || {}).name || v.name || '—';
+  $('video-count').textContent = clips.length ? clips.length + ' clip' + (clips.length === 1 ? '' : 's') : (S.live ? 'no clips yet' : 'demo');
+  $('video-card').classList.toggle('expanded', on9);
+  $('eng-video-sub').textContent = on9 ? `▶ ${name}` : clips.length ? `${clips.length} clips · ${v.cycle === 'bars' ? 'advance every ' + v.cycle_bars + ' bars' : v.cycle === 'off' ? 'manual' : 'advance at end'}` : 'clips on every Pi, frame-locked · or a LIVE HDMI feed';
+  const p = videoPos();
+  $('video-big-name').textContent = name;
+  $('video-big-sub').textContent = i === 255 ? ((S.media.live || {}).running ? 'live stream · ' + (S.media.live.source || '') : 'live stream — not running (Media → LIVE source)') : p.clip ? `#${i} · ${fmtDur(p.pos)} / ${fmtDur(p.dur)} · ${p.clip.width}×${p.clip.height} · ${S.base.video_loop >= 0.5 ? 'loop' : 'one-shot' + (p.ended ? ' · ended' : '')}` : (clips.length ? 'pick a clip' : 'upload clips in the Media tab');
+  $('video-bar-fill').style.width = p.dur ? (100 * p.pos / p.dur).toFixed(1) + '%' : '0%';
+  $('video-loop').className = 'btn small' + (S.base.video_loop >= 0.5 ? ' active' : '');
+  if (document.activeElement !== $('video-speed')) $('video-speed').value = S.base.video_speed || 1;
+  $('video-speed-v').textContent = (+S.base.video_speed || 1).toFixed(2) + '×';
+  $('video-barsync').className = 'btn small' + (v.bar_sync ? ' active' : '');
+  if (document.activeElement !== $('video-cycle')) $('video-cycle').value = v.cycle || 'end';
+  if (document.activeElement !== $('video-cycle-bars')) $('video-cycle-bars').value = v.cycle_bars || 8;
+  $('video-cycle-bars').disabled = v.cycle !== 'bars';
+  $('video-live').className = 'btn' + (i === 255 && on9 ? ' active' : '');
+  const sig = clips.map(c => c.name).join('|') + '#' + i + on9;
+  if ($('video-chips').dataset.sig !== sig) { $('video-chips').dataset.sig = sig; $('video-chips').innerHTML = clips.slice(0, 16).map((c, k) => `<button class="btn small ${on9 && k === i ? 'active' : ''}" data-c="${k}" title="${esc(c.name)} · ${fmtDur(c.duration)}">${esc(c.name.slice(0, 22))}</button>`).join(''); $('video-chips').querySelectorAll('[data-c]').forEach(b => b.onclick = () => send({video: {play: +b.dataset.c}})); }
+  // card placement: under the preview when active (like projectM)
+  const previewCard = document.querySelector('.previewwrap').closest('.card'), vc = $('video-card');
+  if (on9 && vc.previousElementSibling !== previewCard) previewCard.after(vc);
+  if (!on9 && vc.previousElementSibling === previewCard) document.querySelector('#fleet').closest('.card').before(vc);
+  if (S.live && (on9 || !mediaLast)) fetchMedia(false);
+}
+$('eng-video').onclick = () => send({video: {play: S.video.index === 255 ? 255 : Math.max(0, S.video.index || 0)}});
+$('video-prev').onclick = () => send({video: {prev: 1}}); $('video-next').onclick = () => send({video: {next: 1}}); $('video-restart').onclick = () => send({video: {restart: 1}});
+$('video-live').onclick = () => send({video: {live: 1}});
+$('video-loop').onclick = () => send({video: {loop: !(S.base.video_loop >= 0.5)}});
+$('video-speed').oninput = () => { $('video-speed-v').textContent = (+$('video-speed').value).toFixed(2) + '×'; send({video: {speed: +$('video-speed').value}}); };
+$('video-barsync').onclick = () => send({video: {bar_sync: !S.video.bar_sync}});
+$('video-cycle').onchange = () => send({video: {cycle: $('video-cycle').value}});
+$('video-cycle-bars').onchange = () => send({video: {cycle_bars: +$('video-cycle-bars').value}});
+$('video-open-media').onclick = () => $('nav').querySelector('[data-view=media]').click();
+
+// ---- Media tab
+function renderMedia() {
+  if ($('media').hidden) return;
+  const md = S.media || {}, clips = md.clips || [], v = S.video || {}, cur = Math.round(S.base.video_clip), on9 = Math.round(S.base.mode) === 9;
+  $('media-ffmpeg').textContent = !S.live ? 'demo — no master' : md.ffmpeg ? 'ffmpeg ready' : 'ffmpeg missing on master';
+  $('media-ffmpeg').style.color = S.live && !md.ffmpeg ? 'var(--bad)' : '';
+  const jobs = md.jobs || [];
+  $('media-jobs').innerHTML = jobs.filter(j => j.state !== 'done' || Date.now() / 1000 - j.started < 120).map(j => `<div class="up"><span>${esc(j.orig || j.name)} → <b>${esc(j.name)}.mp4</b> <span class="mute">${j.src ? j.src + ' · ' + fmtDur(j.duration) : ''}</span></span><span class="${j.state === 'failed' ? 'bad' : j.state === 'done' ? 'ok' : 'warn'}">${j.state}${j.state === 'converting' ? ' ' + Math.round(j.progress * 100) + '%' : ''}${j.msg ? ' · ' + esc(j.msg) : ''}</span><div class="bar"><i style="width:${Math.round((j.state === 'done' ? 1 : j.progress) * 100)}%"></i></div></div>`).join('');
+  $('media-summary').textContent = clips.length ? `${clips.length} clips · ${fmtMB(clips.reduce((a, c) => a + c.size, 0))} · index order is name order (same on every Pi)` : (S.live ? 'nothing uploaded yet' : 'connect to a master to manage clips');
+  const sig = JSON.stringify(clips.map(c => [c.name, c.sha1, c.thumb])) + cur + on9 + (v.playlist || []).join();
+  if ($('media-grid').dataset.sig !== sig) {
+    $('media-grid').dataset.sig = sig;
+    $('media-grid').innerHTML = clips.map((c, i) => `<div class="clip ${on9 && i === cur ? 'on' : ''}" data-i="${i}">
+      <div class="th" style="${c.thumb ? `background-image:url(${c.thumb}?${c.mtime})` : ''}" title="play on every projector">${c.thumb ? '' : 'no thumbnail'}</div>
+      <div class="nm" title="${esc(c.name)}">#${i} ${esc(c.name)}</div>
+      <div class="meta">${fmtDur(c.duration)} · ${c.width}×${c.height} · ${fmtMB(c.size)}</div>
+      <div class="acts"><button class="btn primary" data-play="${i}">▶ play</button><button class="btn" data-pl="${c.name}" ${(v.playlist || []).includes(c.name) ? 'disabled' : ''}>+ playlist</button><button class="btn" data-ren="${c.name}">rename</button><button class="btn" data-del="${c.name}">delete</button></div>
+    </div>`).join('') || '<div class="hint">No clips yet. Drop files above.</div>';
+    $('media-grid').querySelectorAll('.th').forEach(el => el.onclick = () => send({video: {play: +el.closest('.clip').dataset.i}}));
+    $('media-grid').querySelectorAll('[data-play]').forEach(b => b.onclick = () => send({video: {play: +b.dataset.play}}));
+    $('media-grid').querySelectorAll('[data-pl]').forEach(b => b.onclick = () => send({video: {playlist: (S.video.playlist || []).concat([b.dataset.pl])}}));
+    $('media-grid').querySelectorAll('[data-ren]').forEach(b => b.onclick = () => { const n = prompt('New name for ' + b.dataset.ren, b.dataset.ren); if (n && n !== b.dataset.ren) { send({video: {rename: {old: b.dataset.ren, new: n}}}); setTimeout(() => fetchMedia(true), 600); } });
+    $('media-grid').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('Delete ' + b.dataset.del + '.mp4 from the master? Renderers remove it on their next sync.')) { send({video: {delete: b.dataset.del}}); setTimeout(() => fetchMedia(true), 600); } });
+  }
+  // playlist
+  const pl = v.playlist || [];
+  const psig = pl.join('|') + '#' + (v.name || '');
+  if ($('media-playlist').dataset.sig !== psig) {
+    $('media-playlist').dataset.sig = psig;
+    $('media-playlist').innerHTML = pl.map((n, k) => `<div class="it ${v.name === n && on9 ? 'on' : ''}"><span class="n">${k + 1}</span><span class="t">${esc(n)}</span><button class="btn" data-up="${k}">▲</button><button class="btn" data-dn="${k}">▼</button><button class="btn" data-go="${esc(n)}">▶</button><button class="btn" data-rm="${k}">✕</button></div>`).join('') || '<div class="hint">empty — PREV / NEXT walk the whole library</div>';
+    const mv = (k, d) => { const a = pl.slice(); const j = k + d; if (j < 0 || j >= a.length) return; [a[k], a[j]] = [a[j], a[k]]; send({video: {playlist: a}}); };
+    $('media-playlist').querySelectorAll('[data-up]').forEach(b => b.onclick = () => mv(+b.dataset.up, -1));
+    $('media-playlist').querySelectorAll('[data-dn]').forEach(b => b.onclick = () => mv(+b.dataset.dn, 1));
+    $('media-playlist').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => send({video: {playlist: pl.filter((_, k) => k !== +b.dataset.rm)}}));
+    $('media-playlist').querySelectorAll('[data-go]').forEach(b => b.onclick = () => send({video: {play: b.dataset.go}}));
+    $('media-pl-add').innerHTML = clips.map(c => `<option>${esc(c.name)}</option>`).join('');
+  }
+  if (document.activeElement !== $('media-cycle')) $('media-cycle').value = v.cycle || 'end';
+  if (document.activeElement !== $('media-cycle-bars')) $('media-cycle-bars').value = v.cycle_bars || 8;
+  // live
+  const lv = md.live || {};
+  $('live-state').innerHTML = `<i class="dot ${lv.running ? 'ok' : ''}"></i>${lv.running ? 'streaming · ' + esc(lv.source || '') : 'off'}`;
+  $('live-msg').textContent = lv.msg || (lv.running ? lv.url : '');
+  if ($('live-kind').value === 'file' && $('live-source').dataset.kind !== 'file') { $('live-source').dataset.kind = 'file'; $('live-source').innerHTML = clips.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join(''); }
+}
+$('media-pl-addbtn').onclick = () => { const n = $('media-pl-add').value; if (n) send({video: {playlist: (S.video.playlist || []).concat([n])}}); };
+$('media-pl-clear').onclick = () => send({video: {playlist: []}});
+$('media-cycle').onchange = () => send({video: {cycle: $('media-cycle').value}});
+$('media-cycle-bars').onchange = () => send({video: {cycle_bars: +$('media-cycle-bars').value}});
+async function liveDevices() {
+  const kind = $('live-kind').value, sel = $('live-source'); sel.dataset.kind = kind;
+  if (kind === 'file') { sel.innerHTML = (S.media.clips || []).map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join(''); return; }
+  if (kind === 'test') { sel.innerHTML = '<option value="testsrc2">colour bars + clock</option>'; return; }
+  let devs = []; try { devs = await (await fetch('/api/media/devices')).json(); } catch (e) {}
+  const list = kind === 'hdmi' ? devs.filter(d => d.hdmi).concat(devs.filter(d => !d.hdmi)) : devs;
+  sel.innerHTML = list.map(d => `<option value="${d.dev}">${d.dev} — ${esc(d.name || 'video device')}${d.hdmi ? ' (capture)' : ''}</option>`).join('') || '<option value="">no capture device found — plug the HDMI dongle into the master</option>';
+}
+$('live-kind').onchange = liveDevices; $('live-refresh').onclick = liveDevices;
+$('live-start').onclick = () => { const kind = $('live-kind').value, source = $('live-source').value; if (!source) return alert('no source selected'); send({video: {live_start: {kind, source, size: $('live-size').value}}}); setTimeout(() => fetchMedia(true), 1200); };
+$('live-stop').onclick = () => { send({video: {live_stop: 1}}); setTimeout(() => fetchMedia(true), 800); };
+$('live-show').onclick = () => send({video: {live: 1}});
+liveDevices();
+// uploads (XHR for progress)
+function uploadFiles(files) {
+  if (!S.live) return alert('Connect to a master first — the Pages demo has no library.');
+  [...files].forEach(f => {
+    const row = document.createElement('div'); row.className = 'up'; row.innerHTML = `<span>${esc(f.name)} <span class="mute">${fmtMB(f.size)}</span></span><span class="warn" data-st>uploading…</span><div class="bar"><i style="width:0"></i></div>`;
+    $('media-uploads').prepend(row);
+    const fd = new FormData(); fd.append('file', f, f.name);
+    const x = new XMLHttpRequest(); x.open('POST', '/api/media/upload');
+    x.upload.onprogress = e => { if (e.lengthComputable) row.querySelector('.bar i').style.width = Math.round(100 * e.loaded / e.total) + '%'; };
+    x.onload = () => { const ok = x.status === 200; row.querySelector('[data-st]').className = ok ? 'ok' : 'bad'; row.querySelector('[data-st]').textContent = ok ? 'uploaded — converting' : 'upload failed (' + x.status + ')'; fetchMedia(true); setTimeout(() => row.remove(), 6000); };
+    x.onerror = () => { row.querySelector('[data-st]').className = 'bad'; row.querySelector('[data-st]').textContent = 'upload failed'; };
+    x.send(fd);
+  });
+}
+$('media-pick').onclick = () => $('media-file').click();
+$('media-file').onchange = () => { uploadFiles($('media-file').files); $('media-file').value = ''; };
+['dragenter', 'dragover'].forEach(ev => $('media-drop').addEventListener(ev, e => { e.preventDefault(); $('media-drop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => $('media-drop').addEventListener(ev, e => { e.preventDefault(); $('media-drop').classList.remove('over'); }));
+$('media-drop').addEventListener('drop', e => uploadFiles(e.dataTransfer.files));
+setInterval(() => { if (!$('media').hidden || Math.round(S.base.mode) === 9) fetchMedia(false); if (!$('media').hidden) renderMedia(); }, 2000);
+
+// ---- preview: play the clip in the browser in step with the master clock (live stream can't be shown here)
+const pvVideo = $('pv-video');
+let pvSrc = '';
+function videoFrame(now, t) {
+  const on9 = Math.round(S.base.mode) === 9;
+  pvVideo.hidden = !on9; $('pv-video-overlay').hidden = !on9;
+  if (!on9) { if (!pvVideo.paused) pvVideo.pause(); return false; }
+  const i = Math.round(S.base.video_clip), c = (S.media.clips || [])[i];
+  if (i === 255 || !c || !S.live) {
+    if (pvSrc) { pvVideo.removeAttribute('src'); pvVideo.load(); pvSrc = ''; }
+    $('pv-video-label').textContent = i === 255 ? 'LIVE stream on the projectors — no browser preview' : S.live ? 'video · no clip selected' : 'video scene · demo has no clips';
+    return true;
+  }
+  const url = '/media/' + encodeURIComponent(c.file);
+  if (pvSrc !== url) { pvSrc = url; pvVideo.src = url; pvVideo.loop = false; pvVideo.play().catch(() => {}); }
+  const p = videoPos(); const rate = +S.base.video_speed || 1;
+  if (Math.abs(pvVideo.playbackRate - rate) > 0.01) pvVideo.playbackRate = Math.min(4, Math.max(0.1, rate));
+  if (pvVideo.readyState >= 2 && Math.abs(pvVideo.currentTime - p.pos) > 0.35) { try { pvVideo.currentTime = p.pos; } catch (e) {} }
+  if (p.ended) { if (!pvVideo.paused) pvVideo.pause(); } else if (pvVideo.paused) pvVideo.play().catch(() => {});
+  $('pv-video-label').textContent = `video · ${c.name} · ${fmtDur(p.pos)} / ${fmtDur(p.dur)} · browser preview follows the master clock`;
+  return true;
+}
+
 $('eng-pm').onclick = () => send({set: {mode: 8}});
 $('eng-shader').onclick = () => send({set: {mode: lastShaderMode}});
 $('tap').onclick = () => send({tap: 1});
@@ -1317,7 +1655,7 @@ function frame(now) {
   if (!document.hidden && !$('perf').hidden) drawPerfGrid(t);
   if (document.querySelector('main').hidden || document.hidden) return;   // preview only renders on the Control tab
   try { drawInputMonitor(now, t); } catch (e) { BR.errors.push('inmon: ' + e.message); BR.errors = BR.errors.slice(-8); }
-  if (bcFrame(now, t)) { if (++fpsN >= 30) { BR.previewFps = Math.round(fpsN / ((now - fpsT) / 1000)); $('pill-fps').textContent = BR.previewFps + ' fps'; fpsN = 0; fpsT = now; } $('pill-t').textContent = 't ' + t.toFixed(1); return; }
+  if (videoFrame(now, t) || bcFrame(now, t)) { if (++fpsN >= 30) { BR.previewFps = Math.round(fpsN / ((now - fpsT) / 1000)); $('pill-fps').textContent = BR.previewFps + ' fps'; fpsN = 0; fpsT = now; } $('pill-t').textContent = 't ' + t.toFixed(1); return; }
   const target = PARAMS.map(p => S.out[p.key]);
   if (!cur) cur = target.slice();
   const a = 1 - Math.exp(-dt / 0.06);
@@ -1538,6 +1876,149 @@ $('lm-follow').onclick = () => send({source: {name: 'link', enabled: !!(S.source
 $('lm-lead').onclick = () => send({source: {name: 'link', enabled: !!(S.sources.link && S.sources.link.enabled), mode: 'lead'}});
 
 let thumbImgs = {};
+// ------------------------------------------------------------ projection mapping editor (Outputs)
+const MP = {list: [], name: null, m: null, saved: null, sel: null, adding: null, drag: null, img: new Image(), imgName: null, imgT: 0, timer: null, pushT: null};
+const MP_ID = {quad: [0, 0, 1, 0, 1, 1, 0, 1], masks: [], feather: 0, edge: [0, 0, 0, 0], bright: 1, gamma: 1, test: 0};
+const mapClone = m => JSON.parse(JSON.stringify(m || MP_ID));
+function mapFetch() { if (!S.live) { mapRenderList(); return; } fetch('/api/mapping').then(r => r.json()).then(j => { MP.list = j.renderers || []; mapRenderList(); }).catch(() => {}); }
+function mapRenderList() {
+  const names = [...new Set([...MP.list.map(r => r.name), ...Object.keys(S.fleet || {})])].sort();
+  const sel = $('map-name');
+  if (sel.dataset.sig !== names.join('|')) { sel.dataset.sig = names.join('|'); sel.innerHTML = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') || '<option value="">no projectors yet</option>';
+    $('map-copy').innerHTML = '<option value="">Copy from…</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join(''); }
+  if (!MP.name || !names.includes(MP.name)) { MP.name = names[0] || null; MP.m = null; }
+  if (MP.name) sel.value = MP.name;
+  const r = MP.list.find(x => x.name === MP.name);
+  if (MP.name && !MP.m) { MP.m = mapClone(r ? r.mapping : MP_ID); MP.saved = mapClone(MP.m); MP.sel = null; mapSliders(); }
+  else if (r && MP.saved && JSON.stringify(r.mapping) !== JSON.stringify(MP.saved) && !mapDirty()) { MP.m = mapClone(r.mapping); MP.saved = mapClone(MP.m); mapSliders(); }   // changed elsewhere
+  const st = $('map-status');
+  if (!MP.name) { st.textContent = '—'; st.className = 'pill'; }
+  else if (!r) { st.textContent = 'not stored'; st.className = 'pill'; }
+  else { const dirty = mapDirty(); st.textContent = dirty ? 'unsaved' : !r.online ? 'offline · saved' : r.applied === true ? 'applied on projector' : r.applied === false ? 'saved · projector catching up…' : 'saved'; st.className = 'pill ' + (dirty || r.applied === false ? 'warn' : r.applied ? 'ok' : ''); }
+  $('map-test').classList.toggle('active', !!(MP.m && MP.m.test));
+  mapDraw();
+}
+function mapDirty() { return MP.m && MP.saved && JSON.stringify(MP.m) !== JSON.stringify(MP.saved); }
+function mapSliders() {
+  if (!MP.m) return; const m = MP.m;
+  const set = (id, v, f) => { $(id).value = v; $(id + '-v').textContent = f ? f(v) : (+v).toFixed(2); };
+  set('map-feather', m.feather, v => (+v).toFixed(3)); set('map-bright', m.bright); set('map-gamma', m.gamma);
+  for (let i = 0; i < 4; i++) set('map-edge' + i, m.edge[i]);
+}
+function mapChanged(push) { mapRenderList(); if (push !== false && $('map-live').checked && S.live) { clearTimeout(MP.pushT); MP.pushT = setTimeout(() => mapPut(false), 150); } }
+function mapPut(explicit) {
+  if (!MP.name || !MP.m) return;
+  send({mapping: {name: MP.name, put: MP.m}});
+  MP.saved = mapClone(MP.m);
+  if (explicit) logLocal('mapping saved for ' + MP.name);
+  mapRenderList();
+}
+// homography square→quad (Heckbert), returns function (u,v)→[x,y]
+function mapH(q) {
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = q;
+  const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3, dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
+  let a, b, c, d, e, f, g, h;
+  if (Math.abs(dx3) < 1e-9 && Math.abs(dy3) < 1e-9) { a = x1 - x0; b = x2 - x1; c = x0; d = y1 - y0; e = y2 - y1; f = y0; g = 0; h = 0; }
+  else { let den = dx1 * dy2 - dx2 * dy1; if (Math.abs(den) < 1e-12) den = 1e-12; g = (dx3 * dy2 - dx2 * dy3) / den; h = (dx1 * dy3 - dx3 * dy1) / den;
+    a = x1 - x0 + g * x1; b = x3 - x0 + h * x3; c = x0; d = y1 - y0 + g * y1; e = y3 - y0 + h * y3; f = y0; }
+  return (u, v) => { const w = g * u + h * v + 1; return [(a * u + b * v + c) / w, (d * u + e * v + f) / w]; };
+}
+function mapDraw() {
+  const cv = $('map-canvas'); if (!cv || $('outputs').hidden) return;
+  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  if (!MP.m) { ctx.fillStyle = '#666'; ctx.font = '14px DM Sans, sans-serif'; ctx.fillText(S.live ? 'no projectors heard yet' : 'demo mode — connect to a master to map a projector', 16, 28); return; }
+  const m = MP.m, Hf = mapH(m.quad), img = MP.img.complete && MP.img.naturalWidth ? MP.img : null;
+  // warped picture as an affine mesh (N×N cells, 2 triangles each)
+  const N = 12;
+  if (img) {
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const tri = (s, d) => { ctx.save(); ctx.beginPath(); ctx.moveTo(d[0][0], d[0][1]); ctx.lineTo(d[1][0], d[1][1]); ctx.lineTo(d[2][0], d[2][1]); ctx.closePath(); ctx.clip();
+      const [x0, y0] = s[0], [x1, y1] = s[1], [x2, y2] = s[2], [u0, v0] = d[0], [u1, v1] = d[1], [u2, v2] = d[2];
+      const det = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0); if (Math.abs(det) < 1e-9) { ctx.restore(); return; }
+      const A = ((u1 - u0) * (y2 - y0) - (u2 - u0) * (y1 - y0)) / det, B = ((v1 - v0) * (y2 - y0) - (v2 - v0) * (y1 - y0)) / det,
+            C = ((u2 - u0) * (x1 - x0) - (u1 - u0) * (x2 - x0)) / det, D = ((v2 - v0) * (x1 - x0) - (v1 - v0) * (x2 - x0)) / det;
+      ctx.setTransform(A, B, C, D, u0 - A * x0 - C * y0, v0 - B * x0 - D * y0); ctx.drawImage(img, 0, 0); ctx.restore(); };
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const u0 = i / N, u1 = (i + 1) / N, v0 = j / N, v1 = (j + 1) / N, e = 0.002;   // tiny overlap hides seams
+      const P = (u, v) => { const [x, y] = Hf(u, v); return [x * W, y * H]; };
+      const s00 = [u0 * iw, v0 * ih], s10 = [u1 * iw, v0 * ih], s11 = [u1 * iw, v1 * ih], s01 = [u0 * iw, v1 * ih];
+      tri([s00, s10, s11], [P(u0 - e, v0 - e), P(u1 + e, v0 - e), P(u1 + e, v1 + e)]); tri([s00, s11, s01], [P(u0 - e, v0 - e), P(u1 + e, v1 + e), P(u0 - e, v1 + e)]);
+    }
+  } else { ctx.fillStyle = '#1a1c22'; ctx.beginPath(); const c = [0, 1, 2, 3].map(k => Hf([0, 1, 1, 0][k], [0, 0, 1, 1][k])); ctx.moveTo(c[0][0] * W, c[0][1] * H); c.slice(1).forEach(p => ctx.lineTo(p[0] * W, p[1] * H)); ctx.closePath(); ctx.fill(); }
+  // edge blend bands (source space) as gradients along the warped edges — approximate with lines in source space
+  if (m.edge.some(v => v > 0)) { ctx.strokeStyle = 'rgba(255,200,80,0.7)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+    const line = (ua, va, ub, vb) => { const a = Hf(ua, va), b = Hf(ub, vb); ctx.beginPath(); ctx.moveTo(a[0] * W, a[1] * H); ctx.lineTo(b[0] * W, b[1] * H); ctx.stroke(); };
+    if (m.edge[0] > 0) line(m.edge[0], 0, m.edge[0], 1); if (m.edge[1] > 0) line(1 - m.edge[1], 0, 1 - m.edge[1], 1);
+    if (m.edge[2] > 0) line(0, m.edge[2], 1, m.edge[2]); if (m.edge[3] > 0) line(0, 1 - m.edge[3], 1, 1 - m.edge[3]); ctx.setLineDash([]); }
+  // masks
+  m.masks.forEach((poly, pi) => { const selP = MP.sel && MP.sel.type === 'mask' && MP.sel.poly === pi;
+    ctx.beginPath(); for (let k = 0; k < poly.length; k += 2) (k ? ctx.lineTo : ctx.moveTo).call(ctx, poly[k] * W, poly[k + 1] * H); ctx.closePath();
+    ctx.fillStyle = selP ? 'rgba(236,96,97,0.45)' : 'rgba(0,0,0,0.72)'; ctx.fill(); ctx.strokeStyle = selP ? '#ec6061' : 'rgba(255,255,255,0.5)'; ctx.lineWidth = selP ? 2 : 1; ctx.stroke();
+    for (let k = 0; k < poly.length; k += 2) { const on = selP && MP.sel.idx === k / 2; ctx.beginPath(); ctx.arc(poly[k] * W, poly[k + 1] * H, on ? 7 : 5, 0, 7); ctx.fillStyle = on ? '#fff' : '#ec6061'; ctx.fill(); } });
+  if (MP.adding) { const a = MP.adding; ctx.strokeStyle = '#f5d05c'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k = 0; k < a.length; k += 2) (k ? ctx.lineTo : ctx.moveTo).call(ctx, a[k] * W, a[k + 1] * H); ctx.stroke();
+    for (let k = 0; k < a.length; k += 2) { ctx.beginPath(); ctx.arc(a[k] * W, a[k + 1] * H, 5, 0, 7); ctx.fillStyle = '#f5d05c'; ctx.fill(); } }
+  // quad outline + corner handles (colours match the projector's test pattern)
+  const cols = ['#ff4040', '#40e060', '#5080ff', '#ffe040'], q = m.quad;
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k = 0; k < 4; k++) (k ? ctx.lineTo : ctx.moveTo).call(ctx, q[k * 2] * W, q[k * 2 + 1] * H); ctx.closePath(); ctx.stroke();
+  for (let k = 0; k < 4; k++) { const on = MP.sel && MP.sel.type === 'quad' && MP.sel.idx === k; ctx.beginPath(); ctx.arc(q[k * 2] * W, q[k * 2 + 1] * H, on ? 10 : 8, 0, 7); ctx.fillStyle = cols[k]; ctx.fill(); if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); } }
+}
+function mapPos(ev) { const cv = $('map-canvas'), r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height]; }
+function mapHit(x, y) {
+  const cv = $('map-canvas'), r = cv.getBoundingClientRect(), tol = 12 / r.width, m = MP.m;
+  for (let k = 0; k < 4; k++) if (Math.hypot(m.quad[k * 2] - x, (m.quad[k * 2 + 1] - y) * 9 / 16) < tol) return {type: 'quad', idx: k};
+  for (let p = 0; p < m.masks.length; p++) for (let k = 0; k < m.masks[p].length; k += 2) if (Math.hypot(m.masks[p][k] - x, (m.masks[p][k + 1] - y) * 9 / 16) < tol) return {type: 'mask', poly: p, idx: k / 2};
+  for (let p = m.masks.length - 1; p >= 0; p--) { const poly = m.masks[p]; let inside = false;   // click inside a mask selects it
+    for (let i = 0, j = poly.length / 2 - 1; i < poly.length / 2; j = i++) { const xi = poly[i * 2], yi = poly[i * 2 + 1], xj = poly[j * 2], yj = poly[j * 2 + 1]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; }
+    if (inside) return {type: 'mask', poly: p, idx: -1}; }
+  return null;
+}
+(() => {
+  const cv = $('map-canvas'); if (!cv) return;
+  cv.addEventListener('pointerdown', ev => {
+    if (!MP.m) return; const [x, y] = mapPos(ev); cv.setPointerCapture(ev.pointerId);
+    if (MP.adding) { MP.adding.push(Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))); mapDraw(); return; }
+    const h = mapHit(x, y); MP.sel = h; MP.drag = h && h.idx >= 0 ? {h, ox: x, oy: y, orig: mapClone(MP.m)} : null; mapDraw();
+  });
+  cv.addEventListener('pointermove', ev => {
+    if (!MP.drag || !MP.m) return; const [x, y] = mapPos(ev), d = MP.drag, dx = x - d.ox, dy = y - d.oy;
+    if (d.h.type === 'quad') { MP.m.quad[d.h.idx * 2] = d.orig.quad[d.h.idx * 2] + dx; MP.m.quad[d.h.idx * 2 + 1] = d.orig.quad[d.h.idx * 2 + 1] + dy; }
+    else { MP.m.masks[d.h.poly][d.h.idx * 2] = d.orig.masks[d.h.poly][d.h.idx * 2] + dx; MP.m.masks[d.h.poly][d.h.idx * 2 + 1] = d.orig.masks[d.h.poly][d.h.idx * 2 + 1] + dy; }
+    mapChanged();
+  });
+  cv.addEventListener('pointerup', () => { if (MP.drag) { MP.drag = null; mapChanged(); } });
+  cv.addEventListener('dblclick', () => { if (MP.adding) mapFinishMask(); });
+  document.addEventListener('keydown', ev => {
+    if ($('outputs').hidden || !MP.m || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    if (ev.key === 'Enter' && MP.adding) { mapFinishMask(); ev.preventDefault(); return; }
+    if (ev.key === 'Escape') { MP.adding = null; MP.sel = null; $('map-addmask').classList.remove('active'); mapDraw(); return; }
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && MP.sel && MP.sel.type === 'mask') { MP.m.masks.splice(MP.sel.poly, 1); MP.sel = null; mapChanged(); ev.preventDefault(); return; }
+    const st = (ev.shiftKey ? 10 : 1), dx = ev.key === 'ArrowLeft' ? -st : ev.key === 'ArrowRight' ? st : 0, dy = ev.key === 'ArrowUp' ? -st : ev.key === 'ArrowDown' ? st : 0;
+    if ((dx || dy) && MP.sel && MP.sel.idx >= 0) { const px = 1 / 1920, py = 1 / 1080;   // one projector pixel at 1080p
+      if (MP.sel.type === 'quad') { MP.m.quad[MP.sel.idx * 2] += dx * px; MP.m.quad[MP.sel.idx * 2 + 1] += dy * py; }
+      else { MP.m.masks[MP.sel.poly][MP.sel.idx * 2] += dx * px; MP.m.masks[MP.sel.poly][MP.sel.idx * 2 + 1] += dy * py; }
+      mapChanged(); ev.preventDefault(); }
+  });
+  $('map-name').onchange = () => { if (mapDirty() && !confirm('Discard unsaved mapping changes for ' + MP.name + '?')) { $('map-name').value = MP.name; return; } MP.name = $('map-name').value; MP.m = null; MP.sel = null; MP.adding = null; mapRenderList(); };
+  $('map-test').onclick = () => { if (!MP.m) return; MP.m.test = MP.m.test ? 0 : 1; mapChanged(); mapPut(false); };
+  $('map-addmask').onclick = () => { if (!MP.m) return; if (MP.adding) mapFinishMask(); else { MP.adding = []; MP.sel = null; $('map-addmask').classList.add('active'); mapDraw(); } };
+  $('map-delmask').onclick = () => { if (MP.sel && MP.sel.type === 'mask') { MP.m.masks.splice(MP.sel.poly, 1); MP.sel = null; mapChanged(); } };
+  $('map-reset').onclick = () => { if (!MP.m || !confirm('Reset ' + MP.name + ' to a plain full-screen picture?')) return; MP.m = mapClone(MP_ID); MP.sel = null; mapSliders(); mapChanged(); mapPut(false); };
+  $('map-revert').onclick = () => { if (!MP.saved) return; MP.m = mapClone(MP.saved); MP.sel = null; mapSliders(); mapChanged(false); if ($('map-live').checked) mapPut(false); };
+  $('map-save').onclick = () => mapPut(true);
+  $('map-copy').onchange = () => { const from = $('map-copy').value; $('map-copy').value = ''; if (!from || !MP.name || from === MP.name) return; const r = MP.list.find(x => x.name === from); if (!r) return; MP.m = mapClone(r.mapping); MP.sel = null; mapSliders(); mapChanged(); if (!$('map-live').checked) mapPut(false); };
+  const bind = (id, fn, fmt) => { $(id).oninput = () => { if (!MP.m) return; fn(+$(id).value); $(id + '-v').textContent = fmt ? fmt(+$(id).value) : (+$(id).value).toFixed(2); mapChanged(); }; };
+  bind('map-feather', v => MP.m.feather = v, v => v.toFixed(3)); bind('map-bright', v => MP.m.bright = v); bind('map-gamma', v => MP.m.gamma = v);
+  for (let i = 0; i < 4; i++) bind('map-edge' + i, v => MP.m.edge[i] = v);
+  // live thumbnail of the selected renderer as the picture being warped; applied-state refresh
+  MP.timer = setInterval(() => { if ($('outputs').hidden) return;
+    const has = S.live && MP.name && S.outputs && S.outputs.thumbs && S.outputs.thumbs[MP.name];
+    if (has) { if (MP.imgName !== MP.name) { MP.img = new Image(); MP.img.onload = () => mapDraw(); MP.imgName = MP.name; } MP.img.src = `/thumb/${encodeURIComponent(MP.name)}?t=${Date.now()}`; }
+    else if (MP.imgName !== null) { MP.img = new Image(); MP.imgName = null; }
+    if (S.live && Date.now() - MP.imgT > 2000) { MP.imgT = Date.now(); mapFetch(); } else mapDraw(); }, 500);
+})();
+function mapFinishMask() { const a = MP.adding; MP.adding = null; $('map-addmask').classList.remove('active'); if (a && a.length >= 6) { MP.m.masks.push(a); MP.sel = {type: 'mask', poly: MP.m.masks.length - 1, idx: -1}; mapChanged(); } else mapDraw(); }
+
 function renderOutputs(force) {
   if ($('outputs').hidden && !force) return;
   const o = S.outputs || {}, res = o.resolume || {}, led = o.led || {}, lk = S.sources.link || {}, ol = o.link || {};
@@ -1616,6 +2097,7 @@ function perfEnter(on) {
   if (on) { buildPerf(); renderPerf(); }
 }
 $('perf-enter').onclick = () => perfEnter(true);
+$('out-res').onchange = () => send({set: {out_res: +$('out-res').value}});
 $('perf-exit').onclick = () => perfEnter(false);
 function pfPage(i) { const pg = $('pf-pages'); pg.scrollTo({left: pg.clientWidth * i, behavior: 'smooth'}); }
 $('pf-tabs').querySelectorAll('button').forEach(b => b.onclick = () => pfPage(+b.dataset.pg));
@@ -1624,6 +2106,8 @@ $('pf-tap').onclick = () => send({tap: 1});
 $('pf-beat1').onclick = () => send({beat1: 1});
 $('pf-eng-shader').onclick = () => send({set: {mode: lastShaderMode}});
 $('pf-eng-pm').onclick = () => send({set: {mode: 8}});
+$('pf-eng-video').onclick = () => send({video: {play: S.video.index === 255 ? 255 : Math.max(0, S.video.index || 0)}});
+$('pf-vid-prev').onclick = () => send({video: {prev: 1}}); $('pf-vid-next').onclick = () => send({video: {next: 1}}); $('pf-vid-restart').onclick = () => send({video: {restart: 1}});
 $('pf-blackout').onclick = () => { if (pfBlackPrev == null) { pfBlackPrev = S.base.brightness; send({set: {brightness: 0}}); } else { send({set: {brightness: pfBlackPrev || 1}}); pfBlackPrev = null; } };
 $('pf-freeze').onclick = () => { if (pfFreezePrev == null) { pfFreezePrev = S.clock_speed; send({clock_speed: 0}); } else { send({clock_speed: pfFreezePrev || 1}); pfFreezePrev = null; } };
 $('pf-autotoggle').onclick = () => send({source: {name: 'auto', enabled: !S.auto_enabled}});
@@ -1645,7 +2129,10 @@ function renderPerf() {
   $('pf-bpm').textContent = S.bpm ? S.bpm.toFixed(1) : '—';
   $('pf-src').textContent = $('tempo-label').textContent;
   const on8 = Math.round(S.base.mode) === 8;
-  $('pf-eng-shader').className = 'pbtn' + (on8 ? '' : ' active'); $('pf-eng-pm').className = 'pbtn' + (on8 ? ' active' : '');
+  const on9p = Math.round(S.base.mode) === 9;
+  $('pf-eng-shader').className = 'pbtn' + ((on8 || on9p) ? '' : ' active'); $('pf-eng-pm').className = 'pbtn' + (on8 ? ' active' : ''); $('pf-eng-video').className = 'pbtn' + (on9p ? ' active' : '');
+  const clips = (S.media.clips || []), csig = clips.map(c => c.name).join('|') + '#' + S.video.index + on9p;
+  if ($('pf-clips').dataset.sig !== csig) { $('pf-clips').dataset.sig = csig; $('pf-clips').innerHTML = clips.slice(0, 24).map((c, i) => `<button class="pbtn pf-clip ${on9p && i === S.video.index ? 'active' : ''}" data-c="${i}">${c.thumb ? `<i class="bg" style="background-image:url(${c.thumb})"></i>` : ''}<span>${esc(c.name)}</span></button>`).join('') + `<button class="pbtn pf-clip ${on9p && S.video.index === 255 ? 'active' : ''}" data-c="255"><span>● LIVE</span></button>` || ''; $('pf-clips').querySelectorAll('[data-c]').forEach(b => b.onclick = () => send({video: {play: +b.dataset.c}})); }
   $('pf-scenes').querySelectorAll('button').forEach(b => b.className = 'pbtn' + (+b.dataset.m === Math.round(S.base.mode) ? ' active' : ''));
   $('pf-blackout').className = 'pbtn danger' + (S.base.brightness === 0 ? ' active' : ''); $('pf-freeze').className = 'pbtn' + (S.clock_speed === 0 ? ' active' : ''); $('pf-autotoggle').className = 'pbtn' + (S.auto_enabled ? ' active' : '');
   const names = Object.keys(S.presets || {});
@@ -1664,9 +2151,10 @@ function renderPerf() {
 $('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
   $('nav').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
   const v = b.dataset.view;
-  document.querySelector('main').hidden = v !== 'control'; $('info').hidden = v !== 'info'; $('status').hidden = v !== 'status'; $('outputs').hidden = v !== 'outputs';
+  document.querySelector('main').hidden = v !== 'control'; $('info').hidden = v !== 'info'; $('status').hidden = v !== 'status'; $('outputs').hidden = v !== 'outputs'; $('media').hidden = v !== 'media';
   if (v === 'status') renderStatus();
-  if (v === 'outputs') renderOutputs(true);
+  if (v === 'media') { fetchMedia(true); }
+  if (v === 'outputs') { renderOutputs(true); mapFetch(); }
   try { localStorage.setItem('frx.view', b.dataset.view); } catch (e) {}
   if (!info) window.scrollTo(0, 0);
 });
