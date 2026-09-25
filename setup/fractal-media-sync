@@ -10,7 +10,7 @@ Runs as a small systemd service on every Pi (setup/install.sh installs it). Stdl
      delete local *.mp4 the master no longer has — the byte-sorted list must match exactly or the
      `video_clip` index points at the wrong file
   4. GET /api/mapping/<name>.txt → mapping file (404 = identity → remove the local file)
-  5. sleep, repeat. Mapping is checked every SYNC_SECONDS (default 2, one tiny GET) so the mapping
+  5. sleep, repeat. Mapping is checked every SYNC_SECONDS (default 1, one tiny GET) so the mapping
      editor feels live; the media list every 5th pass — cheap when nothing changed.
   6. serves a small status page on http://<this-pi>:8082/ (STATUS_PORT) — renderer log tail, sync state,
      temperature / throttling, clip list, mapping, and a link to the master's web UI.
@@ -25,7 +25,7 @@ import urllib.error
 
 STATE = os.environ.get("FRACTAL_STATE", "/var/lib/fractal-rig/state")
 PORTS = [int(p) for p in os.environ.get("FRACTAL_MASTER_PORTS", "8080,8081").split(",") if p.strip()]
-PERIOD = float(os.environ.get("SYNC_SECONDS", "2"))
+PERIOD = float(os.environ.get("SYNC_SECONDS", "1"))
 STATUS_PORT = int(os.environ.get("STATUS_PORT", "8082"))
 TIMEOUT = 8
 

@@ -578,8 +578,11 @@
       <span id="map-status" class="pill">—</span>
       <span class="sep"></span>
       <button class="btn small" id="map-test" title="grid + coloured corners on that projector (red TL · green TR · blue BR · yellow BL)">Test pattern</button>
-      <button class="btn small" id="map-addmask" title="click points on the picture, double-click or Enter to close">+ Mask</button>
-      <button class="btn small" id="map-delmask" title="delete the selected mask (or Delete key)">Delete mask</button>
+      <button class="btn small" id="map-addrect" title="drag a rectangle to black out (R)">+ Rect mask</button>
+      <button class="btn small" id="map-addmask" title="click the corners of the area to black out, click the first point again (or Enter / double-click) to close (M)">+ Polygon mask</button>
+      <button class="btn small" id="map-delmask" title="delete the selected mask — or Delete removes the selected point">Delete</button>
+      <button class="btn small" id="map-clearmasks" title="remove every mask on this projector">Clear masks</button>
+      <button class="btn small" id="map-undo" title="undo (Ctrl/⌘ Z)">↶ Undo</button>
       <span class="sep"></span>
       <select id="map-copy" class="btn small" title="copy another projector's mapping onto this one"><option value="">Copy from…</option></select>
       <button class="btn small" id="map-reset" title="back to a plain full-screen picture">Reset</button>
@@ -589,7 +592,7 @@
       <button class="btn small primary" id="map-save">Save</button>
     </div>
     <div class="mapwrap"><canvas id="map-canvas" width="960" height="540"></canvas></div>
-    <div class="hint">Drag the four corners onto the surface (the projector shows the same coloured corners with <b>Test pattern</b> on). Arrow keys nudge the selected point by 1 px on the projector, Shift = 10. Masks are drawn in <em>output</em> space, so they stay put when you move the corners — use them to black out a doorway, a speaker, the bit of wall you don't want lit. Edge blend widths feather the source picture's sides for overlapping projectors. With <b>live</b> on, every change goes to the projector within a couple of seconds; Save just makes it explicit.</div>
+    <div class="hint">Drag the four corners onto the surface (the projector shows the same coloured corners with <b>Test pattern</b> on). Arrow keys nudge the selected point by 1 px on the projector, Shift = 10. Masks: <b>+ Rect</b> drag a box, <b>+ Polygon</b> click the corners and click the first point again to close; drag inside a mask to move it, drag a point to reshape, double-click an edge to add a point, Delete removes the selected point (or the mask), Ctrl/⌘ Z undoes. Masks live in <em>output</em> space, so they stay put when you move the corners — black out a doorway, a speaker, the bit of wall you don't want lit. Edge blend widths feather the source picture's sides for overlapping projectors. With <b>live</b> on, every change goes to the projector within a couple of seconds; Save just makes it explicit.</div>
     <div class="mapgrid">
       <div class="param"><label>Mask feather<small>softness of mask edges</small></label><input type="range" id="map-feather" min="0" max="0.2" step="0.002"><span class="val" id="map-feather-v"></span></div>
       <div class="param"><label>Brightness</label><input type="range" id="map-bright" min="0.2" max="2" step="0.01"><span class="val" id="map-bright-v"></span></div>
@@ -1949,7 +1952,7 @@ function mapDraw() {
             C = ((u2 - u0) * (x1 - x0) - (u1 - u0) * (x2 - x0)) / det, D = ((v2 - v0) * (x1 - x0) - (v1 - v0) * (x2 - x0)) / det;
       ctx.setTransform(A, B, C, D, u0 - A * x0 - C * y0, v0 - B * x0 - D * y0); ctx.drawImage(img, 0, 0); ctx.restore(); };
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const u0 = i / N, u1 = (i + 1) / N, v0 = j / N, v1 = (j + 1) / N, e = 0.002;   // tiny overlap hides seams
+      const u0 = i / N, u1 = (i + 1) / N, v0 = j / N, v1 = (j + 1) / N, e = 0.004;   // tiny overlap hides seams
       const P = (u, v) => { const [x, y] = Hf(u, v); return [x * W, y * H]; };
       const s00 = [u0 * iw, v0 * ih], s10 = [u1 * iw, v0 * ih], s11 = [u1 * iw, v1 * ih], s01 = [u0 * iw, v1 * ih];
       tri([s00, s10, s11], [P(u0 - e, v0 - e), P(u1 + e, v0 - e), P(u1 + e, v1 + e)]); tri([s00, s11, s01], [P(u0 - e, v0 - e), P(u1 + e, v1 + e), P(u0 - e, v1 + e)]);
@@ -1965,58 +1968,120 @@ function mapDraw() {
     ctx.beginPath(); for (let k = 0; k < poly.length; k += 2) (k ? ctx.lineTo : ctx.moveTo).call(ctx, poly[k] * W, poly[k + 1] * H); ctx.closePath();
     ctx.fillStyle = selP ? 'rgba(236,96,97,0.45)' : 'rgba(0,0,0,0.72)'; ctx.fill(); ctx.strokeStyle = selP ? '#ec6061' : 'rgba(255,255,255,0.5)'; ctx.lineWidth = selP ? 2 : 1; ctx.stroke();
     for (let k = 0; k < poly.length; k += 2) { const on = selP && MP.sel.idx === k / 2; ctx.beginPath(); ctx.arc(poly[k] * W, poly[k + 1] * H, on ? 7 : 5, 0, 7); ctx.fillStyle = on ? '#fff' : '#ec6061'; ctx.fill(); } });
-  if (MP.adding) { const a = MP.adding; ctx.strokeStyle = '#f5d05c'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k = 0; k < a.length; k += 2) (k ? ctx.lineTo : ctx.moveTo).call(ctx, a[k] * W, a[k + 1] * H); ctx.stroke();
-    for (let k = 0; k < a.length; k += 2) { ctx.beginPath(); ctx.arc(a[k] * W, a[k + 1] * H, 5, 0, 7); ctx.fillStyle = '#f5d05c'; ctx.fill(); } }
+  if (MP.adding && MP.adding.length) { const a = MP.adding, c = MP.cursor; ctx.strokeStyle = '#f5d05c'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k = 0; k < a.length; k += 2) (k ? ctx.lineTo : ctx.moveTo).call(ctx, a[k] * W, a[k + 1] * H);
+    if (c) { ctx.lineTo(c[0] * W, c[1] * H); } ctx.stroke();
+    if (a.length >= 6) { ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo((c || a)[0] * W, (c || a)[1] * H); ctx.lineTo(a[0] * W, a[1] * H); ctx.stroke(); ctx.setLineDash([]); }
+    for (let k = 0; k < a.length; k += 2) { const first = k === 0 && a.length >= 6, close = first && c && mapNear(c[0], c[1], a[0], a[1], 14); ctx.beginPath(); ctx.arc(a[k] * W, a[k + 1] * H, close ? 9 : 5, 0, 7); ctx.fillStyle = close ? '#fff' : '#f5d05c'; ctx.fill(); }
+    ctx.fillStyle = '#f5d05c'; ctx.font = '12px DM Sans, sans-serif'; ctx.fillText(a.length >= 6 ? 'click the first point / Enter to close · Esc cancels' : 'click the corners of the area to black out', 12, H - 12); }
+  else if (MP.tool === 'poly') { ctx.fillStyle = '#f5d05c'; ctx.font = '12px DM Sans, sans-serif'; ctx.fillText('polygon mask: click the corners of the area to black out', 12, H - 12); }
+  if (MP.rect) { const r = MP.rect; ctx.fillStyle = 'rgba(245,208,92,0.25)'; ctx.strokeStyle = '#f5d05c'; ctx.lineWidth = 1.5; ctx.fillRect(r.x0 * W, r.y0 * H, (r.x1 - r.x0) * W, (r.y1 - r.y0) * H); ctx.strokeRect(r.x0 * W, r.y0 * H, (r.x1 - r.x0) * W, (r.y1 - r.y0) * H); }
+  else if (MP.tool === 'rect') { ctx.fillStyle = '#f5d05c'; ctx.font = '12px DM Sans, sans-serif'; ctx.fillText('rectangle mask: drag across the area to black out', 12, H - 12); }
   // quad outline + corner handles (colours match the projector's test pattern)
   const cols = ['#ff4040', '#40e060', '#5080ff', '#ffe040'], q = m.quad;
   ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k = 0; k < 4; k++) (k ? ctx.lineTo : ctx.moveTo).call(ctx, q[k * 2] * W, q[k * 2 + 1] * H); ctx.closePath(); ctx.stroke();
   for (let k = 0; k < 4; k++) { const on = MP.sel && MP.sel.type === 'quad' && MP.sel.idx === k; ctx.beginPath(); ctx.arc(q[k * 2] * W, q[k * 2 + 1] * H, on ? 10 : 8, 0, 7); ctx.fillStyle = cols[k]; ctx.fill(); if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); } }
 }
 function mapPos(ev) { const cv = $('map-canvas'), r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height]; }
+function mapNear(ax, ay, bx, by, tolPx) { const r = $('map-canvas').getBoundingClientRect(); return Math.hypot((ax - bx) * r.width, (ay - by) * r.height) < tolPx; }
+function mapInside(poly, x, y) { let inside = false; for (let i = 0, j = poly.length / 2 - 1; i < poly.length / 2; j = i++) { const xi = poly[i * 2], yi = poly[i * 2 + 1], xj = poly[j * 2], yj = poly[j * 2 + 1]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; } return inside; }
+function mapNearestEdge(poly, x, y, tolPx) {   // → {seg, px, py} for the closest edge within tolPx, else null
+  const r = $('map-canvas').getBoundingClientRect(); let best = null;
+  for (let i = 0, n = poly.length / 2; i < n; i++) { const j = (i + 1) % n, ax = poly[i * 2], ay = poly[i * 2 + 1], bx = poly[j * 2], by = poly[j * 2 + 1];
+    const dx = (bx - ax) * r.width, dy = (by - ay) * r.height, L2 = dx * dx + dy * dy; let t = L2 ? (((x - ax) * r.width * dx + (y - ay) * r.height * dy) / L2) : 0; t = Math.max(0, Math.min(1, t));
+    const px = ax + (bx - ax) * t, py = ay + (by - ay) * t, d = Math.hypot((x - px) * r.width, (y - py) * r.height);
+    if (d < tolPx && (!best || d < best.d)) best = {seg: i, px, py, d}; }
+  return best;
+}
 function mapHit(x, y) {
-  const cv = $('map-canvas'), r = cv.getBoundingClientRect(), tol = 12 / r.width, m = MP.m;
-  for (let k = 0; k < 4; k++) if (Math.hypot(m.quad[k * 2] - x, (m.quad[k * 2 + 1] - y) * 9 / 16) < tol) return {type: 'quad', idx: k};
-  for (let p = 0; p < m.masks.length; p++) for (let k = 0; k < m.masks[p].length; k += 2) if (Math.hypot(m.masks[p][k] - x, (m.masks[p][k + 1] - y) * 9 / 16) < tol) return {type: 'mask', poly: p, idx: k / 2};
-  for (let p = m.masks.length - 1; p >= 0; p--) { const poly = m.masks[p]; let inside = false;   // click inside a mask selects it
-    for (let i = 0, j = poly.length / 2 - 1; i < poly.length / 2; j = i++) { const xi = poly[i * 2], yi = poly[i * 2 + 1], xj = poly[j * 2], yj = poly[j * 2 + 1]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; }
-    if (inside) return {type: 'mask', poly: p, idx: -1}; }
+  const m = MP.m, tol = 14;
+  for (let k = 0; k < 4; k++) if (mapNear(x, y, m.quad[k * 2], m.quad[k * 2 + 1], tol)) return {type: 'quad', idx: k};
+  // vertices of the selected mask first, then any mask
+  const order = MP.sel && MP.sel.type === 'mask' ? [MP.sel.poly, ...m.masks.keys()] : [...m.masks.keys()];
+  for (const p of order) { const poly = m.masks[p]; if (!poly) continue; for (let k = 0; k < poly.length; k += 2) if (mapNear(x, y, poly[k], poly[k + 1], tol)) return {type: 'mask', poly: p, idx: k / 2}; }
+  for (let p = m.masks.length - 1; p >= 0; p--) if (mapInside(m.masks[p], x, y)) return {type: 'mask', poly: p, idx: -1};   // inside → whole-mask move
   return null;
+}
+const MP_UNDO = [];
+function mapSnapshot() { MP_UNDO.push(JSON.stringify(MP.m)); if (MP_UNDO.length > 60) MP_UNDO.shift(); }
+function mapUndo() { if (!MP_UNDO.length) return; MP.m = JSON.parse(MP_UNDO.pop()); MP.sel = null; mapSliders(); mapChanged(); }
+function mapSetTool(t) { MP.tool = t; MP.adding = null; MP.rect = null; ['map-addmask', 'map-addrect'].forEach(id => $(id).classList.remove('active')); if (t === 'poly') $('map-addmask').classList.add('active'); if (t === 'rect') $('map-addrect').classList.add('active'); $('map-canvas').style.cursor = t ? 'crosshair' : 'default'; mapDraw(); }
+function mapFinishMask() {
+  const a = MP.adding; MP.adding = null;
+  if (a && a.length >= 6) { mapSnapshot(); MP.m.masks.push(a); MP.sel = {type: 'mask', poly: MP.m.masks.length - 1, idx: -1}; mapSetTool(null); mapChanged(); } else mapSetTool(null);
 }
 (() => {
   const cv = $('map-canvas'); if (!cv) return;
+  MP.tool = null; MP.hover = null;
   cv.addEventListener('pointerdown', ev => {
-    if (!MP.m) return; const [x, y] = mapPos(ev); cv.setPointerCapture(ev.pointerId);
-    if (MP.adding) { MP.adding.push(Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))); mapDraw(); return; }
-    const h = mapHit(x, y); MP.sel = h; MP.drag = h && h.idx >= 0 ? {h, ox: x, oy: y, orig: mapClone(MP.m)} : null; mapDraw();
+    if (!MP.m || ev.button === 2) return; const [x, y] = mapPos(ev); cv.setPointerCapture(ev.pointerId); MP.moved = false;
+    if (MP.tool === 'poly') {
+      const a = MP.adding || (MP.adding = []);
+      if (a.length >= 6 && mapNear(x, y, a[0], a[1], 14)) { mapFinishMask(); return; }   // click the first point to close
+      a.push(Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))); mapDraw(); return;
+    }
+    if (MP.tool === 'rect') { MP.rect = {x0: x, y0: y, x1: x, y1: y}; mapDraw(); return; }
+    const h = mapHit(x, y); MP.sel = h;
+    MP.drag = h ? {h, ox: x, oy: y, orig: mapClone(MP.m), snapped: false} : null; mapDraw();
   });
   cv.addEventListener('pointermove', ev => {
-    if (!MP.drag || !MP.m) return; const [x, y] = mapPos(ev), d = MP.drag, dx = x - d.ox, dy = y - d.oy;
+    if (!MP.m) return; const [x, y] = mapPos(ev); MP.cursor = [x, y];
+    if (MP.tool === 'rect' && MP.rect) { MP.rect.x1 = x; MP.rect.y1 = y; mapDraw(); return; }
+    if (MP.tool === 'poly') { mapDraw(); return; }
+    if (!MP.drag) { const h = mapHit(x, y); cv.style.cursor = h ? (h.idx >= 0 ? 'grab' : 'move') : 'default'; return; }
+    const d = MP.drag, dx = x - d.ox, dy = y - d.oy; if (!d.snapped) { d.snapped = true; mapSnapshot(); } MP.moved = true;
     if (d.h.type === 'quad') { MP.m.quad[d.h.idx * 2] = d.orig.quad[d.h.idx * 2] + dx; MP.m.quad[d.h.idx * 2 + 1] = d.orig.quad[d.h.idx * 2 + 1] + dy; }
-    else { MP.m.masks[d.h.poly][d.h.idx * 2] = d.orig.masks[d.h.poly][d.h.idx * 2] + dx; MP.m.masks[d.h.poly][d.h.idx * 2 + 1] = d.orig.masks[d.h.poly][d.h.idx * 2 + 1] + dy; }
+    else if (d.h.idx >= 0) { MP.m.masks[d.h.poly][d.h.idx * 2] = d.orig.masks[d.h.poly][d.h.idx * 2] + dx; MP.m.masks[d.h.poly][d.h.idx * 2 + 1] = d.orig.masks[d.h.poly][d.h.idx * 2 + 1] + dy; }
+    else { const o = d.orig.masks[d.h.poly], p = MP.m.masks[d.h.poly]; for (let k = 0; k < o.length; k += 2) { p[k] = o[k] + dx; p[k + 1] = o[k + 1] + dy; } }   // move the whole mask
     mapChanged();
   });
-  cv.addEventListener('pointerup', () => { if (MP.drag) { MP.drag = null; mapChanged(); } });
-  cv.addEventListener('dblclick', () => { if (MP.adding) mapFinishMask(); });
+  cv.addEventListener('pointerup', () => {
+    if (MP.tool === 'rect' && MP.rect) { const r = MP.rect; MP.rect = null; const x0 = Math.min(r.x0, r.x1), x1 = Math.max(r.x0, r.x1), y0 = Math.min(r.y0, r.y1), y1 = Math.max(r.y0, r.y1);
+      if (mapNear(x0, y0, x1, y1, 6)) { mapDraw(); return; }   // just a click — keep the tool armed
+      mapSnapshot(); MP.m.masks.push([x0, y0, x1, y0, x1, y1, x0, y1]); MP.sel = {type: 'mask', poly: MP.m.masks.length - 1, idx: -1}; mapSetTool(null); mapChanged(); return; }
+    if (MP.drag) { MP.drag = null; mapChanged(); }
+  });
+  cv.addEventListener('dblclick', ev => {
+    if (!MP.m) return;
+    if (MP.tool === 'poly') { mapFinishMask(); return; }
+    const [x, y] = mapPos(ev);
+    if (MP.sel && MP.sel.type === 'mask' && MP.sel.idx >= 0) return;
+    // double-click on a mask edge inserts a vertex there
+    for (let p = MP.m.masks.length - 1; p >= 0; p--) { const e = mapNearestEdge(MP.m.masks[p], x, y, 12); if (e) { mapSnapshot(); MP.m.masks[p].splice((e.seg + 1) * 2, 0, e.px, e.py); MP.sel = {type: 'mask', poly: p, idx: e.seg + 1}; mapChanged(); return; } }
+  });
+  cv.addEventListener('contextmenu', ev => { ev.preventDefault(); if (MP.tool) mapSetTool(null); else if (MP.adding) mapFinishMask(); });
   document.addEventListener('keydown', ev => {
     if ($('outputs').hidden || !MP.m || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { mapUndo(); ev.preventDefault(); return; }
     if (ev.key === 'Enter' && MP.adding) { mapFinishMask(); ev.preventDefault(); return; }
-    if (ev.key === 'Escape') { MP.adding = null; MP.sel = null; $('map-addmask').classList.remove('active'); mapDraw(); return; }
-    if ((ev.key === 'Delete' || ev.key === 'Backspace') && MP.sel && MP.sel.type === 'mask') { MP.m.masks.splice(MP.sel.poly, 1); MP.sel = null; mapChanged(); ev.preventDefault(); return; }
+    if (ev.key === 'Escape') { if (MP.tool) mapSetTool(null); else { MP.sel = null; mapDraw(); } return; }
+    if (ev.key === 'm' || ev.key === 'M') { mapSetTool(MP.tool === 'poly' ? null : 'poly'); return; }
+    if (ev.key === 'r' || ev.key === 'R') { mapSetTool(MP.tool === 'rect' ? null : 'rect'); return; }
+    if (ev.key === 't' || ev.key === 'T') { $('map-test').click(); return; }
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && MP.sel && MP.sel.type === 'mask') {
+      mapSnapshot(); const poly = MP.m.masks[MP.sel.poly];
+      if (MP.sel.idx >= 0 && poly.length > 6) { poly.splice(MP.sel.idx * 2, 2); MP.sel.idx = -1; }   // remove one vertex
+      else { MP.m.masks.splice(MP.sel.poly, 1); MP.sel = null; }
+      mapChanged(); ev.preventDefault(); return; }
     const st = (ev.shiftKey ? 10 : 1), dx = ev.key === 'ArrowLeft' ? -st : ev.key === 'ArrowRight' ? st : 0, dy = ev.key === 'ArrowUp' ? -st : ev.key === 'ArrowDown' ? st : 0;
-    if ((dx || dy) && MP.sel && MP.sel.idx >= 0) { const px = 1 / 1920, py = 1 / 1080;   // one projector pixel at 1080p
+    if ((dx || dy) && MP.sel) { const px = 1 / 1920, py = 1 / 1080;   // one projector pixel at 1080p
+      mapSnapshot();
       if (MP.sel.type === 'quad') { MP.m.quad[MP.sel.idx * 2] += dx * px; MP.m.quad[MP.sel.idx * 2 + 1] += dy * py; }
-      else { MP.m.masks[MP.sel.poly][MP.sel.idx * 2] += dx * px; MP.m.masks[MP.sel.poly][MP.sel.idx * 2 + 1] += dy * py; }
+      else if (MP.sel.idx >= 0) { MP.m.masks[MP.sel.poly][MP.sel.idx * 2] += dx * px; MP.m.masks[MP.sel.poly][MP.sel.idx * 2 + 1] += dy * py; }
+      else { const p = MP.m.masks[MP.sel.poly]; for (let k = 0; k < p.length; k += 2) { p[k] += dx * px; p[k + 1] += dy * py; } }
       mapChanged(); ev.preventDefault(); }
   });
-  $('map-name').onchange = () => { if (mapDirty() && !confirm('Discard unsaved mapping changes for ' + MP.name + '?')) { $('map-name').value = MP.name; return; } MP.name = $('map-name').value; MP.m = null; MP.sel = null; MP.adding = null; mapRenderList(); };
+  $('map-name').onchange = () => { if (mapDirty() && !confirm('Discard unsaved mapping changes for ' + MP.name + '?')) { $('map-name').value = MP.name; return; } MP.name = $('map-name').value; MP.m = null; MP.sel = null; MP_UNDO.length = 0; mapSetTool(null); mapRenderList(); };
   $('map-test').onclick = () => { if (!MP.m) return; MP.m.test = MP.m.test ? 0 : 1; mapChanged(); mapPut(false); };
-  $('map-addmask').onclick = () => { if (!MP.m) return; if (MP.adding) mapFinishMask(); else { MP.adding = []; MP.sel = null; $('map-addmask').classList.add('active'); mapDraw(); } };
-  $('map-delmask').onclick = () => { if (MP.sel && MP.sel.type === 'mask') { MP.m.masks.splice(MP.sel.poly, 1); MP.sel = null; mapChanged(); } };
-  $('map-reset').onclick = () => { if (!MP.m || !confirm('Reset ' + MP.name + ' to a plain full-screen picture?')) return; MP.m = mapClone(MP_ID); MP.sel = null; mapSliders(); mapChanged(); mapPut(false); };
-  $('map-revert').onclick = () => { if (!MP.saved) return; MP.m = mapClone(MP.saved); MP.sel = null; mapSliders(); mapChanged(false); if ($('map-live').checked) mapPut(false); };
+  $('map-addmask').onclick = () => { if (!MP.m) return; if (MP.tool === 'poly' && MP.adding && MP.adding.length >= 6) mapFinishMask(); else mapSetTool(MP.tool === 'poly' ? null : 'poly'); };
+  $('map-addrect').onclick = () => { if (!MP.m) return; mapSetTool(MP.tool === 'rect' ? null : 'rect'); };
+  $('map-delmask').onclick = () => { if (MP.sel && MP.sel.type === 'mask') { mapSnapshot(); MP.m.masks.splice(MP.sel.poly, 1); MP.sel = null; mapChanged(); } };
+  $('map-clearmasks').onclick = () => { if (!MP.m || !MP.m.masks.length || !confirm('Remove all ' + MP.m.masks.length + ' masks on ' + MP.name + '?')) return; mapSnapshot(); MP.m.masks = []; MP.sel = null; mapChanged(); };
+  $('map-undo').onclick = mapUndo;
+  $('map-reset').onclick = () => { if (!MP.m || !confirm('Reset ' + MP.name + ' to a plain full-screen picture?')) return; mapSnapshot(); MP.m = mapClone(MP_ID); MP.sel = null; mapSliders(); mapChanged(); mapPut(false); };
+  $('map-revert').onclick = () => { if (!MP.saved) return; mapSnapshot(); MP.m = mapClone(MP.saved); MP.sel = null; mapSliders(); mapChanged(false); if ($('map-live').checked) mapPut(false); };
   $('map-save').onclick = () => mapPut(true);
-  $('map-copy').onchange = () => { const from = $('map-copy').value; $('map-copy').value = ''; if (!from || !MP.name || from === MP.name) return; const r = MP.list.find(x => x.name === from); if (!r) return; MP.m = mapClone(r.mapping); MP.sel = null; mapSliders(); mapChanged(); if (!$('map-live').checked) mapPut(false); };
-  const bind = (id, fn, fmt) => { $(id).oninput = () => { if (!MP.m) return; fn(+$(id).value); $(id + '-v').textContent = fmt ? fmt(+$(id).value) : (+$(id).value).toFixed(2); mapChanged(); }; };
+  $('map-copy').onchange = () => { const from = $('map-copy').value; $('map-copy').value = ''; if (!from || !MP.name || from === MP.name) return; const r = MP.list.find(x => x.name === from); if (!r) return; mapSnapshot(); MP.m = mapClone(r.mapping); MP.sel = null; mapSliders(); mapChanged(); if (!$('map-live').checked) mapPut(false); };
+  const bind = (id, fn, fmt) => { $(id).oninput = () => { if (!MP.m) return; fn(+$(id).value); $(id + '-v').textContent = fmt ? fmt(+$(id).value) : (+$(id).value).toFixed(2); mapChanged(); }; $(id).onpointerdown = () => { if (MP.m) mapSnapshot(); }; };
   bind('map-feather', v => MP.m.feather = v, v => v.toFixed(3)); bind('map-bright', v => MP.m.bright = v); bind('map-gamma', v => MP.m.gamma = v);
   for (let i = 0; i < 4; i++) bind('map-edge' + i, v => MP.m.edge[i] = v);
   // live thumbnail of the selected renderer as the picture being warped; applied-state refresh
@@ -2026,7 +2091,6 @@ function mapHit(x, y) {
     else if (MP.imgName !== null) { MP.img = new Image(); MP.imgName = null; }
     if (S.live && Date.now() - MP.imgT > 2000) { MP.imgT = Date.now(); mapFetch(); } else mapDraw(); }, 500);
 })();
-function mapFinishMask() { const a = MP.adding; MP.adding = null; $('map-addmask').classList.remove('active'); if (a && a.length >= 6) { MP.m.masks.push(a); MP.sel = {type: 'mask', poly: MP.m.masks.length - 1, idx: -1}; mapChanged(); } else mapDraw(); }
 
 function renderOutputs(force) {
   if ($('outputs').hidden && !force) return;

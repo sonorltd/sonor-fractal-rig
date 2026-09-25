@@ -102,7 +102,9 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   `--low` proxy, exit 3 on size change; built by install-ndi.sh / install.sh when the SDK is present). **Projection mapping**: `renderer/mapping.c` + `shaders/warp.frag` (inverse
   homography, 512×288 mask texture with box-blur feather, edge blend ^1.6, bright/gamma, test grid), `master/mapping.py`
   store + `/api/mapping/{name}(.txt)` + canvas editor in Outputs (drag corners, draw masks, nudge keys, copy-from,
-  live apply with 150 ms debounce). **Output resolution** param `out_res` (top-bar selector): KMSDRM renderer
+  live apply with 150 ms debounce; rect + polygon tools, whole-mask drag, edge double-click inserts a vertex, undo).
+  Mask texture gotcha: rows are uploaded top-first, so warp.frag samples it at `o` (top-left uv), NOT `1-o.y` —
+  the first cut mirrored every mask vertically on the projector. **Output resolution** param `out_res` (top-bar selector): KMSDRM renderer
   remembers the request in `<state>.res`, exits 3, systemd restarts it in the new mode; `--out-res` pins.
   Heartbeat v5 adds `media:` `map:` `video:` tokens; fleet table shows a media column. Perform pages scroll
   (`.ppage overflow-y:auto`). Sources card moved to the bottom of Control. Packet 156 bytes / 29 params.
