@@ -98,7 +98,7 @@ class MappingStore:
                 pass
         return json.loads(json.dumps(IDENTITY))
 
-    def put(self, name, m):
+    def put(self, name, m, mirror=True):
         m = normalise(m)
         p = self.path(name)
         if m == IDENTITY and os.path.exists(p):
@@ -106,6 +106,8 @@ class MappingStore:
         elif m != IDENTITY:
             json.dump(m, open(p, "w"), indent=0)
         self.engine.event(f"mapping saved: {clean(name)}{' (identity)' if m == IDENTITY else ''}")
+        if mirror and getattr(self.engine, "cloud", None):
+            self.engine.cloud.put("mapping", clean(name), m)
         return m
 
     def text(self, name):

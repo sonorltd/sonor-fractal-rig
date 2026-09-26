@@ -148,8 +148,10 @@ class ShowLayer:
             pass
         return []
 
-    def save_cues(self):
+    def save_cues(self, mirror=True):
         json.dump(self.cues, open(CUE_FILE, "w"), indent=1)
+        if mirror and getattr(self.e, "cloud", None):
+            self.e.cloud.put("cue_stack", "current", self.cues)
 
     def _clean(self, c):
         a = c.get("actions") or {}

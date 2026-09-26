@@ -9,8 +9,8 @@ projectors over HDMI. Inputs: web UI, MIDI, OSC, Pioneer Pro DJ Link (passive be
 optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
 
 ## Spine
-- Spine version: n/a — **exempt**. Not a browser app in the Sonor family (no Supabase, no
-  sonor-db.js, runs on embedded Pis off-LAN). Same isolation class as `STUDIO - Hub` /
+- Spine version: n/a — **exempt**. Not a browser app in the Sonor family (no sonor-db.js, runs on
+  embedded Pis off-LAN; from v0.8.0 it mirrors its saved documents to Supabase `studio_fractal_docs`). Same isolation class as `STUDIO - Hub` /
   Hartley & Co: registered in `workspace-apps.tsv` as `type=side-project, isolation=full`.
 - HARMONY §4 note: nothing here is shareable with the Sonor app family except the 10 service
   colours used decoratively in the web UI header strip. Deliberately an island.
@@ -30,8 +30,12 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   audio input, web UI WebSocket.
 - Downstream: multicast `239.255.42.1:5005` → every renderer; renderer heartbeats → master
   udp/5006; renderer thumbnails → master udp/5008; master → Resolume OSC (udp, configurable), Ableton
-  Link (udp 20808 multicast), LED controllers (DDP 4048 / Art-Net 6454 / sACN 5568); renderer → NDI (opt). Persisted locally only: `master/state.json`, `master/presets.json` (gitignored).
-- No Supabase. No Xero. No outbound email. No customer data.
+  Link (udp 20808 multicast), LED controllers (DDP 4048 / Art-Net 6454 / sACN 5568); renderer → NDI (opt). Persisted locally: `master/state.json`, `presets.json`, `cues.json`, `shows/`, `led_configs/`, `mapping/`, `config.local.json` (all gitignored).
+- Supabase: `public.studio_fractal_docs` (rig, kind, name, data jsonb, deleted, updated_at; RLS anon select/insert/update,
+  no delete — soft delete) via `master/cloud.py` (PostgREST over aiohttp, publishable key in config.json, outbox
+  `cloud_outbox.json`, since-cursor `cloud_sync.json`). Offline-first: local file first, mirror when online, LWW on
+  updated_at; shows + led_config shared (rig='*'), preset_bank / cue_stack / mapping / config per rig. No Xero. No
+  outbound email. No customer data.
 
 ## Single source of truth
 - `master/params.py` = the parameter table. `python3 master/gen_params.py` regenerates
@@ -132,6 +136,14 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   mapping.py; identity check includes it), `test_all` (Align all), photo overlay (browser-only). Shows bundle
   `?bundle=1` zip (show.json + referenced clips) and `POST /api/shows-import`. `out_res` default 1 + forced at boot
   (`out_res_boot`). Test rig `sonor-rig update` now skips unreachable private repos instead of dying.
+  **Cloud sync** (`master/cloud.py`, see Data flows): every save point mirrors (`engine._mirror_presets`, `ShowLayer.
+  save_cues(mirror)`, `MappingStore.put(mirror)`, `Shows.capture/store_raw/delete/rename`, LED configs, `save_local_config`
+  → kind config (never auto-applied, lands in `config.cloud.json`)); pull handlers apply newer-than-local rows; routes
+  `/api/cloud`, `/api/cloud/config|sync`, `/api/cloud/list/{kind}`, `/api/cloud/fetch/{kind}/{name}`; ☁ menus on Shows
+  and LEDs, status pill in the top bar, settings card on Rig. **LED configurations** `master/led_configs/<name>.json`,
+  `/api/led/configs…` (save/update/load/delete/download/import). Tabs: Control · Cues · Inputs · Outputs · Media ·
+  Resolume · LEDs · Rig · Shows · Info; GitHub link dropped from the bar. Engine-aware Control/Perform: params groups,
+  scene buttons, engine cards and preset lists follow `engineOf(mode)`; engine buttons colour-coded (cyan/purple/amber).
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

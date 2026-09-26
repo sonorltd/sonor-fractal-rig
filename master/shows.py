@@ -64,6 +64,8 @@ class Shows:
         if os.path.exists(p):
             os.remove(p)
             self.e.event(f"show deleted: {clean(name)}")
+            if self.e.cloud:
+                self.e.cloud.delete("show", clean(name))
             return True
         return False
 
@@ -73,6 +75,8 @@ class Shows:
             return False
         d = json.load(open(a)); d["name"] = clean(new)
         json.dump(d, open(b, "w"), indent=1); os.remove(a)
+        if self.e.cloud:
+            self.e.cloud.delete("show", clean(old)); self.e.cloud.put("show", clean(new), d)
         return True
 
     # ------------------------------------------------------------ capture
@@ -106,7 +110,17 @@ class Shows:
             show["created"] = show["saved"]
         json.dump(show, open(self.path(name), "w"), indent=1)
         self.e.event(f"show saved: {show['name']} ({len(show['mappings'])} projectors, {len(show['presets'])} presets)")
+        if self.e.cloud:
+            self.e.cloud.put("show", show["name"], show)
         return show
+
+    def store_raw(self, name, d, mirror=True):
+        """Write a show document that came from the cloud / an import without re-capturing."""
+        d = dict(d); d["name"] = clean(name)
+        json.dump(d, open(self.path(name), "w"), indent=1)
+        if mirror and self.e.cloud:
+            self.e.cloud.put("show", d["name"], d)
+        return d
 
     # ------------------------------------------------------------ apply
     def apply(self, name, parts=None):

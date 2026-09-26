@@ -11,3 +11,7 @@ master/mapping/
 setup/ndi-recv
 master/shows/
 master/cues.json
+master/led_configs/
+master/cloud_outbox.json
+master/cloud_sync.json
+master/config.cloud.json

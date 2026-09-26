@@ -7,6 +7,12 @@
   "heartbeat_port": 5006,
   "tick_hz": 60,
 
+  "_cloud": "Supabase mirror of everything the rig saves (shows, presets, cues, LED configs, mappings). Offline-first: local files are the working copy; syncs when the Pi has internet. Publishable key is public by design (RLS). rig_id defaults to the hostname.",
+  "supabase_url": "https://ysmvklstkzodlocttspy.supabase.co",
+  "supabase_key": "sb_publishable_qGWek9FuEfiXLhLIIYcmuw_LwK5hgQc",
+  "rig_id": "",
+  "cloud_enabled": true,
+
   "http_host": "0.0.0.0",
   "http_port": 8080,
 

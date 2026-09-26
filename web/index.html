@@ -394,9 +394,9 @@
   <div class="spacer"></div>
   <select class="btn small" id="out-res" title="Output resolution on every projector (Pi renderers on KMSDRM modeset and restart, ~3 s black). A Pi 4 is much smoother at 1080p."><option value="0">Auto res</option><option value="1">1080p</option><option value="2">4K</option></select>
   <button class="btn small primary" id="perf-enter" title="big-button touch mode">▶ PERFORM</button>
-  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="cues">Cues</button><button data-view="shows">Shows</button><button data-view="inputs">Inputs</button><button data-view="media">Media</button><button data-view="outputs">Outputs</button><button data-view="resolume">Resolume</button><button data-view="leds">LEDs</button><button data-view="status">Rig</button><button data-view="info">Info</button></nav>
+  <span class="pill" id="pill-cloud" style="cursor:pointer" title="Supabase sync — click for details"><i class="dot" id="cloud-dot"></i><span id="cloud-label">cloud</span></span>
+  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="cues">Cues</button><button data-view="inputs">Inputs</button><button data-view="outputs">Outputs</button><button data-view="media">Media</button><button data-view="resolume">Resolume</button><button data-view="leds">LEDs</button><button data-view="status">Rig</button><button data-view="shows">Shows</button><button data-view="info">Info</button></nav>
   <span class="pill" id="pill-ver">v0.8.0</span>
-  <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
   <i style="background:#8058a1"></i><i style="background:#4bb9d3"></i><i style="background:#78ba57"></i><i style="background:#f5d05c"></i><i style="background:#e37c59"></i><i style="background:#ec6061"></i><i style="background:#e67eb1"></i><i style="background:#ad9978"></i><i style="background:#b7b1a7"></i><i style="background:#302f2e"></i>
@@ -583,6 +583,7 @@
       <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:220px"><label style="font-size:11px;color:var(--muted)">Notes</label><input class="text" id="show-notes" placeholder="cabling, which projector is which, anything future-you needs"></div>
       <button class="btn primary" id="show-save">Save current rig as show</button>
       <label class="btn small" style="cursor:pointer">Import file… <input type="file" id="show-import" accept=".json,.zip,application/json,application/zip" hidden></label>
+      <select id="show-cloud" class="btn small" title="shows other rigs (or this one, before a re-image) saved to the cloud"><option value="">☁ from cloud…</option></select>
     </div>
     <div class="parts" style="margin-top:10px">load parts:
       <label><input type="checkbox" class="show-part" value="params" checked> look &amp; params</label>
@@ -807,6 +808,17 @@
 </section>
 
 <section id="leds" hidden>
+  <div class="card" id="led-configs-card">
+    <h2>Saved LED configurations <span class="spacer"></span><span class="sub">zones, protocols, brightness — named, exported, and mirrored to the cloud</span></h2>
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px"><label style="font-size:11px;color:var(--muted)">Name</label><input class="text" id="ledc-name" placeholder="e.g. Studio bar + booth"></div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:200px"><label style="font-size:11px;color:var(--muted)">Notes</label><input class="text" id="ledc-notes" placeholder="which controller is where"></div>
+      <button class="btn small primary" id="ledc-save">Save current layout</button>
+      <label class="btn small" style="cursor:pointer">Import file… <input type="file" id="ledc-import" accept=".json,application/json" hidden></label>
+      <select id="ledc-cloud" class="btn small"><option value="">☁ from cloud…</option></select>
+    </div>
+    <div class="showgrid" id="ledc-list" style="margin-top:10px"><span class="hint">loading…</span></div>
+  </div>
   <div class="card" id="o-led">
     <h2>LED pixel strips <span class="spacer"></span><span class="sub">zones sampled from the projected picture · drag them on the canvas</span><span class="pill"><i class="dot" id="led-dot"></i><span id="led-label">off</span></span></h2>
     <div class="field"><label>Output</label><div class="row"><button class="toggle" id="led-toggle"></button><span style="font-size:12px;color:var(--muted)">sample from</span><select id="led-source" class="btn small"><option value="">freshest renderer</option></select><span style="font-size:12px;color:var(--muted)">at</span><input class="text" id="led-fps" type="number" min="1" max="60" style="max-width:70px"><span style="font-size:12px;color:var(--muted)">fps</span></div></div>
@@ -840,6 +852,20 @@
     </div>
     <pre id="rig-log-out" style="display:none;max-height:260px;overflow:auto;font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px"></pre>
   </div>
+  <div class="card wide" id="cloud-card" style="margin-bottom:16px">
+    <h2>Cloud sync · Supabase <span class="spacer"></span><span class="pill"><i class="dot" id="cloud-dot2"></i><span id="cloud-state">—</span></span></h2>
+    <div class="hint" style="margin:0 0 10px">Everything the rig saves — shows, the preset bank, the cue stack, LED configurations, every projector's mapping and the local config — is written to this Pi first and mirrored to Supabase whenever it has internet. Take the rig to a venue with no connection and nothing changes; edits queue and sync when you're back. Another master (or a re-imaged card) pulls the lot down on first start. Shows and LED configs are shared between rigs; presets, cues, mappings and config are per rig name.</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:220px"><label style="font-size:11px;color:var(--muted)">Supabase URL</label><input class="text" id="cloud-url" placeholder="https://xxxx.supabase.co"></div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:220px"><label style="font-size:11px;color:var(--muted)">Publishable / anon key (leave blank to keep)</label><input class="text" id="cloud-key" placeholder="sb_publishable_…" type="password"></div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px"><label style="font-size:11px;color:var(--muted)">Rig name</label><input class="text" id="cloud-rig" placeholder="hostname"></div>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="cloud-enabled"> enabled</label>
+      <button class="btn small primary" id="cloud-save">Save &amp; connect</button>
+      <button class="btn small" id="cloud-sync" title="push queued changes, pull anything newer">Sync now</button>
+      <button class="btn small" id="cloud-pull-all" title="pull every document from the cloud, newer-than-local only">Pull everything</button>
+    </div>
+    <div id="cloud-detail" class="hint" style="margin:8px 0 0"></div>
+  </div>
   <div class="grid" style="margin-bottom:16px">
     <div class="card wide" style="grid-column:1/-1">
       <h2>Projectors <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">heartbeats every second from each renderer</span></h2>
@@ -858,7 +884,7 @@
     <h3>Fractal Rig — how it all fits together</h3>
     <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master renders too, so it is projector #1). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 20 parameters — in one 120-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet.</p>
     <div class="toc">
-      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-cues">Cues &amp; audio modulation</a><a class="btn small" href="#i-rigops">Updating from the page</a><a class="btn small" href="#i-resolume2">Resolume tab</a><a class="btn small" href="#i-video">Video &amp; HDMI capture</a><a class="btn small" href="#i-mapping">Projection mapping</a><a class="btn small" href="#i-outres">Output resolution</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
+      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-cloud">Saving &amp; cloud sync</a><a class="btn small" href="#i-cues">Cues &amp; audio modulation</a><a class="btn small" href="#i-rigops">Updating from the page</a><a class="btn small" href="#i-resolume2">Resolume tab</a><a class="btn small" href="#i-video">Video &amp; HDMI capture</a><a class="btn small" href="#i-mapping">Projection mapping</a><a class="btn small" href="#i-outres">Output resolution</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
     </div>
   </div>
 
@@ -1026,6 +1052,11 @@ sudo bash setup/install.sh master</pre>
     <p>NDI publishes a Pi's picture as a network video source for Resolume, OBS, vMix, TouchDesigner… The NDI SDK is a free licence-click download, so it can't ship in the repo: download <i>NDI SDK for Linux</i> from ndi.video, then on the Pi <code>sudo bash setup/install-ndi.sh ~/Install_NDI_SDK_v6_Linux.tar.gz</code> (installs headers + libndi, rebuilds the renderer with NDI), and add <code>--ndi</code> to that renderer's arguments (<code>sudo systemctl edit fractal-renderer</code>). The source appears as <b>"Fractal Rig (pi-name)"</b>. Frames are sent at the render scale (1080p × 0.6 = 1152×648) at up to <code>--ndi-fps</code> (30 default) — a Pi 5 is comfortable there; ~40 Mbit/s on the LAN. The Outputs tab shows per-Pi NDI state (off / publishing / receiver connected). Use a wired switch; NDI over Wi-Fi is not a good evening.</p>
   </div>
 
+  <div class="card" id="i-cloud">
+    <h3>Saving &amp; the cloud (Supabase)</h3>
+    <p>Every save in the app lands on the master Pi first — shows (<code>master/shows/</code>), the preset bank, the cue stack, LED configurations (<code>master/led_configs/</code>), each projector's mapping and <code>config.local.json</code> — so the rig works exactly the same with no internet at a venue. Whenever the Pi <em>can</em> reach Supabase (table <code>studio_fractal_docs</code> in the Sonor project) it pushes queued changes and pulls anything newer, last write wins; deletes propagate too. Shows and LED configurations are shared between rigs, so a setup made on the studio bench is in the "☁ from cloud…" menu on any other master; presets, cues, mappings and config are kept per rig name. The top-bar pill shows the state: green = in sync, amber = offline with changes queued (they go up when you're back on Wi-Fi), grey = not configured or paused. Settings, "Sync now" and "Pull everything" are on the Rig tab. Files still export and import as before (.fractalshow.json / .zip, .fractalleds.json) for moving things by hand or keeping a copy.</p>
+  </div>
+
   <div class="card" id="i-cues">
     <h3>Cues, fades and audio modulation</h3>
     <p><b>Cues</b> are the sequencing layer: a stack of steps for the set. Build one by setting the rig up and pressing <em>Capture current look as cue</em> (every parameter goes in), or add an empty cue and pick actions: scene, a saved preset, a whole show, projectM (random / next / a named preset), video (a clip, LIVE, next), feed mix, brightness or blackout, auto-drift on/off. <b>Fade (bars)</b> glides every continuous parameter over that many bars at the current tempo (discrete ones like scene switch at the start); <b>Auto-follow</b> fires the next cue after N bars, so a whole intro can run itself. GO / BACK live on the Cues tab and the Perform CUES page, keys <b>G</b> / <b>B</b>, MIDI notes 27 / 26, OSC <code>/frx/go</code>, <code>/frx/back</code>, <code>/frx/cue n</code>. The stack is saved with a show. <b>Audio → parameters</b> (Inputs tab) makes any parameter follow the music: pick a source (one of the 16 analyser bands, bass, overall energy, or the beat pulse that works from any tempo source), an amount (a fraction of the parameter's range — small numbers) and attack / release times; the level bars show each envelope live. Modulation sits on top of your sliders and auto-drift and never touches the Pis — they still just receive numbers.</p>
@@ -1142,7 +1173,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
-      <tr><td>v0.8.0</td><td><b>Cue stack</b> (Cues tab + Perform CUES page): each cue sets a scene / preset / show / projectM / video / feed mix / blackout / params, fades over N bars, optionally auto-follows to the next; GO / BACK on screen, key G/B, MIDI 27/26, OSC <code>/frx/go</code>. <b>Audio → parameters</b> (Inputs): any parameter follows a band, bass, energy or the beat pulse with attack/release. <b>Rig tab maintenance</b>: update everything from GitHub, restart or reboot any Pi from the page (per-Pi status service, <code>setup/rig-update</code>). Mapping editor: <b>Align all</b>, photo-of-the-wall overlay, per-projector R/G/B gain. Shows export <b>with media</b> as a zip and import back. 1080p is the boot default.</td></tr>
+      <tr><td>v0.8.0</td><td><b>Cue stack</b> (Cues tab + Perform CUES page): each cue sets a scene / preset / show / projectM / video / feed mix / blackout / params, fades over N bars, optionally auto-follows to the next; GO / BACK on screen, key G/B, MIDI 27/26, OSC <code>/frx/go</code>. <b>Audio → parameters</b> (Inputs): any parameter follows a band, bass, energy or the beat pulse with attack/release. <b>Rig tab maintenance</b>: update everything from GitHub, restart or reboot any Pi from the page (per-Pi status service, <code>setup/rig-update</code>). Mapping editor: <b>Align all</b>, photo-of-the-wall overlay, per-projector R/G/B gain. Shows export <b>with media</b> as a zip and import back. <b>Supabase cloud sync</b> of everything the rig saves (offline-first, per-rig and shared documents, ☁ menus on Shows and LEDs), <b>saved LED configurations</b> (save / load / update / export / import), engine-aware UI, tabs reordered (Inputs · Outputs together, Shows before Info), cloud status pill replaces the GitHub link. 1080p is the boot default.</td></tr>
       <tr><td>v0.7.0</td><td><b>Video scene</b> (9): clip library on the master with drag-and-drop upload and ffmpeg conversion, byte-sorted index synced to every Pi by <code>fractal-media-sync</code>, libmpv playback frame-locked to the master clock, playlist / auto-advance / bar sync, Perform clip tiles, OSC + MIDI triggers; <b>LIVE</b> multicast stream from an NDI source (Resolume over the network, via <code>setup/ndi-recv</code>), an HDMI capture dongle, any V4L2 camera, a file or test bars. <b>Projection mapping</b> per projector from the Outputs tab (keystone, masks with feather, edge blend, brightness/gamma, test pattern) applied live. <b>Output resolution</b> selector on the top bar (Auto / 1080p / 4K). Per-Pi status page on port 8082. Perform pages scroll. Tabs reorganised: <b>Shows</b> (whole-rig setups per venue — look, presets, every projector's mapping, playlist, outputs, resolution; save / load / update / download / import), <b>Inputs</b> (sources + MIDI/OSC moved off Control), <b>LEDs</b> (own tab; colour-coded zones you drag on the picture), <b>Rig</b> (projectors table, log and diagnostics together), <b>Resolume</b> (feed crossfade, clip pad, layer faders, OSC-in learn). Perform mode rebuilt: page rail on the left, one scrolling page at a time, Presets with save/update, Clips page with LIVE + feed mix, Shows page. NDI streams table in Outputs. Packet now 164 bytes / 31 params. Packet is now 156 bytes / 29 params — update every Pi together.</td></tr>
       <tr><td>v0.6.1</td><td>Pi 4 renderer fix: SDL now opens the DRM device that actually has a connected HDMI output (Pi 4 exposes the 3D core as <code>card0</code> with no outputs, which made KMSDRM fail on every start). Also tries <code>card0..3</code> as a fallback; <code>SDL_KMSDRM_DEVICE_INDEX</code> still overrides.</td></tr>
       <tr><td>v0.6.0</td><td><b>Inputs monitor</b> on the Control tab: 4-bar beat grid with playhead and lock badge (Pro DJ Link deck / Ableton Link peers / free-running), BPM stability readout, per-deck lanes, Link phase, audio waveform + 16-band spectrum + energy/bass meters streamed from the master, MIDI / OSC / Pro DJ Link activity chips; slim beat grid in Perform mode. Master streams <code>audio_wave</code> / <code>audio_bands</code> / <code>audio_levels</code> and the followed deck in the state snapshot.</td></tr>
@@ -1286,7 +1317,7 @@ const S = {
     resolume: {enabled: false, ok: false, detail: 'OSC out'}, led: {enabled: false, ok: false, detail: 'pixel output'},
   },
   outputs: {resolume: {}, led: {strips: []}, thumbs: {}, link: {}, ndi: {renderers: {}}},
-  cue: {pos: -1, count: 0}, cues: [], mods: [],
+  cue: {pos: -1, count: 0}, cues: [], mods: [], cloud: null,
 };
 const SOURCE_META = {
   web:   {label: 'Web UI',       sub: 'this page · phone / laptop'},
@@ -1382,7 +1413,7 @@ function connect(url) {
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
       clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
       auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, prodj_dev: m.prodj_dev, pm: m.pm || S.pm, outputs: m.outputs || S.outputs,
-      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video, osc_in_map: m.osc_in_map || {}, osc_last: m.osc_last || null, cue: m.cue || S.cue, cues: m.cues || S.cues, mods: m.mods || S.mods});
+      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video, osc_in_map: m.osc_in_map || {}, osc_last: m.osc_last || null, cue: m.cue || S.cue, cues: m.cues || S.cues, mods: m.mods || S.mods, cloud: m.cloud || null});
     S.t = m.t; S.tRecv = performance.now();
     noteBpm(m.bpm);
     S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
@@ -1465,6 +1496,7 @@ function renderControls() {
   renderResolume();
   renderCues();
   renderMods();
+  renderCloud();
   renderPerf();
 }
 let srcBuilt = '';
@@ -2162,6 +2194,47 @@ let thumbImgs = {};
 
 
 
+
+// ------------------------------------------------------------ cloud (Supabase) status + settings, LED configs
+function renderCloud() {
+  const c = S.cloud; const dot = $('cloud-dot'), lab = $('cloud-label');
+  if (!c || !c.configured) { dot.className = 'dot'; lab.textContent = S.live ? 'cloud off' : 'cloud'; }
+  else if (!c.enabled) { dot.className = 'dot'; lab.textContent = 'cloud paused'; }
+  else if (c.online) { dot.className = 'dot ok'; lab.textContent = c.pending ? `syncing ${c.pending}` : 'cloud ✓'; }
+  else { dot.className = 'dot warn'; lab.textContent = c.pending ? `offline · ${c.pending} queued` : 'offline'; }
+  if ($('status').hidden) return;
+  $('cloud-dot2').className = dot.className; $('cloud-state').textContent = !c || !c.configured ? 'not configured' : !c.enabled ? 'paused' : c.online ? 'connected' : 'offline (queued locally)';
+  if (c && document.activeElement !== $('cloud-url') && !$('cloud-url').dataset.touched) $('cloud-url').value = c.url || '';
+  if (c && document.activeElement !== $('cloud-rig') && !$('cloud-rig').dataset.touched) $('cloud-rig').value = c.rig || '';
+  if (c && !$('cloud-enabled').dataset.touched) $('cloud-enabled').checked = !!c.enabled;
+  $('cloud-detail').innerHTML = c ? `rig <b>${esc(c.rig || '')}</b> · key ${esc(c.key_hint || '—')} · last sync ${c.last_sync ? new Date(c.last_sync * 1000).toLocaleTimeString() : 'never'} · pulled ${c.pulled || 0} this session · queued ${c.pending || 0}${c.error ? ` · <span style="color:var(--warn)">${esc(c.error)}</span>` : ''}` : '';
+}
+['cloud-url', 'cloud-rig'].forEach(id => $(id).oninput = () => $(id).dataset.touched = '1'); $('cloud-enabled').onchange = () => $('cloud-enabled').dataset.touched = '1';
+$('pill-cloud').onclick = () => { $('nav').querySelector('[data-view=status]').click(); setTimeout(() => $('cloud-card').scrollIntoView({behavior: 'smooth'}), 100); };
+$('cloud-save').onclick = async () => { const body = {url: $('cloud-url').value.trim(), rig_id: $('cloud-rig').value.trim(), enabled: $('cloud-enabled').checked}; if ($('cloud-key').value.trim()) body.key = $('cloud-key').value.trim();
+  const r = await (await fetch('/api/cloud/config', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)})).json(); ['cloud-url', 'cloud-rig', 'cloud-enabled'].forEach(id => delete $(id).dataset.touched); $('cloud-key').value = ''; logLocal('cloud: ' + (r.online ? 'connected' : 'saved — ' + (r.error || 'offline'))); };
+$('cloud-sync').onclick = async () => { $('cloud-sync').disabled = true; const r = await (await fetch('/api/cloud/sync', {method: 'POST', headers: {'content-type': 'application/json'}, body: '{}'})).json(); $('cloud-sync').disabled = false; logLocal('cloud sync: ' + (r.ok ? 'ok' : r.error || 'offline')); };
+$('cloud-pull-all').onclick = async () => { if (!confirm('Pull every show, preset bank, cue stack, LED config and mapping that is newer in the cloud than on this Pi?')) return; const r = await (await fetch('/api/cloud/sync', {method: 'POST', headers: {'content-type': 'application/json'}, body: '{"full":true}'})).json(); logLocal('cloud pull: ' + (r.ok ? `done (${r.pulled} applied this session)` : r.error || 'offline')); showsFetch(); ledcFetch(); };
+async function cloudMenu(sel, kind, localNames) {
+  if (!S.live || !S.cloud || !S.cloud.enabled) { sel.style.display = 'none'; return; } sel.style.display = '';
+  try { const j = await (await fetch('/api/cloud/list/' + kind)).json(); const rows = (j.rows || []).filter(r => !localNames.includes(r.name));
+    sel.innerHTML = `<option value="">☁ from cloud… (${j.online ? rows.length + ' not on this Pi' : 'offline'})</option>` + rows.map(r => `<option value="${esc(r.name)}">${esc(r.name)} · ${new Date(r.updated_at).toLocaleDateString()}</option>`).join(''); } catch (e) {}
+}
+$('show-cloud').onchange = async () => { const n = $('show-cloud').value; $('show-cloud').value = ''; if (!n) return; const r = await fetch(`/api/cloud/fetch/show/${encodeURIComponent(n)}`, {method: 'POST'}); logLocal(r.ok ? `show "${n}" pulled from the cloud` : 'pull failed'); showsFetch(); };
+// LED configs
+let LEDC = [];
+async function ledcFetch() { if (!S.live) { $('ledc-list').innerHTML = '<span class="hint">demo mode</span>'; return; } try { LEDC = (await (await fetch('/api/led/configs')).json()).configs || []; } catch (e) { return; } renderLedc(); cloudMenu($('ledc-cloud'), 'led_config', LEDC.map(x => x.name)); }
+function renderLedc() {
+  $('ledc-list').innerHTML = LEDC.length ? LEDC.map(c => `<div class="show"><h4>${esc(c.name)}</h4><div class="meta">${c.strips} zone${c.strips === 1 ? '' : 's'} · ${c.pixels} px · saved ${new Date(c.saved * 1000).toLocaleString()}</div>${c.notes ? `<div class="notes">${esc(c.notes)}</div>` : ''}<div class="acts"><button class="btn small primary" data-lload="${esc(c.name)}">LOAD</button><button class="btn small" data-lupd="${esc(c.name)}" title="overwrite with the current layout">Update</button><a class="btn small" href="/api/led/configs/${encodeURIComponent(c.name)}?download=1">Download</a><button class="btn small" data-ldel="${esc(c.name)}" style="margin-left:auto">✕</button></div></div>`).join('') : '<span class="hint">no saved LED configurations yet — lay the zones out below, then save them under a name</span>';
+  $('ledc-list').querySelectorAll('[data-lload]').forEach(b => b.onclick = async () => { if (!confirm(`Load LED configuration "${b.dataset.lload}"? It replaces the current zones.`)) return; await fetch(`/api/led/configs/${encodeURIComponent(b.dataset.lload)}/load`, {method: 'POST'}); stripsDraft = null; stripsDirty = false; setTimeout(() => { renderStrips(true); drawLed(); }, 400); });
+  $('ledc-list').querySelectorAll('[data-lupd]').forEach(b => b.onclick = async () => { if (!confirm(`Overwrite "${b.dataset.lupd}" with the current layout?`)) return; await fetch(`/api/led/configs/${encodeURIComponent(b.dataset.lupd)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: '{}'}); ledcFetch(); });
+  $('ledc-list').querySelectorAll('[data-ldel]').forEach(b => b.onclick = async () => { if (!confirm(`Delete LED configuration "${b.dataset.ldel}"?`)) return; await fetch(`/api/led/configs/${encodeURIComponent(b.dataset.ldel)}`, {method: 'DELETE'}); ledcFetch(); });
+}
+$('ledc-save').onclick = async () => { const n = $('ledc-name').value.trim(); if (!n) return alert('give it a name'); if (stripsDirty && !confirm('You have unapplied zone edits — save the APPLIED layout anyway? (press "apply to master" first to include them)')) return;
+  await fetch(`/api/led/configs/${encodeURIComponent(n)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({notes: $('ledc-notes').value.trim()})}); $('ledc-name').value = ''; logLocal('LED configuration saved: ' + n); ledcFetch(); };
+$('ledc-import').onchange = async () => { const f = $('ledc-import').files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); if (!d.led) throw new Error('no "led" block'); const n = prompt('Import as', d.name || f.name.replace(/\.fractalleds\.json$|\.json$/i, '')); if (n) { await fetch(`/api/led/configs/${encodeURIComponent(n)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({import: d})}); ledcFetch(); } } catch (e) { alert('not an LED configuration file: ' + e.message); } $('ledc-import').value = ''; };
+$('ledc-cloud').onchange = async () => { const n = $('ledc-cloud').value; $('ledc-cloud').value = ''; if (!n) return; const r = await fetch(`/api/cloud/fetch/led_config/${encodeURIComponent(n)}`, {method: 'POST'}); logLocal(r.ok ? `LED configuration "${n}" pulled from the cloud` : 'pull failed'); ledcFetch(); };
+
 // ------------------------------------------------------------ rig maintenance (update / restart / reboot)
 async function rigAct(name, act, btn) {
   const label = {update: 'pull the latest from GitHub and reinstall', restart: 'restart the renderer', reboot: 'REBOOT'}[act] || act;
@@ -2322,7 +2395,7 @@ let SHOWS = {list: [], last: null};
 async function showsFetch() {
   if (!S.live) { $('show-list').innerHTML = '<div class="hint">Demo mode — shows live on the master.</div>'; return; }
   try { SHOWS = await (await fetch('/api/shows')).json(); } catch (e) { $('show-list').innerHTML = '<div class="hint">could not load shows</div>'; return; }
-  renderShows();
+  renderShows(); cloudMenu($('show-cloud'), 'show', (SHOWS.list || []).map(x => x.name));
 }
 function showParts() { return [...document.querySelectorAll('.show-part')].filter(c => c.checked).map(c => c.value); }
 function renderShows() {
@@ -2838,7 +2911,7 @@ $('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
   if (v === 'status') renderStatus();
   if (v === 'media') { fetchMedia(true); }
   if (v === 'outputs') { renderOutputs(true); mapFetch(); if (S.live) ndiScan(); }
-  if (v === 'leds') { renderOutputs(true); renderStrips(true); drawLed(); }
+  if (v === 'leds') { renderOutputs(true); renderStrips(true); drawLed(); ledcFetch(); }
   if (v === 'resolume') { renderOutputs(true); renderResolume(true); }
   if (v === 'shows') showsFetch();
   if (v === 'cues') renderCues(true);

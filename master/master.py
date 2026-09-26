@@ -31,7 +31,7 @@ osc_out = led = thumbs = link = None
 LOCAL_CFG = os.path.join(HERE, "config.local.json")
 
 
-def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods")):
+def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods", "supabase_url", "supabase_key", "rig_id", "cloud_enabled", "out_res_boot")):
     """Persist the UI-editable parts of the config to config.local.json (config.json stays pristine in git)."""
     try:
         cur = json.load(open(LOCAL_CFG)) if os.path.exists(LOCAL_CFG) else {}
@@ -39,8 +39,14 @@ def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", 
             if k in cfg:
                 cur[k] = cfg[k]
         json.dump(cur, open(LOCAL_CFG, "w"), indent=1)
+        cl = getattr(_ENGINE_REF[0], "cloud", None) if _ENGINE_REF else None
+        if cl:   # per-rig backup of the local config (never auto-applied — restored on request from the Rig tab)
+            cl.put("config", "local", {k: v for k, v in cur.items() if k not in ("supabase_key",)})
     except Exception as ex:
         print("config save failed:", ex)
+
+
+_ENGINE_REF = []
 
 
 def load_config(args):
@@ -474,6 +480,146 @@ async def web_app(engine, cfg):
             raise web.HTTPBadRequest(text="json body expected")
         return web.json_response(engine.mapping.put(name, body))
 
+    # ---- LED configurations (named saves of the strip layout + output settings), local files + cloud mirror
+    LED_DIR = os.path.join(ROOT, "master", "led_configs"); os.makedirs(LED_DIR, exist_ok=True)
+    def led_cfg_path(name): return os.path.join(LED_DIR, clean_show(name) + ".json")
+    def led_cfg_list():
+        out = []
+        for f in sorted(os.listdir(LED_DIR)):
+            if f.endswith(".json"):
+                try:
+                    d = json.load(open(os.path.join(LED_DIR, f)))
+                    out.append(dict(name=d.get("name", f[:-5]), saved=d.get("saved", 0), strips=len((d.get("led") or {}).get("strips") or []), pixels=sum(int(x.get("count", 0)) for x in (d.get("led") or {}).get("strips") or []), notes=d.get("notes", "")))
+                except Exception:
+                    pass
+        return out
+    def led_cfg_save(name, notes="", body=None, mirror=True):
+        d = body if isinstance(body, dict) and body.get("led") else dict(name=clean_show(name), saved=time.time(), notes=notes, led=json.loads(json.dumps(led.cfg)) if led else {})
+        d["name"] = clean_show(name)
+        json.dump(d, open(led_cfg_path(name), "w"), indent=1)
+        engine.event(f"LED config saved: {d['name']} ({len((d.get('led') or {}).get('strips') or [])} zones)")
+        if mirror and engine.cloud:
+            engine.cloud.put("led_config", d["name"], d)
+        return d
+    def led_cfg_apply(d):
+        if not led or not isinstance(d.get("led"), dict):
+            return False
+        led.cfg.clear(); led.cfg.update(json.loads(json.dumps(d["led"]))); led.last_colors.clear()
+        engine.source("led", enabled=bool(led.cfg.get("enabled"))); cfg["led"] = led.cfg; save_local_config(cfg)
+        engine.event(f"LED config loaded: {d.get('name')}")
+        return True
+
+    async def api_led_configs(request):
+        return web.json_response(dict(configs=led_cfg_list(), current_strips=len((led.cfg.get("strips") if led else []) or [])))
+    async def api_led_config_get(request):
+        p = led_cfg_path(request.match_info["name"])
+        if not os.path.exists(p): raise web.HTTPNotFound()
+        resp = web.FileResponse(p)
+        if request.query.get("download"): resp.headers["Content-Disposition"] = f'attachment; filename="{clean_show(request.match_info["name"])}.fractalleds.json"'
+        return resp
+    async def api_led_config_save(request):
+        try: body = await request.json()
+        except Exception: body = {}
+        d = led_cfg_save(request.match_info["name"], str(body.get("notes", "")), body.get("import"))
+        return web.json_response(dict(ok=True, config=d, configs=led_cfg_list()))
+    async def api_led_config_load(request):
+        p = led_cfg_path(request.match_info["name"])
+        if not os.path.exists(p): raise web.HTTPNotFound()
+        return web.json_response(dict(ok=led_cfg_apply(json.load(open(p)))))
+    async def api_led_config_delete(request):
+        p = led_cfg_path(request.match_info["name"])
+        if os.path.exists(p):
+            os.remove(p)
+            if engine.cloud: engine.cloud.delete("led_config", clean_show(request.match_info["name"]))
+        return web.json_response(dict(ok=True, configs=led_cfg_list()))
+    app.router.add_get("/api/led/configs", api_led_configs)
+    app.router.add_get("/api/led/configs/{name}", api_led_config_get)
+    app.router.add_post("/api/led/configs/{name}", api_led_config_save)
+    app.router.add_post("/api/led/configs/{name}/load", api_led_config_load)
+    app.router.add_delete("/api/led/configs/{name}", api_led_config_delete)
+
+    # ---- cloud (Supabase mirror): status, settings, sync, browse
+    async def api_cloud(request):
+        return web.json_response(engine.cloud.status() if engine.cloud else dict(enabled=False, configured=False))
+    async def api_cloud_config(request):
+        body = await request.json()
+        if engine.cloud:
+            engine.cloud.configure(url=body.get("url"), key=body.get("key") or None, rig_id=body.get("rig_id") or None, enabled=body.get("enabled"))
+            save_local_config(cfg)
+            await engine.cloud.sync_once()
+        return web.json_response(engine.cloud.status() if engine.cloud else {})
+    async def api_cloud_sync(request):
+        try: body = await request.json()
+        except Exception: body = {}
+        ok = await engine.cloud.sync_once(full=bool(body.get("full"))) if engine.cloud else False
+        return web.json_response(dict(ok=ok, **(engine.cloud.status() if engine.cloud else {})))
+    async def api_cloud_list(request):
+        rows = await engine.cloud.list_kind(request.match_info["kind"]) if engine.cloud else []
+        return web.json_response(dict(rows=rows, online=bool(engine.cloud and engine.cloud.online)))
+    async def api_cloud_fetch(request):
+        """Pull one document from the cloud into the local store now (a show or LED config from the menu)."""
+        kind, name = request.match_info["kind"], request.match_info["name"]
+        if not engine.cloud: raise web.HTTPServiceUnavailable(text="cloud disabled")
+        try:
+            row = await engine.cloud.fetch(kind, name)
+        except Exception as ex:
+            raise web.HTTPBadGateway(text=f"cloud unreachable: {ex}")
+        if not row: raise web.HTTPNotFound(text="not in the cloud")
+        h = engine.cloud.handlers.get(kind)
+        applied = h(name, row["data"], row["updated_at"]) if h else False
+        return web.json_response(dict(ok=bool(applied), name=name))
+    app.router.add_get("/api/cloud", api_cloud)
+    app.router.add_post("/api/cloud/config", api_cloud_config)
+    app.router.add_post("/api/cloud/sync", api_cloud_sync)
+    app.router.add_get("/api/cloud/list/{kind}", api_cloud_list)
+    app.router.add_post("/api/cloud/fetch/{kind}/{name}", api_cloud_fetch)
+
+    # what a pulled row does locally (newer-than-local only; deleted rows remove the local file)
+    def _mtime(p):
+        try: return os.path.getmtime(p)
+        except OSError: return 0
+    def _ts(iso):
+        try: return time.mktime(time.strptime(iso[:19], "%Y-%m-%dT%H:%M:%S")) - time.timezone
+        except Exception: return 0
+    if engine.cloud:
+        def h_show(name, data, upd):
+            if not engine.shows: return False
+            p = engine.shows.path(name)
+            if data is None:
+                if os.path.exists(p): os.remove(p); return True
+                return False
+            if _ts(upd) <= _mtime(p): return False
+            engine.shows.store_raw(name, data, mirror=False); return True
+        def h_led(name, data, upd):
+            p = led_cfg_path(name)
+            if data is None:
+                if os.path.exists(p): os.remove(p); return True
+                return False
+            if _ts(upd) <= _mtime(p): return False
+            json.dump(dict(data, name=clean_show(name)), open(p, "w"), indent=1); return True
+        def h_presets(name, data, upd):
+            from engine import PRESET_FILE
+            if data is None or _ts(upd) <= _mtime(PRESET_FILE): return False
+            engine.replace_presets(data); return True
+        def h_cues(name, data, upd):
+            from cues import CUE_FILE
+            if data is None or _ts(upd) <= _mtime(CUE_FILE) or not isinstance(data, list): return False
+            engine.show.cues = [engine.show._clean(c) for c in data]; engine.show.save_cues(mirror=False); return True
+        def h_mapping(name, data, upd):
+            if not engine.mapping: return False
+            p = engine.mapping.path(name)
+            if data is None:
+                if os.path.exists(p): engine.mapping.put(name, {}, mirror=False); return True
+                return False
+            if _ts(upd) <= _mtime(p): return False
+            engine.mapping.put(name, data, mirror=False); return True
+        def h_config(name, data, upd):
+            if data is not None:
+                json.dump(data, open(os.path.join(HERE, "config.cloud.json"), "w"), indent=1)   # kept for manual restore
+            return False
+        for k, h in (("show", h_show), ("led_config", h_led), ("preset_bank", h_presets), ("cue_stack", h_cues), ("mapping", h_mapping), ("config", h_config)):
+            engine.cloud.on(k, h)
+
     # ---- rig maintenance: update / restart the master itself, or any renderer through its status service (:8082)
     async def api_rig_self(request):
         act = request.match_info["act"]
@@ -713,6 +859,7 @@ async def main():
     cfg = load_config(args)
     engine = Engine(cfg)
     engine.verbose = not args.quiet
+    _ENGINE_REF.append(engine)
     try:
         from media import Media
         engine.media = Media(engine, cfg, cfg.get("media_dir") or os.path.join(ROOT, "master", "media"))
@@ -732,6 +879,14 @@ async def main():
         if "cycle_bars" in v: engine.video_cycle_bars = max(1, int(v["cycle_bars"])); cfg["video_cycle_bars"] = engine.video_cycle_bars
         if "bar_sync" in v: engine.video_bar_sync = bool(v["bar_sync"]); cfg["video_bar_sync"] = engine.video_bar_sync
     cfg["_app_version"] = APP_VERSION
+    try:
+        from cloud import Cloud
+        engine.cloud = Cloud(engine, cfg)
+        asyncio.get_running_loop().create_task(engine.cloud.loop())
+        engine.event(f"cloud: {'enabled → ' + engine.cloud.url.split('//')[-1] + ' (rig ' + engine.cloud.rig + ')' if engine.cloud.enabled else 'not configured (Rig tab → Cloud)'}")
+    except Exception as ex:
+        engine.cloud = None
+        engine.event(f"cloud: disabled ({ex})")
     try:
         engine.shows = Shows(engine, cfg, cfg.get("shows_dir") or os.path.join(ROOT, "master", "shows"),
                              dict(outputs=lambda: dict(osc_out=osc_out, led=led, link=link), save_local_config=lambda: save_local_config(cfg), apply_video=_apply_video))

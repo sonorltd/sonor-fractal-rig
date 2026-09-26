@@ -92,6 +92,7 @@ class Engine:
         self.media = None                               # set by master.py
         self.mapping = None                             # MappingStore, set by master.py
         self.shows = None                               # Shows store, set by master.py
+        self.cloud = None                               # cloud.Cloud mirror, set by master.py
         self.osc_in_map = dict(cfg.get("osc_in_map", {}) or {})   # Resolume OSC address → param key
         self.osc_last = None                            # last non-/frx OSC message (for learn)
         self.video_playlist = list(cfg.get("video_playlist", []))   # clip names, in order
@@ -455,6 +456,7 @@ class Engine:
         self.presets[name]["_auto"] = [k for i, k in enumerate(KEYS) if self.auto[i]]
         json.dump(self.presets, open(PRESET_FILE, "w"), indent=1)
         self.event(f"preset saved: {name}")
+        self._mirror_presets()
 
     def load_preset(self, name):
         p = self.presets.get(name)
@@ -479,6 +481,17 @@ class Engine:
     def delete_preset(self, name):
         if name in self.presets:
             del self.presets[name]
+            json.dump(self.presets, open(PRESET_FILE, "w"), indent=1)
+            self._mirror_presets()
+
+    def _mirror_presets(self):
+        if self.cloud:
+            self.cloud.put("preset_bank", "default", self.presets)
+
+    def replace_presets(self, bank):
+        """From the cloud / a show: whole bank at once (no mirror back — it came from there)."""
+        if isinstance(bank, dict):
+            self.presets = json.loads(json.dumps(bank))
             json.dump(self.presets, open(PRESET_FILE, "w"), indent=1)
 
     # ------------------------------------------------------------ persistence
@@ -538,6 +551,7 @@ class Engine:
             audio_levels=dict(energy=round(self.audio_energy, 3), bass=round(self.audio_bass, 3)) if self.audio_ok else None,
             video=self._video_snapshot(), osc_in_map=self.osc_in_map, osc_last=self.osc_last,
             cue=self.show.snapshot(), cues=self.show.cues, mods=self.show.mods,
+            cloud=self.cloud.status() if self.cloud else None,
             pm=dict(count=len(self.pm_presets), dir=self.pm_dir, index=self.pm_index(), name=self.pm_name(),
                     cycle_bars=self.pm_cycle_bars, shuffle=self.pm_shuffle,
                     audio=self.audio_stream.stats() if self.audio_stream else None),
