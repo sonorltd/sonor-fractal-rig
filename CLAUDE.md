@@ -174,7 +174,10 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   wording, 31-param protocol, 8 Perform pages, tested table with the v0.8 amber rows, real hostnames/paths in Pi
   setup. Sources panel: a source the master does not know (older build) shows a warning and a disabled toggle;
   toggles are 52×30 on coarse pointers. Inputs monitor (Control) shows the X Air: level-history trace in place of the
-  waveform when the desk is the audio source, RTA in the spectrum, an X AIR activity chip (4 chips now).
+  waveform when the desk is the audio source, RTA in the spectrum, an X AIR activity chip (4 chips now). Monitor
+  polish: kick flash + glow on the current beat cell, played beats tinted, glowing playhead, gradient/glow waveform with
+  mirrored fill, gradient spectrum bars with hot tops, a BEAT pulse ring left of the E/B meters. Demo mode: `xair` in
+  the demo sources; toggling it simulates an XR16 (applyLocal) so the Pages demo behaves like the rig.
 - 2026-09-26 v0.8.0 (cont. 6) — **X Air source** (`inputs.XAir`): Behringer XR12/16/18 meters (`/meters/1`, 40 × int16
   1/256 dB, main L/R at 36–37) + RTA (`/meters/4`, 100 bins) over OSC udp/10024, listen-only, broadcast `/xinfo`
   discovery; drives energy/bass/16 bands when no USB audio stream, else display only. WS `{source:{name:'xair',

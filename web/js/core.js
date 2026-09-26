@@ -31,6 +31,7 @@ const S = {
     osc:   {enabled: true, ok: false, detail: 'needs the master (demo)'},
     auto:  {enabled: true, ok: true, detail: 'drifting'},
     link:  {enabled: true, ok: false, detail: 'needs the master (demo)'},
+    xair:  {enabled: false, ok: false, detail: 'off (demo: toggle on for a simulated XR16)'},
     resolume: {enabled: false, ok: false, detail: 'OSC out'}, led: {enabled: false, ok: false, detail: 'pixel output'},
   },
   outputs: {resolume: {}, led: {strips: []}, thumbs: {}, link: {}, ndi: {renderers: {}}},
@@ -76,7 +77,8 @@ function applyLocal(m) {   // demo-mode engine — same semantics as engine.py
   if ('clock_speed' in m) S.clock_speed = +m.clock_speed;
   if ('auto_depth' in m) S.auto_depth = +m.auto_depth;
   if ('auto_rate' in m) S.auto_rate = +m.auto_rate;
-  if (m.source) { const sname = m.source.name; if (sname === 'auto') { S.auto_enabled = !!m.source.enabled; S.sources.auto.enabled = S.auto_enabled; S.sources.auto.ok = S.auto_enabled; S.sources.auto.detail = S.auto_enabled ? 'drifting' : 'paused'; } else if (S.sources[sname] && 'enabled' in m.source) { S.sources[sname].enabled = !!m.source.enabled; } }
+  if (m.source && m.source.name === 'xair') { const on = !!m.source.enabled; S.sources.xair = {enabled: on, ok: on, detail: on ? 'XR16 demo-desk @ 192.168.22.70 · main L/R · simulated meters' : 'off', host: '192.168.22.70', model: 'XR16', mixer: 'demo', rta: true, channel: m.source.channel || 'lr'}; }
+  else if (m.source) { const sname = m.source.name; if (sname === 'auto') { S.auto_enabled = !!m.source.enabled; S.sources.auto.enabled = S.auto_enabled; S.sources.auto.ok = S.auto_enabled; S.sources.auto.detail = S.auto_enabled ? 'drifting' : 'paused'; } else if (S.sources[sname] && 'enabled' in m.source) { S.sources[sname].enabled = !!m.source.enabled; } }
   if (m.led) { S.outputs.led = Object.assign(S.outputs.led || {}, m.led); }
   if (m.fav) { S.favs = S.favs || {}; const l = (S.favs[m.fav.kind] || []).filter(x => x !== m.fav.name); if (m.fav.on) l.push(m.fav.name); S.favs[m.fav.kind] = l; }
   if (m.preset) {
