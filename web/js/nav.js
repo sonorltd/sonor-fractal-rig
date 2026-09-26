@@ -5,7 +5,7 @@
 const TABS = [
   // id = the section id (control = <main>), label = tab text, show() = what to refresh when the tab opens
   {id: 'control',  label: 'Control',  show: () => {}},
-  {id: 'cues',     label: 'Cues',     show: () => renderCues(true)},
+  {id: 'cues',     label: 'Cues',     show: () => { renderCues(true); cuelFetch(); }},
   {id: 'inputs',   label: 'Inputs',   show: () => {}},
   {id: 'outputs',  label: 'Outputs',  show: () => { renderOutputs(true); mapFetch(); if (S.live) ndiScan(); }},
   {id: 'media',    label: 'Media',    show: () => fetchMedia(true)},
@@ -22,7 +22,7 @@ const PERF_PAGES = [
   {pg: 4, label: 'CLIPS',   hint: 'video · LIVE'},
   {pg: 2, label: 'FEEL',    hint: 'speed · pulse'},
   {pg: 3, label: 'COLOUR',  hint: 'hue · palettes'},
-  {pg: 6, label: 'CUES',    hint: 'GO · BACK'},
+  {pg: 6, label: 'CUES',    hint: 'GO · BACK', open: () => cuelFetch()},
   {pg: 5, label: 'SHOWS',   hint: 'venue setups', open: () => pfShowsFetch()},
   {pg: 7, label: 'LEDS',    hint: 'pixels · configs', open: () => pfLedcFetch()},
 ];

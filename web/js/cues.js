@@ -95,3 +95,44 @@ function renderMods(force) {
   const lv = (S.cue && S.cue.mods) || []; $('mod-list').querySelectorAll('.modrow[data-i] .lvl i').forEach((el, i) => el.style.width = Math.round((lv[i] || 0) * 100) + '%');
 }
 $('mod-add').onclick = () => send({mods: modsList().concat([{key: 'zoom', src: 'bass', amount: 0.05, attack: 0.02, release: 0.3, enabled: true}])});
+
+// ---- saved cue lists — same cards / save dialog as shows, LED configs and mappings (ui.cards / ui.saveAs / ui.tiles)
+let CUEL = [];
+async function cuelFetch() { if (!S.live) { $('cuel-list').innerHTML = '<span class="hint">demo mode — cue lists live on the master</span>'; return; } try { CUEL = (await (await fetch('/api/cues/lists')).json()).lists || []; } catch (e) { $('cuel-list').innerHTML = '<span class="hint">could not load cue lists</span>'; return; } renderCuel(); cloudMenu($('cuel-cloud'), 'cuelist', CUEL.map(x => x.name)); if (perfOn) pfRenderCuel(); }
+function renderCuel(flash) {
+  $('cuel-hint').textContent = CUEL.length ? `${CUEL.length} saved` : '';
+  ui.cards($('cuel-list'), {kind: 'cuelist', flash,
+    items: CUEL.map(c => ({name: c.name, notes: c.notes, meta: `${c.cues} cue${c.cues === 1 ? '' : 's'}${c.mods ? ` · ${c.mods} modulation${c.mods === 1 ? '' : 's'}` : ''}${c.first ? ` · starts "${esc(c.first)}"` : ''} · saved ${new Date(c.saved * 1000).toLocaleString()}`})),
+    actions: [{id: 'load', label: 'LOAD', primary: true}, {id: 'update', label: 'Update', title: 'overwrite with the current stack'}, {id: 'dl', label: 'Download', href: n => `/api/cues/lists/${encodeURIComponent(n)}?download=1`}, {id: 'delete', label: '✕', right: true}],
+    empty: 'No saved cue lists yet — build the stack above, then press <b>Save current cue list</b>.',
+    onAction: async (act, name, btn) => {
+      if (act === 'load') { if (!await ui.confirm(`It replaces the ${(S.cues || []).length} cue${(S.cues || []).length === 1 ? '' : 's'} on the stack now (save them first if you want them back).`, {title: `Load cue list "${name}"?`, ok: 'Load'})) return; btn.textContent = 'loading…'; await cuelLoad(name); renderCuel(); }
+      if (act === 'update') { if (!await ui.confirm(`Overwrite "${name}" with the current stack?`, {ok: 'Overwrite'})) return; await cuelSave(name); }
+      if (act === 'delete') { if (!await ui.confirm('', {title: `Delete cue list "${name}"?`, ok: 'Delete', danger: true})) return; await fetch(`/api/cues/lists/${encodeURIComponent(name)}`, {method: 'DELETE'}); ui.toast(`Deleted ${esc(name)}`); cuelFetch(); }
+    }});
+}
+async function cuelLoad(name) {   // shared by the Cues tab and Perform
+  const r = await fetch(`/api/cues/lists/${encodeURIComponent(name)}/load`, {method: 'POST'}); if (!r.ok) { ui.alert('Load failed (' + r.status + ').'); return false; }
+  cueEdit = null; ui.toast(`Cue list loaded: <b>${esc(name)}</b>`, 'ok'); logLocal('cue list loaded: ' + name); return true;
+}
+async function cuelSave(name, notes) {
+  const r = await fetch(`/api/cues/lists/${encodeURIComponent(name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(notes == null ? {} : {notes})});
+  if (!r.ok) { ui.alert('The master refused the save (' + r.status + ').'); return false; }
+  ui.toast(`Cue list saved: <b>${esc(name)}</b>`, 'ok'); logLocal('cue list saved: ' + name); await cuelFetch(); renderCuel(name); return true;
+}
+async function cuelSaveDialog() {   // shared by the Cues tab and Perform
+  if (!S.live) return ui.alert('Connect to a master first — the demo has nowhere to save.');
+  const n = (S.cues || []).length; if (!n) return ui.alert('The stack is empty — capture or add a cue first.');
+  const v = await ui.saveAs({what: 'cue list', title: 'Save current cue list', text: `${n} cue${n === 1 ? '' : 's'}${(S.mods || []).length ? ` and ${(S.mods || []).length} audio modulation${(S.mods || []).length === 1 ? '' : 's'}` : ''} — the order, fades, follows and actions as they are now.`,
+    existing: CUEL.map(x => x.name), placeholder: 'e.g. Friday techno set', fields: [{key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'which track each cue lands on…'}]});
+  if (!v) return null; return (await cuelSave(v.name, v.notes)) ? v.name : null;
+}
+$('cuel-save').onclick = () => cuelSaveDialog();
+$('cuel-import').onchange = async () => { const f = $('cuel-import').files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); if (!Array.isArray(d.cues)) throw new Error('no "cues" list'); const n = await ui.prompt('Import cue list', {value: d.name || f.name.replace(/\.fractalcues\.json$|\.json$/i, ''), label: 'Import as'}); if (n) { await fetch(`/api/cues/lists/${encodeURIComponent(n)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({import: d})}); ui.toast(`Imported <b>${esc(n)}</b>`, 'ok'); await cuelFetch(); renderCuel(n); } } catch (e) { ui.alert('Not a cue list file: ' + e.message); } $('cuel-import').value = ''; };
+$('cuel-cloud').onchange = async () => { const n = $('cuel-cloud').value; $('cuel-cloud').value = ''; if (!n) return; const r = await fetch(`/api/cloud/fetch/cuelist/${encodeURIComponent(n)}`, {method: 'POST'}); ui.toast(r.ok ? `Cue list "${esc(n)}" pulled from the cloud` : 'Pull failed', r.ok ? 'ok' : 'bad'); cuelFetch(); };
+// Perform
+function pfRenderCuel() {
+  ui.tiles($('pf-cuel'), {kind: 'cuelist', items: CUEL.map(c => ({id: c.name, label: c.name, cls: 'pf-show', sub: `${c.cues} cue${c.cues === 1 ? '' : 's'}${c.first ? ' · ' + c.first : ''}`})),
+    empty: 'no saved cue lists — build a stack and press SAVE', onPick: async (name, b) => { if (!await ui.confirm('It replaces the current stack.', {title: `Load cue list "${name}"?`, ok: 'Load'})) return; b.textContent = 'loading…'; await cuelLoad(name); $('pf-cuel').dataset.sig = ''; pfRenderCuel(); }});
+}
+$('pf-cuel-save').onclick = async () => { const n = await cuelSaveDialog(); if (n) pfRenderCuel(); };

@@ -211,6 +211,16 @@
     <div class="cuelist" id="cue-list"><span class="hint">no cues yet</span></div>
     <div class="cue-editor" id="cue-editor" hidden></div>
   </div>
+  <div class="card" id="cuel-card">
+    <h2>Saved cue lists <span class="spacer"></span><span class="sub">the whole stack + audio modulation under a name — per set, per venue · mirrored to the cloud</span></h2>
+    <div class="row savebar">
+      <button class="btn small primary" id="cuel-save">＋ Save current cue list…</button>
+      <label class="btn small" style="cursor:pointer">Import file… <input type="file" id="cuel-import" accept=".json,application/json" hidden></label>
+      <select id="cuel-cloud" class="btn small"><option value="">☁ from cloud…</option></select>
+      <span class="hint" id="cuel-hint" style="margin:0 0 0 auto"></span>
+    </div>
+    <div class="showgrid" id="cuel-list" style="margin-top:10px"><span class="hint">loading…</span></div>
+  </div>
 </section>
 
 <section id="shows" hidden>
@@ -549,12 +559,12 @@
 </section>
 
 <section id="info" hidden>
-  <div class="card">
+  <aside id="info-menu"><div class="im-tools"><input class="text" id="info-search" placeholder="search the manual…" autocomplete="off"><div class="row" style="gap:4px"><button class="btn small" id="info-expand">expand all</button><button class="btn small" id="info-collapse">collapse all</button></div></div><nav id="info-nav"></nav></aside>
+  <div id="info-body">
+  <div class="card" id="i-intro">
     <h3>Fractal Rig — how it all fits together</h3>
-    <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master renders too, so it is projector #1). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 20 parameters — in one 120-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet.</p>
-    <div class="toc">
-      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-cloud">Saving &amp; cloud sync</a><a class="btn small" href="#i-cues">Cues &amp; audio modulation</a><a class="btn small" href="#i-rigops">Updating from the page</a><a class="btn small" href="#i-resolume2">Resolume tab</a><a class="btn small" href="#i-video">Video &amp; HDMI capture</a><a class="btn small" href="#i-mapping">Projection mapping</a><a class="btn small" href="#i-outres">Output resolution</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
-    </div>
+    <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master can render too, or run headless and feed its picture out over NDI). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 31 parameters — in one 164-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader (or the same Milkdrop preset, or the same video frame) from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet; if the master vanishes the renderers keep drawing the last state until it is back.</p>
+    <p>Around that core: <b>sources</b> feed tempo and control in (Pro DJ Link, Ableton Link, audio, MIDI, OSC, autonomous drift); <b>outputs</b> feed the picture out (projectors, NDI to Resolume, LED pixels via DDP / Art-Net / sACN, OSC to Resolume); and everything you save — looks, palettes, cue lists, shows, LED configurations, mapping presets — is written to the master first and mirrored to Supabase when there is internet. This manual is the long version; the menu on the left jumps to a section, sections collapse, and the search box filters them.</p>
   </div>
 
   <div class="card" id="i-sources">
@@ -677,13 +687,112 @@ sudo bash setup/install.sh master</pre>
   <div class="card" id="i-network">
     <h3>Network &amp; Pro DJ Link</h3>
     <ul>
-      <li>All Pis on one wired switch, one subnet. Multicast group <code>239.255.42.1:5005</code>, TTL 1 — never leaves the LAN. Renderers heartbeat back to the master on UDP 5006.</li>
-      <li>Pioneer gear with no DHCP self-assigns <code>169.254.x.x</code>. Either put a small router (DHCP) on the same switch so the XDJ and Pis share a subnet, or give the master Pi a second address: <code>sudo nmcli con mod "Wired connection 1" +ipv4.addresses 169.254.42.10/16 &amp;&amp; sudo nmcli con up "Wired connection 1"</code>.</li>
-      <li>Beat packets are broadcast, so the master only needs to be on the same layer-2 segment as the LINK port. Nothing is sent to the decks.</li>
-      <li>Managed switches: leave IGMP snooping <em>off</em> for this VLAN (or make sure a querier exists), otherwise multicast may be pruned after a minute or two.</li>
+      <li>All Pis on one wired gigabit switch, one subnet. Multicast group <code>239.255.42.1:5005</code>, TTL 1 — never leaves the LAN. Renderers heartbeat back to the master on UDP 5006 once a second; the Rig tab turns those into the loss / jitter / temperature columns.</li>
+      <li><b>IGMP snooping</b>: either <em>off</em> on this VLAN, or <em>on with a querier</em> (the switch itself). Snooping with no querier is the classic failure — the picture runs for a couple of minutes, then multicast is pruned and every projector freezes on the last frame. Unmanaged switches flood multicast and simply work at this rate.</li>
+      <li>Pioneer gear with no DHCP self-assigns <code>169.254.x.x</code>. Give the rig VLAN a DHCP server (the router or the master's <code>dnsmasq</code>) so the XDJ / CDJs and Pis share a subnet, or add a link-local address to the master: <code>sudo nmcli con mod "Wired connection 1" +ipv4.addresses 169.254.42.10/16 &amp;&amp; sudo nmcli con up "Wired connection 1"</code>.</li>
+      <li>Beat packets are broadcast, so the master only needs to be on the same layer-2 segment as the LINK port. Nothing is ever sent to the decks.</li>
       <li>A laptop on the same LAN can run the master instead of a Pi (<code>python3 master/master.py</code>) — handy for development.</li>
       <li>Want deck names, on-air state or which deck is tempo master? Run <a href="https://github.com/Deep-Symmetry/beat-link-trigger" target="_blank" rel="noopener">Beat Link Trigger</a> on a laptop and have it send OSC to the master.</li>
     </ul>
+  </div>
+
+  <div class="card" id="i-topology">
+    <h3>Field network — topology for the whole rig</h3>
+    <p>Everything hangs off <b>one managed gigabit switch in the flight case</b>, wired. Wi-Fi is for the control tablet only. Three kinds of traffic share the wire and they want different things: the <span class="tl sync">sync multicast</span> wants zero loss and low jitter (tiny packets, 60 a second), <span class="tl video">video</span> (NDI, ~100 Mb/s per 1080p stream) wants bandwidth, and <span class="tl light">lighting</span> (Art-Net / sACN / DDP at 40 fps) wants nothing dropped in bursts. Gigabit copper carries all of it with room to spare; the failures come from Wi-Fi, from snooping without a querier, and from daisy-chained unmanaged switches.</p>
+    <svg class="topo" viewBox="0 0 1000 620" role="img" aria-label="Fractal Rig field network topology">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>
+      <!-- flight case zone -->
+      <rect class="zone" x="310" y="14" width="380" height="594"/><text class="small" x="322" y="32">FLIGHT CASE · rig VLAN 10.42.0.0/24 · one gigabit switch · IGMP querier ON</text>
+      <!-- master -->
+      <rect class="node master" x="400" y="50" width="200" height="90"/>
+      <text x="500" y="72" text-anchor="middle" font-weight="600">Master · Pi 5 · .10</text>
+      <text class="small" x="500" y="88" text-anchor="middle">fractal-master + renderer (headless → NDI)</text>
+      <text class="small" x="500" y="103" text-anchor="middle">web UI :8081 · DHCP reservation</text>
+      <text class="mono" x="500" y="122" text-anchor="middle">tx 239.255.42.1:5005 @ 60 pps · rx HB :5006</text>
+      <!-- switch -->
+      <rect class="node switch" x="400" y="280" width="200" height="84"/>
+      <text x="500" y="304" text-anchor="middle" font-weight="600">Managed gigabit switch</text>
+      <text class="small" x="500" y="321" text-anchor="middle">USW-Lite-8-PoE · Reyee RG-NBS3100</text>
+      <text class="small" x="500" y="336" text-anchor="middle">VigorSwitch · PoE for the Pis</text>
+      <text class="small" x="500" y="351" text-anchor="middle">IGMP snooping + querier · 1 VLAN</text>
+      <path class="l sync both" d="M500 140 V280"/><text class="port" x="508" y="214">sync multicast ⇅ heartbeats</text>
+      <!-- bottom: renderers / projectors / pixels / dmx -->
+      <rect class="node" x="330" y="440" width="150" height="70"/><text x="405" y="462" text-anchor="middle" font-weight="600">Renderer Pi ×N</text><text class="small" x="405" y="478" text-anchor="middle">fractal1 … fractalN · .11–.19</text><text class="small" x="405" y="493" text-anchor="middle">PoE · HDMI → projector</text>
+      <path class="l sync" d="M450 364 L420 440"/>
+      <rect class="node" x="330" y="530" width="150" height="58"/><text x="405" y="552" text-anchor="middle" font-weight="600">Projectors</text><text class="small" x="405" y="568" text-anchor="middle">HDMI · mapping per Pi</text>
+      <path class="l plain" d="M405 510 V530"/>
+      <rect class="node" x="520" y="440" width="150" height="70"/><text x="595" y="462" text-anchor="middle" font-weight="600">Pixel controllers</text><text class="small" x="595" y="478" text-anchor="middle">WLED / Gledopto · .20–.29</text><text class="mono" x="595" y="495" text-anchor="middle">DDP :4048 · Art-Net :6454</text>
+      <path class="l light" d="M550 364 L580 440"/>
+      <rect class="node" x="520" y="530" width="150" height="58"/><text x="595" y="552" text-anchor="middle" font-weight="600">Art-Net → DMX node</text><text class="small" x="595" y="568" text-anchor="middle">Sonor ArtNet Node · .30–.39 · sACN :5568</text>
+      <path class="l light" d="M600 350 H682 V545 H670"/>
+      <!-- left: tempo + control in -->
+      <rect class="node" x="30" y="150" width="210" height="90"/>
+      <text x="135" y="172" text-anchor="middle" font-weight="600">Pioneer · XDJ / CDJ + mixer</text>
+      <text class="small" x="135" y="188" text-anchor="middle">LINK port → same switch, same L2</text>
+      <text class="small" x="135" y="203" text-anchor="middle">169.254.x.x unless it gets DHCP</text>
+      <text class="mono" x="135" y="222" text-anchor="middle">Pro DJ Link broadcast :50000–50002</text>
+      <path class="l tempo" d="M240 210 C320 210 330 300 400 300"/>
+      <rect class="node" x="30" y="270" width="210" height="72"/>
+      <text x="135" y="292" text-anchor="middle" font-weight="600">Ableton / Link laptop · .50</text>
+      <text class="small" x="135" y="308" text-anchor="middle">Ableton Link multicast, lead or follow</text>
+      <text class="mono" x="135" y="326" text-anchor="middle">Link :20808</text>
+      <path class="l tempo both" d="M240 322 H400"/>
+      <rect class="node" x="30" y="370" width="210" height="72"/>
+      <text x="135" y="392" text-anchor="middle" font-weight="600">MIDI controller / DMX in</text>
+      <text class="small" x="135" y="408" text-anchor="middle">USB straight into the master</text>
+      <text class="small" x="135" y="424" text-anchor="middle">not on the network at all</text>
+      <path class="l ctl" d="M240 385 C300 385 300 132 400 132"/>
+      <text class="small" x="30" y="128">TEMPO &amp; CONTROL IN</text>
+      <!-- right: video, control UI, uplink -->
+      <text class="small" x="750" y="40">VIDEO · CONTROL · UPLINK</text>
+      <rect class="node" x="750" y="50" width="220" height="90"/>
+      <text x="860" y="72" text-anchor="middle" font-weight="600">Resolume laptop · .40</text>
+      <text class="small" x="860" y="88" text-anchor="middle">wired · NDI in + out · OSC two-way</text>
+      <text class="mono" x="860" y="106" text-anchor="middle">NDI :5353 / 5960+ · OSC :7000 ⇄ :8000</text>
+      <text class="small" x="860" y="124" text-anchor="middle">or an HDMI capture card into a Pi</text>
+      <path class="l video both" d="M750 110 C680 110 670 300 600 300"/>
+      <rect class="node" x="750" y="165" width="220" height="60"/>
+      <text x="860" y="187" text-anchor="middle" font-weight="600">Access point · rig SSID only</text>
+      <text class="small" x="860" y="204" text-anchor="middle">U6-Lite / Reyee RAP · control traffic only</text>
+      <path class="l ctl" d="M750 200 C690 200 680 322 600 322"/>
+      <rect class="node" x="750" y="250" width="220" height="56"/>
+      <text x="860" y="272" text-anchor="middle" font-weight="600">Phone / tablet / kiosk</text>
+      <text class="small" x="860" y="289" text-anchor="middle">web UI + Perform · sonorpi.local:8081</text>
+      <path class="wifi" d="M860 225 V250"/><text class="port" x="868" y="242">Wi-Fi</text>
+      <rect class="node" x="750" y="340" width="220" height="90"/>
+      <text x="860" y="362" text-anchor="middle" font-weight="600">Router · DHCP · 4G/5G · .1</text>
+      <text class="small" x="860" y="378" text-anchor="middle">Vigor 2927 / Reyee EG / GL.iNet</text>
+      <text class="small" x="860" y="394" text-anchor="middle">reservations for every fixed box</text>
+      <text class="small" x="860" y="412" text-anchor="middle">venue internet optional, never required</text>
+      <path class="l ctl" d="M750 370 C690 370 680 344 600 344"/>
+      <rect class="node" x="750" y="480" width="220" height="60"/>
+      <text x="860" y="502" text-anchor="middle" font-weight="600">Supabase (cloud)</text>
+      <text class="small" x="860" y="519" text-anchor="middle">shows · looks · cue lists · LEDs · mappings</text>
+      <path class="l cloud both" d="M860 430 V480"/><text class="port" x="868" y="459">HTTPS · queued offline</text>
+      <!-- legend -->
+      <g transform="translate(30 480)">
+        <text class="small" x="0" y="0">TRAFFIC</text>
+        <line class="l sync" x1="0" y1="16" x2="28" y2="16"/><text class="small" x="36" y="20">sync multicast · heartbeats</text>
+        <line class="l tempo" x1="0" y1="36" x2="28" y2="36"/><text class="small" x="36" y="40">tempo in (Pro DJ Link · Link)</text>
+        <line class="l video" x1="0" y1="56" x2="28" y2="56"/><text class="small" x="36" y="60">video (NDI) · OSC ⇄ Resolume</text>
+        <line class="l light" x1="0" y1="76" x2="28" y2="76"/><text class="small" x="36" y="80">lighting (DDP · Art-Net · sACN)</text>
+        <line class="l ctl" x1="0" y1="96" x2="28" y2="96"/><text class="small" x="36" y="100">control (web UI · MIDI · DHCP)</text>
+        <line class="l cloud" x1="0" y1="116" x2="28" y2="116"/><text class="small" x="36" y="120">cloud mirror (optional)</text>
+      </g>
+    </svg>
+    <h4>Rules that keep it solid</h4>
+    <ul>
+      <li><b>One switch, one VLAN, everything wired.</b> Pis, Resolume laptop, Pioneer LINK, pixel controllers and DMX nodes all on the same layer-2 segment: Pro DJ Link is broadcast, the sync is multicast with TTL 1, Ableton Link is multicast — none of it crosses a router. Daisy-chaining a second unmanaged switch is fine for a far projector position; a Wi-Fi bridge in that path is not.</li>
+      <li><b>IGMP snooping on, with the switch as querier</b> (or snooping off). This is the single setting that decides whether the rig survives the night. Check it with the LAN-jitter and multicast-loss tiles on the Rig tab: 1.0 s and 0 all evening.</li>
+      <li><b>DHCP from the case, not the venue.</b> The router (or the master) hands out addresses with reservations for every fixed box so the Pioneer gear, Pis and controllers always come up on the same subnet. Venue internet plugs into the router's WAN if it exists; a 4G/5G SIM in the router lets Supabase sync on site, and nothing breaks without it.</li>
+      <li><b>Wi-Fi carries the tablet, nothing else.</b> A dedicated AP (or the router's) on a rig-only SSID for the phone / tablet running the web UI. Never put a Pi, the Resolume laptop or a pixel controller on Wi-Fi — WLED nodes especially want a wire or their own 2.4 GHz AP kept away from the crowd.</li>
+      <li><b>Lighting protocols</b>: DDP and Art-Net are unicast from the master to each controller, so they only cost bandwidth on that one port; sACN multicast rides the same querier as the sync. 170 RGB pixels per Art-Net universe, consecutive universes for longer runs; keep controller firmware on a fixed IP. The Sonor ArtNet Node (Nano + ENC28J60) is 10 Mb/s — give it its own switch port, never a hub.</li>
+      <li><b>Video</b>: NDI from Resolume to the master (and the master's picture back to Resolume) is ~100 Mb/s per 1080p stream over gigabit — fine, but it is the one thing that would suffer on a 100 Mb/s port or Wi-Fi. An HDMI capture card into a Pi's USB 3 port is the zero-network alternative for the feed in.</li>
+      <li><b>Pioneer</b>: the master only listens. If the decks are on <code>169.254.x.x</code> and you cannot give them DHCP, add a link-local alias to the master (command in the section above) so it hears the beat packets.</li>
+      <li><b>Spares</b>: a second switch, a spare Pi imaged as a renderer, a 4G router and a bag of Cat6 patch leads with boots. Everything else is software.</li>
+    </ul>
+    <h4>Suggested address plan (10.42.0.0/24)</h4>
+    <table><tr><td>.1</td><td>router / DHCP / uplink</td></tr><tr><td>.10</td><td>master Pi (<code>sonorpi</code>)</td></tr><tr><td>.11–.19</td><td>renderer Pis (<code>fractal1</code>…)</td></tr><tr><td>.20–.29</td><td>WLED / pixel controllers (one per LED zone group)</td></tr><tr><td>.30–.39</td><td>Art-Net / sACN → DMX nodes</td></tr><tr><td>.40–.49</td><td>Resolume / media laptops</td></tr><tr><td>.50–.59</td><td>Ableton / Link machines</td></tr><tr><td>.60–.69</td><td>Pioneer gear (reservations by MAC; else 169.254 auto)</td></tr><tr><td>.100–.199</td><td>DHCP pool: phones, tablets, guests</td></tr></table>
   </div>
 
   <div class="card" id="i-protocol">
@@ -723,12 +832,12 @@ sudo bash setup/install.sh master</pre>
 
   <div class="card" id="i-cloud">
     <h3>Saving &amp; the cloud (Supabase)</h3>
-    <p>Every save in the app lands on the master Pi first — shows (<code>master/shows/</code>), the preset bank, the cue stack, LED configurations (<code>master/led_configs/</code>), each projector's mapping and <code>config.local.json</code> — so the rig works exactly the same with no internet at a venue. Whenever the Pi <em>can</em> reach Supabase (table <code>studio_fractal_docs</code> in the Sonor project) it pushes queued changes and pulls anything newer, last write wins; deletes propagate too. Shows and LED configurations are shared between rigs, so a setup made on the studio bench is in the "☁ from cloud…" menu on any other master; presets, cues, mappings and config are kept per rig name. The top-bar pill shows the state: green = in sync, amber = offline with changes queued (they go up when you're back on Wi-Fi), grey = not configured or paused. Settings, "Sync now" and "Pull everything" are on the Rig tab. Files still export and import as before (.fractalshow.json / .zip, .fractalleds.json) for moving things by hand or keeping a copy.</p>
+    <p>Every save in the app lands on the master Pi first — shows (<code>master/shows/</code>), the preset bank and palettes, the live cue stack and saved cue lists, LED configurations (<code>master/led_configs/</code>), mapping presets, each projector's mapping and <code>config.local.json</code> — so the rig works exactly the same with no internet at a venue. Whenever the Pi <em>can</em> reach Supabase (table <code>studio_fractal_docs</code> in the Sonor project) it pushes queued changes and pulls anything newer, last write wins; deletes propagate too. Shows, LED configurations, mapping presets and cue lists are shared between rigs, so a setup made on the studio bench is in the "☁ from cloud…" menu on any other master; presets, cues, mappings and config are kept per rig name. The top-bar pill shows the state: green = in sync, amber = offline with changes queued (they go up when you're back on Wi-Fi), grey = not configured or paused. "Sync now" and "Pull everything" sit in the Rig tab's update row; the URL and key are baked into <code>master/config.json</code>, so there is nothing to type. Every save uses the same dialog (name + notes, with an overwrite warning) and every saved thing shows as the same card with ★ favourite, LOAD, Update, Download and ✕. Files still export and import as before (.fractalshow.json / .zip, .fractalleds.json) for moving things by hand or keeping a copy.</p>
   </div>
 
   <div class="card" id="i-cues">
     <h3>Cues, fades and audio modulation</h3>
-    <p><b>Cues</b> are the sequencing layer: a stack of steps for the set. Build one by setting the rig up and pressing <em>Capture current look as cue</em> (every parameter goes in), or add an empty cue and pick actions: scene, a saved preset, a whole show, projectM (random / next / a named preset), video (a clip, LIVE, next), feed mix, brightness or blackout, auto-drift on/off. <b>Fade (bars)</b> glides every continuous parameter over that many bars at the current tempo (discrete ones like scene switch at the start); <b>Auto-follow</b> fires the next cue after N bars, so a whole intro can run itself. GO / BACK live on the Cues tab and the Perform CUES page, keys <b>G</b> / <b>B</b>, MIDI notes 27 / 26, OSC <code>/frx/go</code>, <code>/frx/back</code>, <code>/frx/cue n</code>. The stack is saved with a show. <b>Audio → parameters</b> (Inputs tab) makes any parameter follow the music: pick a source (one of the 16 analyser bands, bass, overall energy, or the beat pulse that works from any tempo source), an amount (a fraction of the parameter's range — small numbers) and attack / release times; the level bars show each envelope live. Modulation sits on top of your sliders and auto-drift and never touches the Pis — they still just receive numbers.</p>
+    <p><b>Cues</b> are the sequencing layer: a stack of steps for the set. Build one by setting the rig up and pressing <em>Capture current look as cue</em> (every parameter goes in), or add an empty cue and pick actions: scene, a saved preset, a whole show, projectM (random / next / a named preset), video (a clip, LIVE, next), feed mix, brightness or blackout, auto-drift on/off. <b>Fade (bars)</b> glides every continuous parameter over that many bars at the current tempo (discrete ones like scene switch at the start); <b>Auto-follow</b> fires the next cue after N bars, so a whole intro can run itself. GO / BACK live on the Cues tab and the Perform CUES page, keys <b>G</b> / <b>B</b>, MIDI notes 27 / 26, OSC <code>/frx/go</code>, <code>/frx/back</code>, <code>/frx/cue n</code>. The stack is saved with a show, and can be saved on its own as a <b>cue list</b> (Cues tab → Saved cue lists, or SAVE CURRENT CUE LIST in Perform) to load onto any rig. <b>Audio → parameters</b> (Inputs tab) makes any parameter follow the music: pick a source (one of the 16 analyser bands, bass, overall energy, or the beat pulse that works from any tempo source), an amount (a fraction of the parameter's range — small numbers) and attack / release times; the level bars show each envelope live. Modulation sits on top of your sliders and auto-drift and never touches the Pis — they still just receive numbers.</p>
   </div>
 
   <div class="card" id="i-rigops">
@@ -853,6 +962,7 @@ sudo bash setup/install.sh master</pre>
     </tbody></table>
     <p>Source, issues and the Pages demo: <a href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">github.com/sonorltd/sonor-fractal-rig</a>.</p>
   </div>
+  </div>
 </section>
 
 <section id="perf" hidden>
@@ -935,6 +1045,9 @@ sudo bash setup/install.sh master</pre>
       <div class="plabel">Cues <span class="pf-hint">— tap one to jump straight to it</span></div>
       <div class="pgrid c2" id="pf-cues"></div>
       <div class="pgrid c2"><button class="pbtn" id="pf-cue-capture">+ CAPTURE LOOK AS CUE</button><button class="pbtn" id="pf-cue-reset">↺ RESET TO TOP</button></div>
+      <div class="plabel">Saved cue lists <span class="pf-hint">— tap to load a whole stack</span></div>
+      <div class="pgrid c2" id="pf-cuel"><span class="hint">loading…</span></div>
+      <div class="pgrid c2"><button class="pbtn" id="pf-cuel-save">+ SAVE CURRENT CUE LIST</button></div>
     </div>
     <div class="ppage" data-pg="5">
       <div class="plabel">Venue / scenario setups <span class="pf-hint">— loads the whole rig: look, presets, mapping, playlist, outputs</span></div>
@@ -976,6 +1089,7 @@ sudo bash setup/install.sh master</pre>
 <script src="js/outputs.js"></script>
 <script src="js/perform.js"></script>
 <script src="js/milkdrop.js"></script>
+<script src="js/info.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>

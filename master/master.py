@@ -622,6 +622,63 @@ async def web_app(engine, cfg):
     app.router.add_post("/api/mapping/presets/{name}/load", api_mapp_load)
     app.router.add_delete("/api/mapping/presets/{name}", api_mapp_delete)
 
+    # ---- saved cue lists: the whole cue stack (+ audio modulation) under a name, so a set can be rebuilt on any rig.
+    #      The LIVE stack stays cues.json (cloud kind cue_stack/current, per rig); these are documents (kind cuelist, shared).
+    CUEL_DIR = os.path.join(ROOT, "master", "cue_lists"); os.makedirs(CUEL_DIR, exist_ok=True)
+    def cuel_path(name): return os.path.join(CUEL_DIR, clean_show(name) + ".json")
+    def cuel_list():
+        out = []
+        for f in sorted(os.listdir(CUEL_DIR)):
+            if f.endswith(".json"):
+                try:
+                    d = json.load(open(os.path.join(CUEL_DIR, f)))
+                    out.append(dict(name=d.get("name", f[:-5]), saved=d.get("saved", 0), notes=d.get("notes", ""), cues=len(d.get("cues") or []), mods=len(d.get("mods") or []),
+                                    first=((d.get("cues") or [{}])[0]).get("name", "")))
+                except Exception:
+                    pass
+        return out
+    def cuel_save(name, notes="", body=None, mirror=True):
+        d = body if isinstance(body, dict) and isinstance(body.get("cues"), list) else dict(name=clean_show(name), saved=time.time(), notes=notes,
+                                                                                               cues=json.loads(json.dumps(engine.show.cues)), mods=json.loads(json.dumps(engine.show.mods)))
+        d["name"] = clean_show(name)
+        json.dump(d, open(cuel_path(name), "w"), indent=1)
+        engine.event(f"cue list saved: {d['name']} ({len(d.get('cues') or [])} cues)")
+        if mirror and engine.cloud:
+            engine.cloud.put("cuelist", d["name"], d)
+        return d
+    async def api_cuel_list(request):
+        return web.json_response(dict(lists=cuel_list(), current=len(engine.show.cues)))
+    async def api_cuel_get(request):
+        p = cuel_path(request.match_info["name"])
+        if not os.path.exists(p): raise web.HTTPNotFound()
+        resp = web.FileResponse(p)
+        if request.query.get("download"): resp.headers["Content-Disposition"] = f'attachment; filename="{clean_show(request.match_info["name"])}.fractalcues.json"'
+        return resp
+    async def api_cuel_save(request):
+        try: body = await request.json()
+        except Exception: body = {}
+        d = cuel_save(request.match_info["name"], str(body.get("notes", "")), body.get("import"))
+        return web.json_response(dict(ok=True, list=d, lists=cuel_list()))
+    async def api_cuel_load(request):
+        p = cuel_path(request.match_info["name"])
+        if not os.path.exists(p): raise web.HTTPNotFound()
+        d = json.load(open(p))
+        engine.show.cues = [engine.show._clean(c) for c in (d.get("cues") or [])]; engine.show.cue_pos = -1; engine.show.cue_follow_due = None; engine.show.save_cues()
+        if isinstance(d.get("mods"), list): engine.show.set_mods(d["mods"]); cfg["mods"] = engine.show.mods; save_local_config(cfg)
+        engine.event(f"cue list loaded: {d.get('name')} ({len(engine.show.cues)} cues)")
+        return web.json_response(dict(ok=True, cues=len(engine.show.cues)))
+    async def api_cuel_delete(request):
+        p = cuel_path(request.match_info["name"])
+        if os.path.exists(p):
+            os.remove(p)
+            if engine.cloud: engine.cloud.delete("cuelist", clean_show(request.match_info["name"]))
+        return web.json_response(dict(ok=True, lists=cuel_list()))
+    app.router.add_get("/api/cues/lists", api_cuel_list)
+    app.router.add_get("/api/cues/lists/{name}", api_cuel_get)
+    app.router.add_post("/api/cues/lists/{name}", api_cuel_save)
+    app.router.add_post("/api/cues/lists/{name}/load", api_cuel_load)
+    app.router.add_delete("/api/cues/lists/{name}", api_cuel_delete)
+
     # ---- cloud (Supabase mirror): status, settings, sync, browse
     async def api_cloud(request):
         return web.json_response(engine.cloud.status() if engine.cloud else dict(enabled=False, configured=False))
@@ -708,11 +765,18 @@ async def web_app(engine, cfg):
                 return False
             if _ts(upd) <= _mtime(p): return False
             mapp_save(name, body=data, mirror=False); return True
+        def h_cuel(name, data, upd):
+            p = cuel_path(name)
+            if data is None:
+                if os.path.exists(p): os.remove(p); return True
+                return False
+            if _ts(upd) <= _mtime(p): return False
+            cuel_save(name, body=data, mirror=False); return True
         def h_config(name, data, upd):
             if data is not None:
                 json.dump(data, open(os.path.join(HERE, "config.cloud.json"), "w"), indent=1)   # kept for manual restore
             return False
-        for k, h in (("show", h_show), ("led_config", h_led), ("preset_bank", h_presets), ("palette_bank", h_palettes), ("cue_stack", h_cues), ("mapping", h_mapping), ("mapping_preset", h_mapp), ("config", h_config)):
+        for k, h in (("show", h_show), ("led_config", h_led), ("preset_bank", h_presets), ("palette_bank", h_palettes), ("cue_stack", h_cues), ("mapping", h_mapping), ("mapping_preset", h_mapp), ("cuelist", h_cuel), ("config", h_config)):
             engine.cloud.on(k, h)
 
     # ---- rig maintenance: update / restart the master itself, or any renderer through its status service (:8082)

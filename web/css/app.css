@@ -188,7 +188,19 @@ label.mini { display: flex; flex-direction: column; gap: 3px; font-size: 11px; c
 @media (max-width: 700px) { .field { grid-template-columns: 1fr; gap: 4px; } .striptable { font-size: 11px; } }
 
 /* info tab */
-#info { display: block; max-width: 900px; margin: 0 auto; padding: 16px; }
+#info { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; max-width: 1180px; margin: 0 auto; padding: 16px; align-items: start; }
+#info-menu { position: sticky; top: 70px; max-height: calc(100vh - 86px); overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+#info-menu .im-tools { display: flex; flex-direction: column; gap: 6px; } #info-menu .im-tools .text { width: 100%; }
+#info-nav { display: flex; flex-direction: column; gap: 1px; }
+#info-nav a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--muted); font-size: 12.5px; text-decoration: none; border-left: 2px solid transparent; }
+#info-nav a:hover { color: var(--text); background: rgba(75,185,211,.06); } #info-nav a.cur { color: var(--text); border-left-color: var(--accent2); background: rgba(75,185,211,.08); }
+#info-nav a.hidden { display: none; }
+#info .card h3 { cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; } #info .card h3::before { content: '▾'; color: var(--muted); font-size: 12px; width: 12px; transition: transform .15s; }
+#info .card.closed h3::before { transform: rotate(-90deg); } #info .card.closed h3 { margin: 0; } #info .card.closed .ibody { display: none; }
+#info .card.nomatch { display: none; }
+#info .topo { width: 100%; height: auto; display: block; margin: 8px 0 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+#info .tl { font-weight: 600; } #info .tl.sync { color: var(--accent2); } #info .tl.video { color: var(--eng-video); } #info .tl.light { color: var(--warn); }
+@media (max-width: 900px) { #info { grid-template-columns: 1fr; } #info-menu { position: static; max-height: none; } #info-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; } #info-nav a { border-left: 0; border: 1px solid var(--line); } }
 #info[hidden], main[hidden] { display: none; }
 #info .card { margin-bottom: 16px; }
 #info h3 { margin: 0 0 8px; font-size: 16px; }
@@ -358,3 +370,17 @@ body.perf .ui-toast { font-size: 16px; padding: 14px 22px; bottom: 30px; }
 .show.flash { animation: cardflash 2.4s ease-out; } @keyframes cardflash { 0% { box-shadow: 0 0 0 3px var(--ok); } 100% { box-shadow: 0 0 0 0 transparent; } }
 .savebar { gap: 8px; flex-wrap: wrap; align-items: center; }
 h3.subhead { margin: 16px 0 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); } h3.subhead .sub { text-transform: none; letter-spacing: 0; font-weight: 400; }
+/* topology diagram (Info → Field network) */
+#info .topo text { font-family: var(--font); font-size: 12px; fill: var(--text); }
+#info .topo .small { font-size: 10.5px; fill: var(--muted); }
+#info .topo .mono { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+#info .topo .node { fill: var(--panel2); stroke: var(--line); stroke-width: 1.2; rx: 10; }
+#info .topo .node.master { stroke: var(--accent2); stroke-width: 2; }
+#info .topo .node.switch { fill: var(--panel); stroke: var(--accent); stroke-width: 2; }
+#info .topo .zone { fill: none; stroke: var(--line); stroke-dasharray: 5 4; rx: 14; }
+#info .topo .l { fill: none; stroke-width: 2; marker-end: url(#ar); }
+#info .topo .l.sync { stroke: var(--accent2); } #info .topo .l.video { stroke: var(--eng-video); } #info .topo .l.ctl { stroke: var(--accent); } #info .topo .l.light { stroke: var(--warn); } #info .topo .l.cloud { stroke: var(--muted); stroke-dasharray: 4 4; } #info .topo .l.tempo { stroke: var(--pink); }
+#info .topo .l.both { marker-start: url(#ar); }
+#info .topo .l.plain { stroke: var(--line); marker: none; }
+#info .topo .wifi { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 3; }
+#info .topo .port { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); }

@@ -22,7 +22,7 @@ from urllib.parse import quote
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUTBOX = os.path.join(HERE, "cloud_outbox.json")
 SYNC_STATE = os.path.join(HERE, "cloud_sync.json")
-SHARED_KINDS = ("show", "led_config", "mapping_preset")
+SHARED_KINDS = ("show", "led_config", "mapping_preset", "cuelist")
 TABLE = "studio_fractal_docs"
 
 
