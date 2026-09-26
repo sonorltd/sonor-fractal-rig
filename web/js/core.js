@@ -40,6 +40,7 @@ const SOURCE_META = {
   web:   {label: 'Web UI',       sub: 'this page · phone / laptop'},
   prodj: {label: 'Pro DJ Link',  sub: 'XDJ / CDJ beat grid · udp 50001'},
   audio: {label: 'Audio in',     sub: 'mic / line · energy + bass'},
+  xair:  {label: 'X Air mixer',  sub: 'Behringer XR16 meters + RTA · udp 10024'},
   midi:  {label: 'MIDI',         sub: 'USB controller · CC → params'},
   osc:   {label: 'OSC',          sub: 'TouchOSC / Ableton · udp 9000'},
   auto:  {label: 'Autonomous',   sub: 'slow noise drift'},

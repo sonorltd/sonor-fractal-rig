@@ -167,6 +167,14 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   inline matrix builder, Perform **LEDS** page (output, brightness, test, per-zone mute, saved configs). Rig tab:
   Projectors table carries health dot / loss % / temp / heartbeat jitter (engine `hb_worst`, `loss_rate`,
   `fps_min` from HB timing), a Health & network tile strip, Sources moved under Projectors, one Log card.
+- 2026-09-26 v0.8.0 (cont. 6) — **X Air source** (`inputs.XAir`): Behringer XR12/16/18 meters (`/meters/1`, 40 × int16
+  1/256 dB, main L/R at 36–37) + RTA (`/meters/4`, 100 bins) over OSC udp/10024, listen-only, broadcast `/xinfo`
+  discovery; drives energy/bass/16 bands when no USB audio stream, else display only. WS `{source:{name:'xair',
+  enabled, host, channel}}`, cfg `xair_enabled/host/source`. Info: topology redrawn as a **bus layout** (Pi switch bar →
+  core bar, rows of devices, no crossings), X Air in the audio chain (Pioneer master out → XR16 → PA; aux → master USB
+  audio in), **rig network is 192.168.22.0/24** (.1 gateway · .2 core · .3 Pi switch · .4 AP · .10 master · .11–.19
+  renderers · .20–.29 pixels · .30–.39 DMX · .40 Resolume · .50 Ableton · .60–.69 Pioneer/PJLink · .70 X Air ·
+  .100–.199 pool) — use these addresses in every doc, placeholder and example.
 - 2026-09-26 v0.8.0 (cont. 5) — **HDMI output select per renderer**: `--outputs 1|2|mirror|dual|auto` (auto = `<state>.out`
   written by fractal-media-sync `POST /outputs {mode}` + `systemctl restart fractal-renderer`; master proxies
   `/api/rig/{name}/outputs`). mirror = second SDL window on the SAME GL context, scene rendered once, final pass per

@@ -584,7 +584,9 @@
     <h4>Audio in</h4>
     <p>Optional. Any class-compliant USB audio input on the master (USB interface, the XDJ's USB audio, or a mic pointed at the room). ~40× a second the master computes overall loudness and a 30–150 Hz bass band, auto-gained so they sit mid-range whatever the volume, and writes them to <code>energy</code> (brightness / saturation lift) and <code>bass</code> (warmth + punch). A crude onset detector supplies beats <em>only</em> when Pro DJ Link is not locked — expect it to wander on breakdowns. Pick the input device in the Sources panel; needs <code>libportaudio2</code> + <code>sounddevice numpy</code> (installer adds them on the master).</p>
 
-    <h4>MIDI</h4>
+    <h4>X Air mixer (Behringer XR12 / XR16 / XR18)</h4>
+      <p>The PA desk as a source over the network. Enable it in the Sources panel, pick which meter drives things (main L/R, the aux, or one channel) and leave the IP blank — the master finds the desk with a broadcast <code>/xinfo</code>, or type its address (the plan puts the XR16 at 192.168.22.70). The rig subscribes to the desk's channel meters and its RTA over OSC on udp/10024 and maps them to <code>energy</code>, <code>bass</code> and the 16 bands the modulation and the Inputs monitor use — the same auto-gain as the USB path, so it sits mid-range at any level. It is <b>listen-only</b>: nothing is ever written to the mixer. If a USB audio input is also running, that stays in charge of energy / bass (and it is the only path that gives Milkdrop real PCM); the X Air then just shows in the monitor. No beat detection from this source — tempo still comes from Pro DJ Link, Link, tap or the USB audio onset.</p>
+      <h4>MIDI</h4>
     <p>Any class-compliant controller on the master's USB. CC → parameter via <code>midi_map</code> in <code>config.json</code>; defaults: CC1 zoom, CC2 rotation, CC3 hue, CC4 hue spread, CC5 warp, CC6 glow, CC7 brightness, CC8 contrast, CC9/10 Julia re/im, CC11 beat pulse, CC12 kaleidoscope. Notes 36+ recall presets in order, note 35 = tap, note 34 = set beat 1, notes 33 / 32 = next / previous projectM preset. "Map last CC →" on the Control tab learns a knob for this session (copy into config to keep). Reconnects automatically. Tip: the XDJ-RX2 is itself a USB MIDI controller when not in rekordbox mode.</p>
 
     <h4>OSC</h4>
@@ -712,105 +714,110 @@ sudo bash setup/install.sh master</pre>
   <div class="card" id="i-topology">
     <h3>Field network — topology for the whole rig (Ruijie / Reyee)</h3>
     <p>Two tiers. The <b>Pi switch</b> lives in the flight case with the Pis: a <b>Reyee RG-NBS3100-8GT2SFP-P</b> (8 × gigabit PoE+, 2 × SFP) powers the Pi 5s and carries the sync multicast. One uplink (Cat6, or fibre on the SFP if the case is far from the desk) goes to the <b>core</b> — a Reyee <b>RG-NBS3200-24GT4XS-P</b> (or a second NBS3100 for a small rig) — or straight into the <b>Reyee EG gateway</b> (RG-EG105G-P / EG210G-P: DHCP, VLAN, WAN). Everything else hangs off the core: Pioneer LINK, the Ableton and Resolume laptops, pixel controllers, the DMX node, the RAP access point for the tablet. Three kinds of traffic share the wire: the <span class="tl sync">sync multicast</span> wants zero loss and low jitter, <span class="tl video">video</span> (NDI, ~100 Mb/s per 1080p stream) wants bandwidth, <span class="tl light">lighting</span> (DDP / Art-Net / sACN at 40 fps) wants no bursts dropped. Gigabit carries all of it; the failures come from Wi-Fi, from snooping with no querier, and from a chain of unmanaged switches.</p>
-    <svg class="topo" viewBox="0 0 1000 640" role="img" aria-label="Fractal Rig field network topology, Ruijie two-tier">
+    <svg class="topo" viewBox="0 0 1000 790" role="img" aria-label="Fractal Rig field network — bus layout, Ruijie two-tier, 192.168.22.0/24">
       <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>
-      <!-- flight case zone (Pi tier) -->
-      <rect class="zone" x="310" y="14" width="380" height="386"/><text class="small" x="322" y="32">FLIGHT CASE · Pi tier · Reyee RG-NBS3100-8GT2SFP-P · IGMP snooping ON (querier lives on the core)</text>
-      <!-- master -->
-      <rect class="node master" x="400" y="46" width="200" height="86"/>
-      <text x="500" y="68" text-anchor="middle" font-weight="600">Master · Pi 5 · .10</text>
-      <text class="small" x="500" y="84" text-anchor="middle">fractal-master + renderer (headless → NDI)</text>
-      <text class="small" x="500" y="99" text-anchor="middle">web UI :8081 · USB→RS-232 to its projector</text>
-      <text class="mono" x="500" y="117" text-anchor="middle">tx 239.255.42.1:5005 @ 60 pps · rx HB :5006</text>
-      <!-- pi switch -->
-      <rect class="node switch" x="400" y="190" width="200" height="72"/>
-      <text x="500" y="213" text-anchor="middle" font-weight="600">Pi switch · NBS3100-8GT2SFP-P</text>
-      <text class="small" x="500" y="229" text-anchor="middle">8 × PoE+ for the Pis · 2 × SFP uplink</text>
-      <text class="small" x="500" y="244" text-anchor="middle">rig VLAN 10.42.0.0/24 · 1 uplink to core</text>
-      <path class="l sync both" d="M500 132 V190"/><text class="port" x="508" y="166">sync ⇅ HB</text>
-      <!-- renderers / projectors -->
-      <rect class="node" x="330" y="300" width="150" height="86"/><text x="405" y="322" text-anchor="middle" font-weight="600">Renderer Pi ×N</text><text class="small" x="405" y="338" text-anchor="middle">fractal1 … · .11–.19 · PoE</text><text class="small" x="405" y="353" text-anchor="middle">HDMI → projector</text><text class="small" x="405" y="368" text-anchor="middle">USB→RS-232 → projector ctrl</text>
-      <path class="l sync" d="M450 262 L420 300"/>
-      <rect class="node" x="520" y="300" width="150" height="86"/><text x="595" y="322" text-anchor="middle" font-weight="600">Projectors</text><text class="small" x="595" y="338" text-anchor="middle">ViewSonic V52HD (one per Pi)</text><text class="small" x="595" y="353" text-anchor="middle">HDMI picture · mapping per Pi</text><text class="mono" x="595" y="370" text-anchor="middle">RS-232 19200 8N1 · power / input</text>
-      <path class="l plain" d="M480 343 H520"/><text class="port" x="470" y="392">HDMI + RS-232 (per Pi)</text>
-      <!-- core switch / gateway (desk tier) -->
-      <text class="small" x="410" y="428">DESK TIER · core + gateway</text>
-      <rect class="node switch" x="400" y="440" width="200" height="72"/>
-      <text x="500" y="463" text-anchor="middle" font-weight="600">Core · NBS3200-24GT4XS-P</text>
-      <text class="small" x="500" y="479" text-anchor="middle">IGMP snooping + QUERIER · PoE for the AP</text>
-      <text class="small" x="500" y="494" text-anchor="middle">everything that is not a Pi plugs in here</text>
-      <path class="l sync both" d="M400 240 H296 V462 H400"/><text class="port" x="300" y="300" transform="rotate(-90 300 300)" text-anchor="middle">uplink · Cat6 / SFP</text>
-      <rect class="node" x="400" y="548" width="200" height="72"/>
-      <text x="500" y="571" text-anchor="middle" font-weight="600">Gateway · Reyee EG105G-P · .1</text>
-      <text class="small" x="500" y="587" text-anchor="middle">DHCP with reservations · VLAN · WAN</text>
-      <text class="small" x="500" y="602" text-anchor="middle">venue internet / 4G router on WAN — optional</text>
-      <path class="l ctl both" d="M500 512 V548"/>
-      <!-- left: tempo + control in (on the core) -->
-      <text class="small" x="30" y="128">TEMPO &amp; CONTROL IN → core</text>
-      <rect class="node" x="30" y="150" width="210" height="90"/>
-      <text x="135" y="172" text-anchor="middle" font-weight="600">Pioneer · XDJ / CDJ + mixer</text>
-      <text class="small" x="135" y="188" text-anchor="middle">LINK port → core, same L2 as the master</text>
-      <text class="small" x="135" y="203" text-anchor="middle">169.254.x.x unless it gets DHCP</text>
-      <text class="mono" x="135" y="222" text-anchor="middle">Pro DJ Link broadcast :50000–50002</text>
-      <path class="l tempo" d="M240 210 C330 210 330 462 400 462"/>
-      <rect class="node" x="30" y="270" width="210" height="72"/>
-      <text x="135" y="292" text-anchor="middle" font-weight="600">Ableton / Link laptop · .50</text>
-      <text class="small" x="135" y="308" text-anchor="middle">Ableton Link multicast, lead or follow</text>
-      <text class="mono" x="135" y="326" text-anchor="middle">Link :20808</text>
-      <path class="l tempo both" d="M240 322 C330 322 330 476 400 476"/>
-      <rect class="node" x="30" y="370" width="210" height="72"/>
-      <text x="135" y="392" text-anchor="middle" font-weight="600">MIDI controller / DMX in</text>
-      <text class="small" x="135" y="408" text-anchor="middle">USB straight into the master Pi</text>
-      <text class="small" x="135" y="424" text-anchor="middle">not on the network at all</text>
-      <path class="l ctl" d="M240 385 C300 385 300 126 400 126"/>
-      <!-- right: video, control UI, lighting (on the core) -->
-      <text class="small" x="750" y="40">VIDEO · CONTROL · LIGHTING → core</text>
-      <rect class="node" x="750" y="50" width="220" height="90"/>
-      <text x="860" y="72" text-anchor="middle" font-weight="600">Resolume laptop · .40</text>
-      <text class="small" x="860" y="88" text-anchor="middle">wired to core · NDI in + out · OSC two-way</text>
-      <text class="mono" x="860" y="106" text-anchor="middle">NDI :5353 / 5960+ · OSC :7000 ⇄ :8000</text>
-      <text class="small" x="860" y="124" text-anchor="middle">or an HDMI capture card into a Pi</text>
-      <path class="l video both" d="M750 110 C690 110 680 455 600 455"/>
-      <rect class="node" x="750" y="165" width="220" height="60"/>
-      <text x="860" y="187" text-anchor="middle" font-weight="600">AP · Reyee RAP2260 · rig SSID</text>
-      <text class="small" x="860" y="204" text-anchor="middle">PoE from the core · tablet traffic only</text>
-      <path class="l ctl" d="M750 200 C690 200 680 470 600 470"/>
-      <rect class="node" x="750" y="250" width="220" height="56"/>
-      <text x="860" y="272" text-anchor="middle" font-weight="600">Phone / tablet / kiosk</text>
-      <text class="small" x="860" y="289" text-anchor="middle">web UI + Perform · sonorpi.local:8081</text>
-      <path class="wifi" d="M860 225 V250"/><text class="port" x="868" y="242">Wi-Fi</text>
-      <rect class="node" x="750" y="340" width="220" height="70"/>
-      <text x="860" y="362" text-anchor="middle" font-weight="600">Pixel controllers · .20–.29</text>
-      <text class="small" x="860" y="378" text-anchor="middle">WLED / Gledopto, wired to the core</text>
-      <text class="mono" x="860" y="396" text-anchor="middle">DDP :4048 · Art-Net :6454 (unicast)</text>
-      <path class="l light" d="M750 375 C690 375 680 484 600 484"/>
-      <rect class="node" x="750" y="430" width="220" height="60"/>
-      <text x="860" y="452" text-anchor="middle" font-weight="600">Art-Net → DMX node · .30–.39</text>
-      <text class="small" x="860" y="469" text-anchor="middle">Sonor ArtNet Node · sACN :5568 (multicast)</text>
-      <path class="l light" d="M750 460 C690 460 680 498 600 498"/>
-      <rect class="node" x="750" y="540" width="220" height="60"/>
-      <text x="860" y="562" text-anchor="middle" font-weight="600">Supabase (cloud)</text>
-      <text class="small" x="860" y="579" text-anchor="middle">shows · looks · cue lists · LEDs · mappings</text>
-      <path class="l cloud both" d="M600 584 H750"/><text class="port" x="612" y="578">HTTPS · queued offline</text>
+      <!-- ================= flight case (Pi tier) ================= -->
+      <rect class="zone" x="30" y="14" width="940" height="262"/>
+      <text class="small" x="44" y="34">FLIGHT CASE · Pi tier · 192.168.22.0/24 · Reyee RG-NBS3100-8GT2SFP-P (8 × PoE+ · 2 × SFP) · IGMP snooping on, querier on the core</text>
+      <rect class="node master" x="60" y="54" width="220" height="96"/>
+      <text x="170" y="76" text-anchor="middle" font-weight="600">Master · Pi 5 · .10</text>
+      <text class="small" x="170" y="93" text-anchor="middle">fractal-master + renderer (headless → NDI)</text>
+      <text class="small" x="170" y="109" text-anchor="middle">web UI :8081 · USB audio in ← X Air aux</text>
+      <text class="mono" x="170" y="128" text-anchor="middle">239.255.42.1:5005 @ 60 · HB :5006</text>
+      <rect class="node" x="330" y="54" width="220" height="96"/>
+      <text x="440" y="76" text-anchor="middle" font-weight="600">Renderer Pi 5 ×N · .11–.19</text>
+      <text class="small" x="440" y="93" text-anchor="middle">fractal1 … fractalN · PoE+ from the Pi switch</text>
+      <text class="small" x="440" y="109" text-anchor="middle">HDMI 1 / 2 / mirror / dual from the web page</text>
+      <text class="mono" x="440" y="128" text-anchor="middle">RS-232 → projector (USB or GPIO)</text>
+      <rect class="node" x="640" y="54" width="220" height="96"/>
+      <text x="750" y="76" text-anchor="middle" font-weight="600">Projectors · ViewSonic V52HD</text>
+      <text class="small" x="750" y="93" text-anchor="middle">one per Pi (two on a dual Pi) · not on the network</text>
+      <text class="small" x="750" y="109" text-anchor="middle">power / input / status over RS-232 from its Pi</text>
+      <text class="mono" x="750" y="128" text-anchor="middle">RS-232 19200 8N1 · HDMI picture</text>
+      <path class="l plain" d="M550 102 H640"/><text class="port" x="558" y="96">HDMI + RS-232</text>
+      <!-- Pi switch bar -->
+      <rect class="node switch" x="60" y="206" width="600" height="46"/>
+      <text x="360" y="226" text-anchor="middle" font-weight="600">Pi switch · Reyee RG-NBS3100-8GT2SFP-P · .3</text>
+      <text class="small" x="360" y="243" text-anchor="middle">8 × PoE+ gigabit for the Pis · 2 × SFP · one uplink to the core</text>
+      <path class="l sync both" d="M170 150 V206"/><text class="port" x="178" y="184">sync ⇅ HB</text>
+      <path class="l sync both" d="M440 150 V206"/><text class="port" x="448" y="184">sync ⇅ HB · PoE</text>
+      <text class="small" x="700" y="226">spare PoE ports: extra Pis,</text><text class="small" x="700" y="242">a projector-side AP, a camera</text>
+      <!-- uplink -->
+      <path class="l sync both" d="M360 252 V372"/><text class="port" x="368" y="316">uplink · Cat6 or SFP fibre · one VLAN</text>
+      <!-- ================= core bar (desk tier) ================= -->
+      <text class="small" x="44" y="300">DESK TIER · core + gateway · everything that is not a Pi plugs in here</text>
+      <rect class="node switch" x="60" y="372" width="900" height="46"/>
+      <text x="510" y="392" text-anchor="middle" font-weight="600">Core · Reyee RG-NBS3200-24GT4XS-P · .2 · IGMP snooping + QUERIER · PoE for the AP</text>
+      <text class="small" x="510" y="409" text-anchor="middle">(small rig: a second NBS3100-8GT2SFP-P) · all ports in the rig VLAN · gateway on port 1</text>
+      <!-- row A: audio / tempo / video -->
+      <rect class="node" x="60" y="480" width="200" height="96"/>
+      <text x="160" y="502" text-anchor="middle" font-weight="600">Pioneer XDJ / CDJ · .60–.69</text>
+      <text class="small" x="160" y="519" text-anchor="middle">LINK port → core · DHCP reservation</text>
+      <text class="small" x="160" y="535" text-anchor="middle">(169.254.x.x only if no DHCP)</text>
+      <text class="mono" x="160" y="554" text-anchor="middle">Pro DJ Link broadcast :50000–50002</text>
+      <path class="l tempo" d="M160 480 V418"/>
+      <rect class="node" x="290" y="480" width="200" height="96"/>
+      <text x="390" y="502" text-anchor="middle" font-weight="600">Behringer X Air XR16 · .70</text>
+      <text class="small" x="390" y="519" text-anchor="middle">mixer → PA · Pioneer master out → ch 1/2</text>
+      <text class="small" x="390" y="535" text-anchor="middle">aux out → master's USB audio in (analog)</text>
+      <text class="mono" x="390" y="554" text-anchor="middle">OSC :10024 · meters + RTA</text>
+      <path class="l tempo both" d="M390 480 V418"/>
+      <path class="l plain" d="M260 528 H290"/><text class="port" x="252" y="590">master out (analog)</text>
+      <rect class="node" x="520" y="480" width="200" height="96"/>
+      <text x="620" y="502" text-anchor="middle" font-weight="600">Ableton / Link laptop · .50</text>
+      <text class="small" x="620" y="519" text-anchor="middle">Ableton Link multicast · lead or follow</text>
+      <text class="small" x="620" y="535" text-anchor="middle">or OSC → master :9000</text>
+      <text class="mono" x="620" y="554" text-anchor="middle">Link :20808 · OSC :9000</text>
+      <path class="l tempo both" d="M620 480 V418"/>
+      <rect class="node" x="750" y="480" width="190" height="96"/>
+      <text x="845" y="502" text-anchor="middle" font-weight="600">Resolume laptop · .40</text>
+      <text class="small" x="845" y="519" text-anchor="middle">NDI in + out · OSC two-way</text>
+      <text class="small" x="845" y="535" text-anchor="middle">or HDMI capture card into a Pi</text>
+      <text class="mono" x="845" y="554" text-anchor="middle">NDI · OSC :7000 ⇄ :8000</text>
+      <path class="l video both" d="M845 480 V418"/>
+      <!-- row B: lighting / control / uplink -->
+      <rect class="node" x="60" y="620" width="200" height="90"/>
+      <text x="160" y="642" text-anchor="middle" font-weight="600">Pixel controllers · .20–.29</text>
+      <text class="small" x="160" y="659" text-anchor="middle">WLED / Gledopto · wired, never Wi-Fi</text>
+      <text class="mono" x="160" y="678" text-anchor="middle">DDP :4048 · Art-Net :6454 (unicast)</text>
+      <text class="small" x="160" y="696" text-anchor="middle">170 RGB px per Art-Net universe</text>
+      <path class="l light" d="M275 418 V600 H160 V620"/>
+      <rect class="node" x="290" y="620" width="200" height="90"/>
+      <text x="390" y="642" text-anchor="middle" font-weight="600">Art-Net → DMX node · .30–.39</text>
+      <text class="small" x="390" y="659" text-anchor="middle">Sonor ArtNet Node (Nano + ENC28J60)</text>
+      <text class="mono" x="390" y="678" text-anchor="middle">Art-Net :6454 · sACN :5568</text>
+      <text class="small" x="390" y="696" text-anchor="middle">10 Mb/s — its own core port</text>
+      <path class="l light" d="M505 418 V600 H390 V620"/>
+      <rect class="node" x="520" y="620" width="200" height="90"/>
+      <text x="620" y="642" text-anchor="middle" font-weight="600">AP · Reyee RAP2260 · .4</text>
+      <text class="small" x="620" y="659" text-anchor="middle">PoE from the core · one rig SSID</text>
+      <text class="small" x="620" y="676" text-anchor="middle">phone / tablet / kiosk → web UI + Perform</text>
+      <text class="mono" x="620" y="695" text-anchor="middle">sonorpi.local:8081 · Wi-Fi = control</text>
+      <path class="l ctl" d="M735 418 V600 H620 V620"/>
+      <rect class="node" x="750" y="620" width="200" height="90"/>
+      <text x="850" y="642" text-anchor="middle" font-weight="600">Gateway · Reyee EG105G-P · .1</text>
+      <text class="small" x="850" y="659" text-anchor="middle">DHCP + reservations · rig VLAN · WAN</text>
+      <text class="small" x="850" y="676" text-anchor="middle">venue internet / 4G router on WAN (optional)</text>
+      <text class="mono" x="850" y="695" text-anchor="middle">Supabase HTTPS · queued offline</text>
+      <path class="l ctl both" d="M952 418 V600 H850 V620"/>
       <!-- legend -->
-      <g transform="translate(30 480)">
-        <text class="small" x="0" y="0">TRAFFIC</text>
-        <line class="l sync" x1="0" y1="16" x2="28" y2="16"/><text class="small" x="36" y="20">sync multicast · heartbeats</text>
-        <line class="l tempo" x1="0" y1="36" x2="28" y2="36"/><text class="small" x="36" y="40">tempo in (Pro DJ Link · Link)</text>
-        <line class="l video" x1="0" y1="56" x2="28" y2="56"/><text class="small" x="36" y="60">video (NDI) · OSC ⇄ Resolume</text>
-        <line class="l light" x1="0" y1="76" x2="28" y2="76"/><text class="small" x="36" y="80">lighting (DDP · Art-Net · sACN)</text>
-        <line class="l ctl" x1="0" y1="96" x2="28" y2="96"/><text class="small" x="36" y="100">control (web UI · MIDI · DHCP)</text>
-        <line class="l cloud" x1="0" y1="116" x2="28" y2="116"/><text class="small" x="36" y="120">cloud mirror (optional)</text>
-        <line class="l plain" x1="0" y1="136" x2="28" y2="136"/><text class="small" x="36" y="140">HDMI + RS-232 (not network)</text>
+      <g transform="translate(60 748)">
+        <line class="l sync" x1="0" y1="0" x2="26" y2="0"/><text class="small" x="32" y="4">sync multicast · heartbeats</text>
+        <line class="l tempo" x1="200" y1="0" x2="226" y2="0"/><text class="small" x="232" y="4">tempo / audio in</text>
+        <line class="l video" x1="360" y1="0" x2="386" y2="0"/><text class="small" x="392" y="4">video (NDI) · OSC ⇄ Resolume</text>
+        <line class="l light" x1="580" y1="0" x2="606" y2="0"/><text class="small" x="612" y="4">lighting (DDP · Art-Net · sACN)</text>
+        <line class="l ctl" x1="800" y1="0" x2="826" y2="0"/><text class="small" x="832" y="4">control · DHCP · cloud</text>
+        <line class="l plain" x1="0" y1="24" x2="26" y2="24"/><text class="small" x="32" y="28">not network: HDMI · RS-232 · analog audio</text>
       </g>
     </svg>
     <h4>Reyee kit list</h4>
     <table>
-      <tr><td>Pi switch</td><td><b>RG-NBS3100-8GT2SFP-P</b> (V2) — 8 × PoE+ gigabit, 2 × SFP, L2 managed, local web UI. Lives in the flight case, powers the Pi 5s.</td></tr>
+      <tr><td>Pi switch</td><td><b>RG-NBS3100-8GT2SFP-P</b> (V2) — 8 × PoE+ (802.3at) gigabit, 2 × SFP, L2 managed, local web UI. Lives in the flight case, powers the Pi 5s through PoE+ HATs (a Pi 5 with cooler + RS-232 lead draws up to ~25 W; af-class HATs are not enough).</td></tr>
       <tr><td>Core</td><td><b>RG-NBS3200-24GT4XS-P</b> for a full rig (24 × PoE, 4 × 10G SFP+), or a second <b>NBS3100-8GT2SFP-P</b> when it is one desk and a couple of controllers. Runs the IGMP querier.</td></tr>
       <tr><td>Gateway</td><td><b>RG-EG105G-P</b> (small) or <b>RG-EG210G-P</b> — DHCP with reservations, the rig VLAN, WAN to venue internet or a 4G/5G router. The rig never depends on the WAN.</td></tr>
       <tr><td>Access point</td><td><b>RAP2260(G)</b> or <b>RAP1200(F)</b> on a core PoE port, one rig-only SSID for the tablet.</td></tr>
-      <tr><td>Per Pi</td><td>Cat6 patch lead to the Pi switch, HDMI to the projector, and a <b>USB→RS-232 lead</b> (FTDI / PL2303; ~£10) to the projector's RS-232 port for power and input control.</td></tr>
+      <tr><td>Per Pi</td><td>Cat6 patch lead to the Pi switch, HDMI to the projector, and a <b>USB→RS-232 lead</b> (FTDI / PL2303; ~£10) or a MAX3232 on the GPIO header to the projector's RS-232 port for power and input control.</td></tr>
+      <tr><td>Audio desk</td><td><b>Behringer X Air XR16</b> on the core (.70): PA mixer, aux out to the master's USB audio interface, meters/RTA to the rig over OSC.</td></tr>
     </table>
     <h4>Rules that keep it solid</h4>
     <ul>
@@ -836,11 +843,12 @@ sudo bash setup/install.sh master</pre>
         </table>
         <p style="margin:6px 0 4px">Install with the flag so the Pi frees the header UART and points the projector service at it (one reboot): <code>sudo bash setup/install.sh slave --scale 0.5 --name fractal1 --gpio-serial</code>. It sets <code>enable_uart=1</code>, <code>dtparam=uart0=on</code> (Pi 5) / <code>dtoverlay=disable-bt</code> (Pi 4 — Bluetooth is not used), removes the serial login console and writes <code>/var/lib/fractal-rig/projector.json</code> with <code>port: /dev/serial0</code>. Test from the Pi: <code>python3 setup/projector.py status</code> → <code>power on · HDMI 1</code>. In the projector menu turn on <em>RS-232 control</em> / <em>standby power</em> (ViewSonic: Advanced → Standby Settings) so it listens while off — otherwise power-on over serial cannot work.</p>
       </li>
+      <li><b>Audio and the X Air.</b> The Pioneer mixer's master out feeds the <b>Behringer X Air XR16</b>, which runs the PA. Two things come from it: an <b>aux out → the master Pi's USB audio interface</b> (the analog "audio in" source: energy, bass, onset beats, and the PCM the Milkdrop presets react to), and — with no extra cable — the <b>X Air mixer</b> source on the Inputs tab, which subscribes to the desk's meters and RTA over OSC (udp/10024, listen-only, nothing is written to the desk) and drives energy / bass / the 16 bands from the main L/R or any channel you pick. Use the USB path when you want Milkdrop to hear the music; the OSC path is the fallback, or the whole answer on a night with no interface. Give the XR16 a DHCP reservation (.70) so the X Air app and the rig both find it every time; set the aux to post-fader, pre-limiter, around −18 dBFS.</li>
       <li><b>Pioneer</b>: the master only listens. If the decks are on <code>169.254.x.x</code> and you cannot give them DHCP, add a link-local alias to the master (command in the Network section).</li>
       <li><b>Spares</b>: a second NBS3100, a spare Pi imaged as a renderer, a spare USB→RS-232 lead, a 4G router and a bag of Cat6 patch leads with boots. Everything else is software.</li>
     </ul>
-    <h4>Suggested address plan (10.42.0.0/24)</h4>
-    <table><tr><td>.1</td><td>Reyee EG gateway / DHCP / WAN</td></tr><tr><td>.2–.5</td><td>switches (core .2, Pi switch .3) and the AP</td></tr><tr><td>.10</td><td>master Pi (<code>sonorpi</code>)</td></tr><tr><td>.11–.19</td><td>renderer Pis (<code>fractal1</code>…)</td></tr><tr><td>.20–.29</td><td>WLED / pixel controllers</td></tr><tr><td>.30–.39</td><td>Art-Net / sACN → DMX nodes</td></tr><tr><td>.40–.49</td><td>Resolume / media laptops</td></tr><tr><td>.50–.59</td><td>Ableton / Link machines</td></tr><tr><td>.60–.69</td><td>Pioneer gear and any PJLink projectors (reservations by MAC)</td></tr><tr><td>.100–.199</td><td>DHCP pool: phones, tablets, guests</td></tr></table>
+    <h4>Address plan (192.168.22.0/24 — the rig network)</h4>
+    <table><tr><td>.1</td><td>Reyee EG gateway / DHCP / WAN</td></tr><tr><td>.2–.5</td><td>core switch .2 · Pi switch .3 · AP .4</td></tr><tr><td>.10</td><td>master Pi (<code>sonorpi</code>)</td></tr><tr><td>.11–.19</td><td>renderer Pis (<code>fractal1</code>…)</td></tr><tr><td>.20–.29</td><td>WLED / pixel controllers</td></tr><tr><td>.30–.39</td><td>Art-Net / sACN → DMX nodes</td></tr><tr><td>.40–.49</td><td>Resolume / media laptops</td></tr><tr><td>.50–.59</td><td>Ableton / Link machines</td></tr><tr><td>.60–.69</td><td>Pioneer gear and any PJLink projectors (reservations by MAC)</td></tr><tr><td>.70</td><td>Behringer X Air XR16 (reservation; the X Air app finds it, so does the rig's broadcast)</td></tr><tr><td>.100–.199</td><td>DHCP pool: phones, tablets, guests</td></tr></table>
   </div>
 
   <div class="card" id="i-protocol">

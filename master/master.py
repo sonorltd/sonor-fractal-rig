@@ -25,13 +25,13 @@ from params import PARAMS, KEYS, PACKET_SIZE
 import inputs, outputs
 
 APP_VERSION = "0.8.0"
-osc_out = led = thumbs = link = None
+osc_out = led = thumbs = link = xair = None
 
 
 LOCAL_CFG = os.path.join(HERE, "config.local.json")
 
 
-def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods", "palette_lock", "supabase_url", "supabase_key", "rig_id", "cloud_enabled", "out_res_boot", "favs")):
+def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods", "palette_lock", "supabase_url", "supabase_key", "rig_id", "cloud_enabled", "out_res_boot", "favs", "xair_enabled", "xair_host", "xair_source")):
     """Persist the UI-editable parts of the config to config.local.json (config.json stays pristine in git)."""
     try:
         cur = json.load(open(LOCAL_CFG)) if os.path.exists(LOCAL_CFG) else {}
@@ -335,6 +335,9 @@ async def web_app(engine, cfg):
                     elif name == "prodj" and "follow" in m["source"]:
                         cfg["prodj_follow_device"] = int(m["source"]["follow"] or 0)
                         engine.event(f"Pro DJ Link: follow deck {cfg['prodj_follow_device'] or 'auto'}")
+                    elif name == "xair" and xair:
+                        xair.set_enabled(on, host=m["source"].get("host"), source=m["source"].get("channel"))
+                        save_local_config(cfg); engine.event(f"X Air {'enabled' if on else 'disabled'}" + (f" ({xair.host})" if xair.host else ""))
                     elif name in engine.sources:
                         engine.source(name, enabled=on)
                         engine.event(f"{name} {'enabled' if on else 'disabled'}")
@@ -1137,6 +1140,8 @@ async def main():
         asyncio.create_task(inputs.midi_task(engine, cfg))
     if cfg.get("audio_enabled", False):
         inputs.Audio.start(engine, cfg)
+    global xair
+    xair = inputs.XAir(engine, cfg); await xair.start()   # Behringer X Air meters/RTA over OSC — off until enabled on the Inputs tab
 
     await broadcaster(engine, cfg)
 

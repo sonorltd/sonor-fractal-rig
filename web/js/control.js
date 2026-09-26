@@ -84,6 +84,7 @@ function renderSources() {
       const meta = SOURCE_META[n];
       let extra = '';
       if (n === 'audio' && S.live) extra = `<select id="audio-dev"><option value="">default input</option>${(S.audio_devices || []).map(d => `<option value="${d.index}">${esc(d.name)}</option>`).join('')}</select>`;
+      if (n === 'xair' && S.live) extra = `<select id="xair-ch" title="which meter drives energy"><option value="lr">main L/R</option><option value="aux">aux in</option>${Array.from({length: 16}, (_, i) => `<option value="${i + 1}">ch ${i + 1}</option>`).join('')}</select><button class="btn small" id="xair-host" title="mixer IP (blank = find it by broadcast)">IP</button>`;
       if (n === 'link' && S.live) extra = `<select id="link-mode"><option value="follow">follow</option><option value="lead">lead</option></select>`;
       if (n === 'prodj' && S.live) extra = `<select id="prodj-follow"><option value="0">follow: auto</option><option value="1">deck 1</option><option value="2">deck 2</option><option value="3">deck 3</option><option value="4">deck 4</option></select>`;
       const toggle = n === 'web' ? '' : `<button class="toggle" data-src="${n}" title="enable / disable"></button>`;
@@ -96,6 +97,8 @@ function renderSources() {
       send(msg);
     });
     const ad = $('audio-dev'); if (ad) { ad.value = S.audio_device == null ? '' : String(S.audio_device); ad.onchange = () => { if (S.sources.audio.enabled) send({source: {name: 'audio', enabled: true, device: ad.value === '' ? null : +ad.value}}); }; }
+    const xc = $('xair-ch'); if (xc) { xc.value = (S.sources.xair && S.sources.xair.channel) || (S.xair_source || 'lr'); xc.onchange = () => send({source: {name: 'xair', enabled: !!(S.sources.xair && S.sources.xair.enabled), channel: xc.value}}); }
+    const xh = $('xair-host'); if (xh) xh.onclick = async () => { const v = await ui.dialog({title: 'X Air mixer address', text: 'Leave blank to find the mixer with a broadcast (same subnet). The rig only listens to its meters — nothing is written to the desk.', fields: [{key: 'host', label: 'Mixer IP', value: (S.sources.xair && S.sources.xair.host) || '', placeholder: '192.168.22.70'}], ok: 'Save'}); if (v) send({source: {name: 'xair', enabled: !!(S.sources.xair && S.sources.xair.enabled), host: v.host}}); };
     const lmS = $('link-mode'); if (lmS) { lmS.value = (S.outputs.link && S.outputs.link.mode) || 'follow'; lmS.onchange = () => send({source: {name: 'link', enabled: S.sources.link.enabled, mode: lmS.value}}); }
     const pf = $('prodj-follow'); if (pf) { pf.value = String(S.prodj_follow || 0); pf.onchange = () => send({source: {name: 'prodj', enabled: S.sources.prodj.enabled, follow: +pf.value}}); }
   }

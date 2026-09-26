@@ -62,6 +62,7 @@ class Engine:
             "web":   dict(enabled=True,  ok=True,  detail="serving", clients=0),
             "prodj": dict(enabled=bool(cfg.get("prodj_enabled", True)), ok=False, detail="waiting for beat packets on udp/%d" % int(cfg.get("prodj_port", 50001))),
             "audio": dict(enabled=bool(cfg.get("audio_enabled", False)), ok=False, detail="off"),
+            "xair": dict(enabled=bool(cfg.get("xair_enabled", False)), ok=False, detail="off"),
             "midi":  dict(enabled=bool(cfg.get("midi_enabled", True)),  ok=False, detail="no controller"),
             "osc":   dict(enabled=bool(cfg.get("osc_enabled", True)),   ok=False, detail="udp/%d" % int(cfg.get("osc_port", 9000))),
             "auto":  dict(enabled=True,  ok=True,  detail="drifting"),
@@ -383,7 +384,7 @@ class Engine:
             self.out[i] = v
 
         # live audio overrides the manual sliders while audio is running
-        if self.audio_ok and self.sources["audio"]["enabled"] and self.cfg.get("audio_drive_params", True):
+        if self.audio_ok and (self.sources["audio"]["enabled"] or self.sources.get("xair", {}).get("enabled")) and self.cfg.get("audio_drive_params", True):
             self.out[INDEX["energy"]] = self.audio_energy
             self.out[INDEX["bass"]] = self.audio_bass
         self.show.apply_mods(dt, self._beat_flag)

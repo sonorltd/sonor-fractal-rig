@@ -12,7 +12,8 @@ Input adapters for the master. Each one is optional and degrades gracefully
   Audio      — sounddevice + numpy. RMS energy + low band -> energy/bass params,
                optional onset->beat when no Pro DJ Link is present.
 """
-import asyncio, struct, time, math
+import asyncio
+import socket, struct, time, math
 
 PRODJ_HEADER = bytes([0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c])  # "Qspt1WmJOL"
 PRODJ_BEAT = 0x28
@@ -439,3 +440,169 @@ class Audio:
             return [dict(index=i, name=d["name"]) for i, d in enumerate(sd.query_devices()) if d["max_input_channels"] > 0]
         except Exception:
             return []
+
+
+# ---------------------------------------------------------------- Behringer X Air (XR12/16/18) — meters + RTA over OSC
+class XAir:
+    """The PA mixer as an audio source with no cable: the X Air answers OSC on udp/10024. We subscribe to its
+    meter blobs and use the main L/R level as `energy`, the RTA's low bins as `bass`, and the RTA as the 16 bands
+    the UI and audio→param modulation use. If a USB audio input is also running, that wins for energy/bass and
+    the X Air only feeds the display. Stdlib only.
+
+    cfg: xair_enabled (bool), xair_host ("" = discover with a broadcast /xinfo), xair_source ("lr" | "1".."16" | "aux")
+    Meter blob: int32 count, then int16 values in 1/256 dB.  /meters/1 = 40 values on XR18/16/12
+    (ch1-16, aux 17-18, fx returns 19-26, bus 27-32, fx send 33-36, main L R 37-38, monitor 39-40).
+    /meters/4 = RTA, 100 short values (1/256 dB) — used for the bands when the mixer sends it.
+    Subscriptions last ~10 s, renewed every 8 s. Nothing is ever written to the mixer.
+    """
+    PORT = 10024
+
+    def __init__(self, engine, cfg):
+        self.e, self.cfg = engine, cfg
+        self.enabled = bool(cfg.get("xair_enabled", False))
+        self.host = str(cfg.get("xair_host", "") or "")
+        self.source = str(cfg.get("xair_source", "lr"))
+        self.sock = None; self.info = None; self.last_rx = 0.0; self.slow = 1e-3; self.energy = 0.0; self.bass = 0.0
+        self.rta = None; self._bmax = 1e-4; self.discovered = []
+
+    # --- OSC helpers (just enough)
+    @staticmethod
+    def _osc(addr, *args):
+        def pad(b): return b + b"\0" * (4 - len(b) % 4)
+        msg = pad(addr.encode()); tags = ","
+        body = b""
+        for a in args:
+            if isinstance(a, int): tags += "i"; body += struct.pack(">i", a)
+            elif isinstance(a, float): tags += "f"; body += struct.pack(">f", a)
+            else: tags += "s"; body += pad(str(a).encode())
+        return msg + pad(tags.encode()) + body
+
+    @staticmethod
+    def _parse(data):
+        """Return (address, [args]) for one OSC message; blobs come back as bytes."""
+        def rd_str(b, i):
+            j = b.index(b"\0", i); s = b[i:j].decode(errors="ignore"); j += 1
+            while j % 4: j += 1
+            return s, j
+        addr, i = rd_str(data, 0)
+        if i >= len(data) or data[i:i + 1] != b",": return addr, []
+        tags, i = rd_str(data, i); out = []
+        for t in tags[1:]:
+            if t == "i": out.append(struct.unpack(">i", data[i:i + 4])[0]); i += 4
+            elif t == "f": out.append(struct.unpack(">f", data[i:i + 4])[0]); i += 4
+            elif t == "s": v, i = rd_str(data, i); out.append(v)
+            elif t == "b":
+                n = struct.unpack(">i", data[i:i + 4])[0]; i += 4; out.append(data[i:i + n]); i += n
+                while i % 4: i += 1
+        return addr, out
+
+    @staticmethod
+    def _meters(blob):
+        """int32 LE count + int16 LE values in 1/256 dB → list of dB floats."""
+        if len(blob) < 4: return []
+        n = struct.unpack("<i", blob[:4])[0]; n = max(0, min(n, (len(blob) - 4) // 2))
+        return [v / 256.0 for v in struct.unpack("<%dh" % n, blob[4:4 + 2 * n])]
+
+    async def start(self):
+        loop = asyncio.get_running_loop()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.sock.setblocking(False)
+        try: self.sock.bind(("0.0.0.0", 0))
+        except OSError: pass
+        loop.add_reader(self.sock, self._on_readable)
+        self.e.source("xair", enabled=self.enabled, ok=False, detail="off" if not self.enabled else "looking for the mixer…")
+        asyncio.create_task(self._loop())
+
+    def set_enabled(self, on, host=None, source=None):
+        self.enabled = bool(on); self.cfg["xair_enabled"] = self.enabled
+        if host is not None: self.host = str(host).strip(); self.cfg["xair_host"] = self.host
+        if source is not None: self.source = str(source); self.cfg["xair_source"] = self.source
+        self.e.source("xair", enabled=self.enabled, detail="off" if not self.enabled else "looking for the mixer…")
+
+    def _send(self, host, msg):
+        try: self.sock.sendto(msg, (host, self.PORT))
+        except OSError: pass
+
+    def _on_readable(self):
+        try:
+            while True:
+                data, addr = self.sock.recvfrom(4096)
+                try: a, args = self._parse(data)
+                except Exception: continue
+                if a == "/xinfo" and len(args) >= 3:
+                    self.info = dict(ip=args[0], name=args[1], model=args[2], fw=args[3] if len(args) > 3 else "")
+                    if not self.host: self.host = args[0]
+                    if args[0] not in self.discovered: self.discovered.append(args[0])
+                elif a == "/meters/1" and args and isinstance(args[0], (bytes, bytearray)):
+                    self.last_rx = time.monotonic(); self._levels(self._meters(args[0]))
+                elif a == "/meters/4" and args and isinstance(args[0], (bytes, bytearray)):
+                    self.last_rx = time.monotonic(); self._rta(self._meters(args[0]))
+        except BlockingIOError:
+            pass
+        except OSError:
+            pass
+
+    def _pick(self, m):
+        s = self.source
+        if s == "lr" and len(m) >= 38: return max(m[36], m[37])
+        if s == "aux" and len(m) >= 18: return max(m[16], m[17])
+        try:
+            i = int(s) - 1
+            if 0 <= i < min(16, len(m)): return m[i]
+        except ValueError: pass
+        return max(m[:2]) if m else -90.0
+
+    def _levels(self, m):
+        db = self._pick(m)                                     # -128 .. 0 dBFS-ish
+        lin = 10 ** (max(-90.0, db) / 20.0)
+        self.slow = max(self.slow * 0.999, lin * 0.02 + self.slow * 0.98, 1e-4)     # same auto-gain idea as the USB path
+        e = min(1.0, lin / (self.slow * 3.0 + 1e-6))
+        self.energy += (e - self.energy) * (0.5 if e > self.energy else 0.15)
+        if self.rta is None:                                   # no RTA yet: bass follows energy, a bit slower
+            self.bass += (e - self.bass) * (0.3 if e > self.bass else 0.1)
+        self._publish()
+
+    def _rta(self, v):
+        if len(v) < 16: return
+        n = len(v); bands = []
+        edges = [int(round((n ** (i / 16.0)) - 1)) for i in range(17)]   # log-spaced index edges over the RTA bins
+        for i in range(16):
+            lo, hi = edges[i], max(edges[i] + 1, edges[i + 1]); seg = v[lo:hi] or [-90.0]
+            bands.append(10 ** (max(-90.0, max(seg)) / 20.0))
+        self._bmax = max(self._bmax * 0.995, max(bands), 1e-4)
+        self.rta = [round(min(1.0, b / self._bmax), 2) for b in bands]
+        low = max(bands[:3]); self.bass += (min(1.0, low / (self._bmax * 0.7 + 1e-6)) - self.bass) * 0.5
+        self._publish()
+
+    def _publish(self):
+        e = self.e
+        usb = getattr(e, "_sd_stream", None) is not None
+        if not usb:                                            # we ARE the audio source
+            e.audio_energy = round(self.energy, 3); e.audio_bass = round(self.bass, 3)
+            if self.rta: e.audio_bands = list(self.rta)
+            e.audio_ok = True
+        self.e.source("xair", ok=True, detail=f"{(self.info or {}).get('model', 'X Air')} {(self.info or {}).get('name', '')} @ {self.host} · {self.source} · energy {self.energy:.2f} bass {self.bass:.2f}" + ("" if usb else " · driving energy/bass"), host=self.host, model=(self.info or {}).get("model"), mixer=(self.info or {}).get("name"), rta=bool(self.rta))
+
+    async def _loop(self):
+        n = 0
+        while True:
+            try:
+                if self.enabled:
+                    if not self.host or self.info is None or n % 30 == 0:
+                        self._send(self.host or "255.255.255.255", self._osc("/xinfo"))
+                    if self.host:
+                        # renew the meter subscriptions (they expire after 10 s); time factor 2 ≈ 100 ms updates
+                        self._send(self.host, self._osc("/meters", "/meters/1", 2))
+                        self._send(self.host, self._osc("/meters", "/meters/4", 2))
+                    if self.last_rx and time.monotonic() - self.last_rx > 12:
+                        self.e.source("xair", ok=False, detail=f"no meters from {self.host} for {int(time.monotonic() - self.last_rx)} s — same subnet? udp/{self.PORT}?")
+                        if getattr(self.e, "_sd_stream", None) is None: self.e.audio_ok = False
+                    elif not self.last_rx:
+                        self.e.source("xair", ok=False, detail=(f"found {self.info['model']} '{self.info['name']}' @ {self.host} — waiting for meters" if self.info else (f"asking {self.host} (udp/{self.PORT})…" if self.host else "broadcasting /xinfo — no X Air answered yet")))
+                else:
+                    self.e.source("xair", ok=False, detail="off")
+            except Exception as ex:
+                self.e.source("xair", ok=False, detail=f"error: {ex}")
+            n += 1
+            await asyncio.sleep(8 if self.enabled and self.host else 3)
