@@ -437,8 +437,18 @@ class Engine:
             map_hash = kv.get("map")
             video = kv.get("video")
             prev = self.fleet.get(name, {})
+            now = time.time()
+            # heartbeat-interval stats — a jittery/late HB on a Pi that is otherwise fine usually means the LAN
+            # (Wi-Fi, a saturated switch port) rather than the renderer; worst-of-recent decays so it recovers
+            gap = (now - prev["seen"]) if prev.get("seen") else None
+            hb_worst = max(gap or 0, prev.get("hb_worst", 0) * 0.97)
+            lost_i, pk_i = int(lost), int(pk)
+            lost_recent = max(0, lost_i - prev.get("lost", lost_i))       # new losses since the previous heartbeat
+            loss_rate = prev.get("loss_rate", 0.0) * 0.9 + lost_recent      # ~10 s decayed count
             self.fleet[name] = dict(ip=addr[0], fps=float(fps), res=res, tile=f"{tx},{ty} of {tc}x{tr}",
-                                    packets=int(pk), lost=int(lost), version=appver, seen=time.time(),
+                                    hb_gap=round(gap, 2) if gap else None, hb_worst=round(hb_worst, 2), loss_rate=round(loss_rate, 1),
+                                    loss_pct=round(100.0 * lost_i / max(1, pk_i + lost_i), 3), fps_min=round(min(float(fps), prev.get("fps_min", 999) * 1.002 + 0.05), 1),
+                                    packets=pk_i, lost=lost_i, version=appver, seen=now,
                                     temp=temp, first_seen=prev.get("first_seen", time.time()), hb=prev.get("hb", 0) + 1,
                                     pm_presets=pm_n, pm_current=pm_cur, audio_packets=audio_pk, ndi=ndi,
                                     media=media_n, map=map_hash, video=video)
@@ -609,7 +619,7 @@ class Engine:
             video=self._video_snapshot(), osc_in_map=self.osc_in_map, osc_last=self.osc_last,
             cue=self.show.snapshot(), cues=self.show.cues, mods=self.show.mods,
             cloud=self.cloud.status() if self.cloud else None,
-            palettes=self.palettes, palette_lock=self.palette_lock, palette_current=self.palette_current,
+            palettes=self.palettes, palette_lock=self.palette_lock, palette_current=self.palette_current, favs=self.cfg.get("favs", {}),
             pm=dict(count=len(self.pm_presets), dir=self.pm_dir, index=self.pm_index(), name=self.pm_name(),
                     cycle_bars=self.pm_cycle_bars, shuffle=self.pm_shuffle,
                     audio=self.audio_stream.stats() if self.audio_stream else None),

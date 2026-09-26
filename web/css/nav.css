@@ -1,0 +1,83 @@
+/* Fractal Rig — header, tab bar, and the Perform rail/pages. Change the menu look here; index.html + js/nav.js define what is IN the menus. */
+header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+.logo { font-weight: 700; letter-spacing: .12em; font-size: 13px; }
+.logo span { color: var(--accent2); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.pf-grid { width: 100%; height: 44px; display: block; border-radius: 10px; background: #08090c; border: 1px solid var(--line); margin: 6px 0 10px; }
+.nav { display: flex; gap: 2px; background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.nav button { background: none; border: 0; border-radius: 999px; padding: 4px 10px; color: var(--muted); font-size: 12px; }
+#pill-cloud { white-space: nowrap; }
+.nav button.active { background: var(--accent); color: #fff; }
+#perf { position: fixed; inset: 0; background: var(--bg); z-index: 50; display: flex; flex-direction: column; }
+#perf[hidden] { display: none; }
+body.perf { overflow: hidden; }
+.perf-top { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.perf-top .bpm { font-size: 28px; }
+.perf-top .tabs { border: 0; margin: 0; }
+.perf-top .tabs button { font-size: 14px; padding: 8px 12px; }
+/* Perform layout: a fixed rail of page buttons on the left, ONE page visible at a time, and that page is the
+   scroll container (overflow-y:auto + min-height:0). No horizontal swipe any more — it fought with vertical
+   scrolling on the kiosk and hid pages. */
+.perf-body { flex: 1; min-height: 0; display: flex; }
+.perf-rail { width: 112px; flex: none; display: flex; flex-direction: column; gap: 6px; padding: 10px 8px; border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; }
+.perf-rail button { min-height: 60px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 600; letter-spacing: .03em; padding: 6px 4px; display: grid; place-items: center; gap: 2px; }
+.perf-rail button small { font-weight: 400; font-size: 10px; color: var(--muted); }
+.perf-rail button.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.25), rgba(128,88,161,.25)); color: #fff; }
+.perf-rail .spacer { flex: 1; }
+.perf-pages { flex: 1; min-height: 0; position: relative; display: flex; }
+.ppage { flex: 1; min-height: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: 14px 16px 110px; display: none; flex-direction: column; gap: 14px; box-sizing: border-box; scrollbar-width: thin; }
+.ppage.on { display: flex; }
+.ppage > * { flex: none; }
+.pscroll { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+.pscroll button { min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; padding: 0; }
+.perf-pages { padding-right: 0; }
+.ppage { padding-right: 16px; }
+.pf-hint { font-size: 12px; color: var(--muted); }
+.pgrid { display: grid; gap: 10px; }
+.pgrid.c2 { grid-template-columns: 1fr 1fr; } .pgrid.c3 { grid-template-columns: repeat(3, 1fr); } .pgrid.c4 { grid-template-columns: repeat(4, 1fr); }
+.pbtn { min-height: 72px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; font-weight: 700; letter-spacing: .03em; display: grid; place-items: center; gap: 2px; padding: 10px; text-align: center; }
+.pbtn small { font-weight: 400; font-size: 11px; color: var(--muted); letter-spacing: 0; }
+.pbtn.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.22), rgba(128,88,161,.22)); color: #fff; }
+.pbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pbtn.huge { min-height: 120px; font-size: 26px; }
+.pbtn.danger.active { background: rgba(236,96,97,.25); border-color: var(--bad); }
+.pbtn:active { transform: scale(.97); }
+.plabel { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 4px 0 -6px; }
+.pslider { display: grid; grid-template-columns: 120px 1fr 64px; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.pslider label { font-size: 16px; font-weight: 500; }
+.pslider .v { font-family: var(--mono); font-size: 16px; text-align: right; color: var(--accent2); }
+.pslider input[type=range] { width: 100%; height: 44px; accent-color: var(--accent2); }
+.pstep { display: grid; grid-template-columns: 72px 1fr 72px; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+.pstep .pbtn { min-height: 60px; font-size: 26px; }
+.pstep .mid { text-align: center; } .pstep .mid b { display: block; font-size: 16px; } .pstep .mid span { font-family: var(--mono); color: var(--accent2); font-size: 18px; }
+.pf-preset { min-height: 84px; font-size: 17px; }
+.pf-preset small { font-size: 11px; }
+.pf-show { min-height: 84px; font-size: 16px; text-align: left; place-items: start; }
+.pf-show small { text-align: left; }
+.pf-clip { position: relative; overflow: hidden; }
+.pf-clip .bg { position: absolute; inset: 0; background: center/cover no-repeat; opacity: .35; }
+.pf-clip span { position: relative; }
+.pbtn.eng { border-width: 2px; border-color: color-mix(in srgb, var(--eng) 45%, var(--line)); color: var(--eng); }
+.pbtn.eng.active { background: linear-gradient(135deg, color-mix(in srgb, var(--eng) 35%, var(--panel2)), color-mix(in srgb, var(--eng) 12%, var(--panel2))); border-color: var(--eng); color: #fff; box-shadow: 0 0 0 1px var(--eng) inset; }
+
+/* page scroll arrows live in the rail (a floating pair bottom-right sat on top of the rig launcher's ⌂ button) */
+@media (max-width: 600px) { .perf-rail { width: 76px; } .perf-rail button { min-height: 52px; font-size: 12px; } .perf-rail button small { display: none; } }
+@media (max-width: 500px) { .pgrid.c3 { grid-template-columns: 1fr 1fr; } .pgrid.c4 { grid-template-columns: 1fr 1fr; } .pslider { grid-template-columns: 90px 1fr 56px; } .pbtn { font-size: 16px; min-height: 64px; } .perf-top .tabs button { padding: 8px 8px; font-size: 13px; } }
+/* ---- mobile (≤700px) ---- */
+@media (max-width: 700px) {
+  header { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+  header .logo { order: 0; }
+  header .nav { order: 1; margin-left: auto; }
+  header .pill { order: 2; font-size: 11px; padding: 3px 7px; }
+  header .spacer { display: none; }
+  #pill-ver { display: none; }
+  header a.pill { display: none; }
+}
+/* ---- wide screens: keep the whole header on one row (only the connection pill shrinks/ellipsises; nothing wraps) ---- */
+@media (min-width: 1280px) {
+  header { flex-wrap: nowrap; gap: 8px 10px; }
+  header > * { flex: none; white-space: nowrap; }
+  header .logo { white-space: nowrap; }
+  header .pill:first-of-type { flex: 0 1 auto; min-width: 60px; } header .pill:first-of-type > span { overflow: hidden; text-overflow: ellipsis; }
+  header .nav button { padding: 4px 9px; }
+}

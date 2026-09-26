@@ -1,0 +1,11 @@
+/* Fractal Rig — colour tokens. Every colour in the app is a variable from here; theme it in one place. */
+/* Stage-side control surface: dark by design (this lives on a phone next to a DJ booth,
+   not in the office). Deliberate deviation from Sonor SLATE-FIRST — side-project, non-Sonor UI. */
+:root {
+  --bg: #0b0c10; --panel: #13151c; --panel2: #191c25; --line: #262a37;
+  --text: #e8e9ee; --muted: #8b90a3; --accent: #8058a1; --accent2: #4bb9d3;
+  --ok: #78ba57; --warn: #f5d05c; --bad: #ec6061; --pink: #e67eb1;
+  --radius: 10px; --font: 'DM Sans', system-ui, -apple-system, Segoe UI, sans-serif;
+  --mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+:root { --eng-shader: #4bb9d3; --eng-pm: #c06cf0; --eng-video: #f0a040; --eng-resolume: #ec6061; }

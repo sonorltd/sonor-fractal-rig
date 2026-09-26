@@ -38,7 +38,7 @@ drifts on its own.
 | `renderer/shaders/fractal.frag` | **The** shader: 8 scenes — Mandelbrot / Julia / Burning Ship / Tricorn fractals plus Plasma / Tunnel / Starfield / Waves (the Winamp-AVS end of things) — orbit-trap glow, kaleidoscope, domain warp, beat pulse, bar sway. Byte-identical on Pis and in the web preview. | GPU |
 | `master/` | `master.py` + `engine.py` + `inputs.py` + `outputs.py` — asyncio param engine, Ableton Link, OSC→Resolume, LED (DDP/Art-Net/sACN), thumbnail receiver, 60 Hz broadcaster, web UI + WebSocket, Pro DJ Link / MIDI / OSC / audio inputs, presets, fleet heartbeat. | master Pi (or a laptop) |
 | `master/params.py` | Single source of truth for the parameter table → generates `params.h`, `params.glsl`, `params.js`. | — |
-| `web/` | `index.html` — phone-friendly control surface: Sources panel (live link status + on/off for Pro DJ Link, audio, MIDI, OSC, auto-drift), all params, presets, fleet, and an **Info** tab with the full manual. Live WebGL2 preview. Live when served by the master, demo mode on GitHub Pages. | browser |
+| `web/` | `index.html` (markup) + `css/{theme,nav,app}.css` + `js/*.js` (one file per tab; `js/nav.js` = the menus) — phone-friendly control surface: Sources panel (live link status + on/off for Pro DJ Link, audio, MIDI, OSC, auto-drift), all params, presets, fleet, and an **Info** tab with the full manual. Live WebGL2 preview. Live when served by the master, demo mode on GitHub Pages. | browser |
 | `setup/` | `install.sh` (role = master or slave), `selftest.sh` (pass/fail bring-up checker), `install-projectm.sh`, `install-ndi.sh`, `install-kiosk.sh` (touchscreen console), systemd units, host naming examples. | Pi |
 | `PROTOCOL.md` | The wire format and the sync reasoning. | — |
 

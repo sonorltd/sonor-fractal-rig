@@ -151,6 +151,20 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   picks the NDI sender named RESOLUME/ARENA/AVENUE (else first) then `video.live`. UI says **Milkdrop** everywhere
   (internal keys/ids stay `pm`/`projectm`). Presets + Palette cards live in the right column for every engine.
   Cloud gotcha: PostgREST filter values must be URL-quoted (`+00:00` in timestamps became a space → HTTP 400).
+- 2026-09-26 v0.8.0 (cont.) — **web UI split into modules**: `web/css/{theme,nav,app}.css` + `web/js/*.js`
+  (core → nav → control → palettes → media → preview → inputs → rig → leds → cloud → cues → resolume → shows →
+  outputs → perform → milkdrop → boot). Classic scripts, load order = index.html order, top-level const/let shared
+  (no bundler; served by aiohttp `/css/` `/js/` static routes and relative on Pages). `js/nav.js` holds `TABS` and
+  `PERF_PAGES` — a new tab = a `<section id>` + one line there; menu looks live in `css/nav.css` only.
+  **Favourites** for every collection (`preset`, `palette`, `pm`, `show`, `led_config`) live in master config
+  `favs` (WS `{fav:{kind,name,on}}`, snapshot `favs`) → mirrored to Supabase; Milkdrop stars migrate from
+  localStorage once. One list widget `listBox()` (search + ★ favs + favourites-first) for presets/palettes; card
+  grids (shows, LED configs) and Perform tiles sort favourites first. **LED editor rewritten** around one model
+  `LED.zones` (js/leds.js): rows updated in place, auto-apply 500 ms after a change (toggle → manual apply),
+  echo matched by `zSig()` so a stale snapshot can never flip the table back, undo (Ctrl+Z), duplicate/flip/reorder,
+  inline matrix builder, Perform **LEDS** page (output, brightness, test, per-zone mute, saved configs). Rig tab:
+  Projectors table carries health dot / loss % / temp / heartbeat jitter (engine `hb_worst`, `loss_rate`,
+  `fps_min` from HB timing), a Health & network tile strip, Sources moved under Projectors, one Log card.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.
@@ -165,7 +179,9 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
 - Rendering-side outputs must never block the frame loop: thumbnails/NDI are readbacks of the low-res
   fbo on a timer; LED sampling and all network sending happen on the master in Python.
 - UI rule (learned v0.5.0): never rebuild input-bearing DOM on every snapshot — signature-check
-  (strips, maps, columns) or clobbered inputs and stolen focus follow.
+  (maps, columns) or update in place with a local model (LED zones) or clobbered inputs and stolen focus follow.
+- Web modules are classic scripts in a fixed order (see js/ list above): a file may CALL functions from later files
+  at event time, but must not EXECUTE them at load; boot-time work belongs in `js/boot.js`.
 - Never send anything TO the Pioneer network (no virtual CDJ) without an explicit decision.
 - Version sites: `renderer/fractal.c APP_VERSION`, `master/master.py APP_VERSION`,
   `web/index.html #pill-ver`, this banner. Bump all four together.

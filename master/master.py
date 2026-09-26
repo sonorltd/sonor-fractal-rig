@@ -31,7 +31,7 @@ osc_out = led = thumbs = link = None
 LOCAL_CFG = os.path.join(HERE, "config.local.json")
 
 
-def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods", "palette_lock", "supabase_url", "supabase_key", "rig_id", "cloud_enabled", "out_res_boot")):
+def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods", "palette_lock", "supabase_url", "supabase_key", "rig_id", "cloud_enabled", "out_res_boot", "favs")):
     """Persist the UI-editable parts of the config to config.local.json (config.json stays pristine in git)."""
     try:
         cur = json.load(open(LOCAL_CFG)) if os.path.exists(LOCAL_CFG) else {}
@@ -342,6 +342,14 @@ async def web_app(engine, cfg):
                             engine.prodj_decks.clear()
                             if engine.tempo_source == "prodj":
                                 engine.tempo_source = "tap" if engine.bpm else "none"
+                if "fav" in m:
+                    # favourites: {"fav": {"kind": "preset|palette|pm|show|led_config|cue", "name": "...", "on": true}} — kept in
+                    # config (so the kiosk Pi and a laptop agree) and mirrored to the cloud with the rest of the config
+                    q = m["fav"]; kind = str(q.get("kind", ""))[:24]; name = str(q.get("name", ""))[:128]
+                    if kind and name:
+                        favs = cfg.setdefault("favs", {}); lst = [x for x in favs.get(kind, []) if x != name]
+                        if q.get("on", True): lst.append(name)
+                        favs[kind] = lst[-400:]; save_local_config(cfg)
                 if "ping" in m:
                     await ws.send_json(dict(type="pong", ping=m["ping"], t=time.time()))
                     continue
@@ -824,6 +832,8 @@ async def web_app(engine, cfg):
     app.router.add_get("/media/{name}", api_media_file)
     app.router.add_get("/params.js", lambda r: web.FileResponse(os.path.join(WEB, "params.js")))
     app.router.add_static("/web/", WEB)
+    app.router.add_static("/css/", os.path.join(WEB, "css"))
+    app.router.add_static("/js/", os.path.join(WEB, "js"))
     app.router.add_static("/vendor/", os.path.join(WEB, "vendor"))
     app.router.add_static("/shaders/", os.path.join(ROOT, "renderer", "shaders"))
     runner = web.AppRunner(app, access_log=None)
