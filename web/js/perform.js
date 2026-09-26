@@ -81,7 +81,7 @@ $('perf').querySelectorAll('input[data-mk]').forEach(r => r.oninput = () => { r.
 $('perf').querySelectorAll('[data-nudge]').forEach(b => b.onclick = () => { const k = b.dataset.nudge, p = PARAMS[idx[k]]; send({set: {[k]: Math.max(p.min, Math.min(p.max, (S.base[k] || 0) + +b.dataset.d))}}); });
 let perfBuilt = false;
 function buildPerf() {
-  $('pf-scenes').innerHTML = MODE_NAMES.slice(0, 8).map((n, i) => `<button class="pbtn" data-m="${i}">${n}</button>`).join('');
+  $('pf-scenes').innerHTML = SHADER_MODES.map(i => `<button class="pbtn" data-m="${i}">${MODE_NAMES[i]}</button>`).join('');
   $('pf-scenes').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {mode: +b.dataset.m}}));
   $('pf-hues').innerHTML = [0, .08, .16, .25, .33, .42, .5, .58, .66, .75, .83, .92].map(h => `<button class="pbtn" data-h="${h}" style="background:hsl(${h * 360} 70% 22%);border-color:hsl(${h * 360} 70% 40%)">${Math.round(h * 360)}°</button>`).join('');
   $('pf-hues').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {hue: +b.dataset.h}}));

@@ -35,7 +35,7 @@ drifts on its own.
 | path | what | runs on |
 |---|---|---|
 | `renderer/` | `fractal.c` — C/SDL2/GLES3 fullscreen renderer. Multicast in, HDMI out, tiling, freewheel, heartbeat. `pm_bridge.c` + `shaders/post.frag` — optional libprojectM 4 scene with PCM stream + post-pass. | every Pi |
-| `renderer/shaders/fractal.frag` | **The** shader: 8 scenes — Mandelbrot / Julia / Burning Ship / Tricorn fractals plus Plasma / Tunnel / Starfield / Waves (the Winamp-AVS end of things) — orbit-trap glow, kaleidoscope, domain warp, beat pulse, bar sway. Byte-identical on Pis and in the web preview. | GPU |
+| `renderer/shaders/fractal.frag` | **The** shader: 14 scenes — Mandelbrot / Julia / Burning Ship / Tricorn fractals, Plasma / Tunnel / Starfield / Waves (the Winamp-AVS end of things), and the v0.8 set: Menger raymarch, Voronoi, Turing patterns, oscilloscope, mandala, Truchet flow — orbit-trap glow, kaleidoscope, domain warp, beat pulse, bar sway. Byte-identical on Pis and in the web preview. | GPU |
 | `master/` | `master.py` + `engine.py` + `inputs.py` + `outputs.py` — asyncio param engine, Ableton Link, OSC→Resolume, LED (DDP/Art-Net/sACN), thumbnail receiver, 60 Hz broadcaster, web UI + WebSocket, Pro DJ Link / MIDI / OSC / audio inputs, presets, fleet heartbeat. | master Pi (or a laptop) |
 | `master/params.py` | Single source of truth for the parameter table → generates `params.h`, `params.glsl`, `params.js`. | — |
 | `web/` | `index.html` (markup) + `css/{theme,nav,app}.css` + `js/*.js` (one file per tab; `js/nav.js` = the menus) — phone-friendly control surface: Sources panel (live link status + on/off for Pro DJ Link, audio, MIDI, OSC, auto-drift), all params, presets, fleet, and an **Info** tab with the full manual. Live WebGL2 preview. Live when served by the master, demo mode on GitHub Pages. | browser |
@@ -112,7 +112,7 @@ a fifth projector showing a rotated variation is one line per Pi.
 | 7 | Waves | oscilloscope wave stack; `energy`/`bass` shape it live |
 | 8 | **projectM** | real Milkdrop `.milk` presets via libprojectM 4 on each Pi — master picks the preset, streams PCM audio (or Pis synthesise a beat-locked signal), optional kaleido/zoom/hue post-pass via `pm_mix`. Optional install: `sudo bash setup/install-projectm.sh` |
 
-Scenes 0–7 share one shader, so kaleidoscope, rotation, palette and beat controls work on every one and every MIDI/OSC mapping stays valid. Adding a scene is one function in `fractal.frag`.
+Scenes 0–7 and 10–15 share one shader, so kaleidoscope, rotation, palette and beat controls work on every one and every MIDI/OSC mapping stays valid. Adding a scene is one function in `fractal.frag`.
 
 ### projectM (scene 8)
 

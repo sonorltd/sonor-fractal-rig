@@ -81,3 +81,6 @@ body.perf { overflow: hidden; }
   header .pill:first-of-type { flex: 0 1 auto; min-width: 60px; } header .pill:first-of-type > span { overflow: hidden; text-overflow: ellipsis; }
   header .nav button { padding: 4px 9px; }
 }
+/* Perform top bar: readouts reserve their width so EXIT / the tabs never shift */
+.perf-top .bpm { min-width: 6.4ch; font-variant-numeric: tabular-nums; }
+#pf-src { min-width: 9em; } #pf-scene-pill { max-width: 32ch; min-width: 10em; } #pf-scene-pill { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }

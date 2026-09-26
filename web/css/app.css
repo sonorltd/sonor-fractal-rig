@@ -384,3 +384,25 @@ h3.subhead { margin: 16px 0 6px; font-size: 12px; letter-spacing: .08em; text-tr
 #info .topo .l.plain { stroke: var(--line); marker: none; }
 #info .topo .wifi { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 3; }
 #info .topo .port { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); }
+
+/* ---- no layout jitter: every live readout has a reserved width/height so buttons next to it never move.
+   Rule (CLAUDE.md): a value that changes every snapshot sits in a fixed-size box — tabular numbers, min-width in ch,
+   one-line ellipsis for names. */
+.bpm { font-variant-numeric: tabular-nums; min-width: 6.6ch; display: inline-block; }
+.tempo { grid-template-columns: 170px 1fr; }
+.tempo .decks { display: flex; flex-wrap: wrap; gap: 4px; min-height: 0; }
+.val, .param .val, .pslider .v, .pstep .mid span, .healthgrid .ht b, #led-bri-v, #led-gam-v, #clock_speed_v, #auto_depth_v, #auto_rate_v { font-variant-numeric: tabular-nums; }
+.pill > span, .pill { font-variant-numeric: tabular-nums; }
+#pill-fleet { min-width: 9.5em; justify-content: center; } #pill-tempo { min-width: 9em; } #pill-cloud { min-width: 7.5em; } #pill-ver { min-width: 4.5em; justify-content: center; }
+#preset-count { min-width: 5.5em; justify-content: center; }
+.engine button { grid-template-rows: auto 1fr; align-content: start; min-height: 84px; }
+.engine button small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; min-height: 2.6em; }
+.pm-big, .vid-big { min-height: 2.8em; } .pm-big > span:first-child, #video-big-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-big small, .vid-big small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pbtn small { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3em; }
+.pbtn { align-content: center; }
+.pf-grid, #pf-grid { display: block; }
+#strips-total { min-width: 14em; text-align: right; }
+#led-stats, #res-stats, #map-status { font-variant-numeric: tabular-nums; }
+#map-status { min-width: 7em; justify-content: center; }
+#video-bar-fill { transition: none; }

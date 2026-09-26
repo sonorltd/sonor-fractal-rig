@@ -539,7 +539,7 @@ int main(int argc, char **argv) {
             if (!feed_fallback) { feed_fallback = 1; fprintf(stderr, "[video] LIVE feed stalled — falling back to scene %d until it returns\n", last_shader_scene); }
             scene = last_shader_scene;
         } else if (feed_fallback && !(scene == 9 && feed_stalled)) { feed_fallback = 0; fprintf(stderr, "[video] feed back\n"); }
-        if (scene <= 7) last_shader_scene = scene;
+        if (scene <= 7 || scene >= 10) last_shader_scene = scene;   /* 8 = Milkdrop, 9 = video; 10+ are shader scenes again */
         /* Output selector: when the master asks for a different mode, remember it and restart (systemd brings us back) */
         if (!cfg.out_res_pin_set && !cfg.windowed && kms && have_master) {
             int want_res = (int)floorf(cur[P_OUT_RES] + 0.5f);

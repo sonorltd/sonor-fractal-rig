@@ -165,6 +165,12 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   inline matrix builder, Perform **LEDS** page (output, brightness, test, per-zone mute, saved configs). Rig tab:
   Projectors table carries health dot / loss % / temp / heartbeat jitter (engine `hb_worst`, `loss_rate`,
   `fps_min` from HB timing), a Health & network tile strip, Sources moved under Projectors, one Log card.
+- 2026-09-26 v0.8.0 (cont. 3) — **six new shader scenes** 10 Menger (raymarch, steps = iterations/5), 11 Voronoi,
+  12 Turing (domain-warped fbm), 13 Scope (harmonic curves), 14 Mandala, 15 Truchet — in `fractal.frag` (shared by
+  Pi + preview), `mode` max 15 in params.py (regen params.js), fractal.c `last_shader_scene` accepts ≥10, web
+  `SHADER_MODES` drives the scene grids (never `slice(0, 8)`), 18 new default looks. **Layout-jitter rule**: every live
+  readout sits in a fixed-width box (tabular-nums, min-width in ch, one-line ellipsis) — see the block at the end of
+  css/app.css; the TAP button moving when BPM appeared was the reported case.
 - 2026-09-26 v0.8.0 (cont. 2) — **`web/js/ui.js` UI kit** (modal dialogs, saveAs, toasts, cards, tiles) replaces every
   native prompt/confirm/alert and every ad-hoc card/tile template; `web/lint-ui.sh` guards it. Shows / LED configs /
   looks / palettes / cues all save through the same modal from tab AND Perform. Fixed: Shows tab read `list` from an
@@ -193,6 +199,9 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   (canvas drawing code may use literals; markup may not). No inline `<style>`/`<script>` in index.html.
 - **Modules are classic scripts in index.html order** (core → ui → nav → tabs… → perform → milkdrop → boot). Call
   later files' functions at event time only; anything that must run at load goes in `js/boot.js`.
+- **Nothing may move when a number changes.** Live readouts (BPM, counts, names) get a reserved width/height so
+  neighbouring buttons stay put; test by toggling the value and comparing `getBoundingClientRect()` of the neighbour.
+- **Scene lists come from `SHADER_MODES`** (web) / `mode` range in params.py; modes 8 and 9 are the only non-shader ones.
 - **API shapes are contracts**: `/api/shows` returns `{shows, last}`, `/api/led/configs` returns `{configs}` — the
   UI normalises once in its fetch function, nowhere else.
 

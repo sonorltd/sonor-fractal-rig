@@ -5,12 +5,12 @@ window.FRX_PARAMS = [
   "key": "mode",
   "label": "Scene",
   "min": 0,
-  "max": 9,
+  "max": 15,
   "def_": 0,
   "kind": "i",
   "auto": false,
   "group": "shape",
-  "tip": "0 Mandelbrot \u00b7 1 Julia \u00b7 2 Burning Ship \u00b7 3 Tricorn \u00b7 4 Plasma \u00b7 5 Tunnel \u00b7 6 Starfield \u00b7 7 Waves \u00b7 8 projectM \u00b7 9 Video"
+  "tip": "0 Mandelbrot \u00b7 1 Julia \u00b7 2 Burning Ship \u00b7 3 Tricorn \u00b7 4 Plasma \u00b7 5 Tunnel \u00b7 6 Starfield \u00b7 7 Waves \u00b7 8 Milkdrop \u00b7 9 Video \u00b7 10 Menger \u00b7 11 Voronoi \u00b7 12 Turing \u00b7 13 Scope \u00b7 14 Mandala \u00b7 15 Truchet"
  },
  {
   "key": "iterations",

@@ -4,7 +4,7 @@
 // ------------------------------------------------------------ controls
 let activeGroup = 'shape';
 function buildControls() {
-  $('modes').innerHTML = MODE_NAMES.slice(0, 8).map((n, i) => `<button class="btn small" data-mode="${i}">${n}</button>`).join('');
+  $('modes').innerHTML = SHADER_MODES.map(i => `<button class="btn small" data-mode="${i}">${MODE_NAMES[i]}</button>`).join('');
   $('modes').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {mode: +b.dataset.mode}}));
   const eng = engineOf(S.base.mode || 0), groups = ENGINE_GROUPS[eng];
   if (!groups.includes(activeGroup)) activeGroup = groups[0];

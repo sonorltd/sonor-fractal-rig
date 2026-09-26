@@ -12,7 +12,8 @@ const engineOf = mode => Math.round(mode) === 8 ? 'pm' : Math.round(mode) === 9 
 const ENGINE_LABEL = {shader: 'Shader', pm: 'Milkdrop', video: 'Video'};
 const presetMode = n => { const p = (S.presets || {})[n]; return (p && typeof p === 'object' && p.mode != null) ? p.mode : ((S.preset_modes || {})[n] || 0); };
 let presetFilter = 'engine';
-const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'Milkdrop', 'Video'];
+const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'Milkdrop', 'Video', 'Menger', 'Voronoi', 'Turing', 'Scope', 'Mandala', 'Truchet'];
+const SHADER_MODES = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15];   // everything that is not Milkdrop (8) or Video (9)
 
 // ------------------------------------------------------------ state (mirrors engine.py)
 const S = {

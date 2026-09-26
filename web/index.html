@@ -42,7 +42,7 @@
     <div class="card">
       <h2>Engine <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">what every projector is running right now</span></h2>
       <div class="engine">
-        <button id="eng-shader" data-eng="shader"><b>SHADER SCENES</b><small id="eng-shader-sub">fractals · plasma · tunnel · starfield · waves — pixel-synced</small></button>
+        <button id="eng-shader" data-eng="shader"><b>SHADER SCENES</b><small id="eng-shader-sub">fractals · plasma · tunnel · stars · waves · menger · voronoi · turing · scope · mandala · truchet — pixel-synced</small></button>
         <button id="eng-pm" data-eng="pm"><b>MILKDROP</b><small id="eng-pm-sub">real .milk presets on every Pi</small></button>
         <button id="eng-video" data-eng="video"><b>VIDEO</b><small id="eng-video-sub">clips on every Pi, frame-locked · or a LIVE HDMI feed</small></button>
         <button id="eng-resolume" data-eng="resolume"><b>RESOLUME</b><small id="eng-resolume-sub">grab Resolume's NDI output and put it on every projector</small></button>
@@ -616,6 +616,14 @@
       <tr><td>5 Tunnel</td><td>Winamp/AVS-style infinite tunnel. <code>iterations</code> = spoke count, <code>warp</code> = twist, <code>beat_pulse</code> lunges forward on the kick.</td></tr>
       <tr><td>6 Starfield</td><td>Hyperspace warp. <code>warp</code> = streak length, <code>iterations</code> = star layers, beat pulse = speed burst.</td></tr>
       <tr><td>7 Waves</td><td>Oscilloscope wave stack — the Milkdrop feel. <code>energy</code>/<code>bass</code> (live from audio) set amplitude and ripple; <code>iterations</code> = number of traces.</td></tr>
+      <tr><td>8 Milkdrop</td><td>libprojectM on every Pi, same preset index in the packet — see the Milkdrop section.</td></tr>
+      <tr><td>9 Video</td><td>A clip from the library or the LIVE feed (HDMI capture / NDI), frame-locked to the master clock — see Video.</td></tr>
+      <tr><td>10 Menger</td><td>Raymarched Menger-sponge tunnel — the one real 3D scene. <code>iterations</code> = march steps (detail vs Pi 4 frame rate: 200 is safe at half scale), <code>warp</code> = roll, <code>glow</code> = fog lift, <code>zoom</code> = field of view.</td></tr>
+      <tr><td>11 Voronoi</td><td>Living stained glass — cells that breathe with the tempo. <code>iterations</code> = cell density, <code>warp</code> = how far the seeds wander, <code>glow</code> = lead-line brightness.</td></tr>
+      <tr><td>12 Turing</td><td>Reaction-diffusion look (coral, zebra, ink) from domain-warped noise. <code>warp</code> = how twisted, <code>glow</code> = vein brightness and stripe count, <code>iterations</code> = scale.</td></tr>
+      <tr><td>13 Scope</td><td>Oscilloscope harmonics — glowing Lissajous-style curves. <code>iterations</code> = harmonics (2–12), <code>warp</code> = phase drift, <code>glow</code> = line weight, beat pulse kicks the curves.</td></tr>
+      <tr><td>14 Mandala</td><td>Polar petals and rings, breathing with the bar. <code>iterations</code> = petal count, <code>warp</code> = wobble, <code>glow</code> = line softness + core glow.</td></tr>
+      <tr><td>15 Truchet</td><td>Quarter-circle tiles with travelling dashes; tiles re-roll slowly, dashes flow at tempo. <code>iterations</code> = tile density, <code>glow</code> = line weight.</td></tr>
       <tr><td>8 projectM</td><td><b>Real Milkdrop presets</b> via libprojectM 4 on each Pi. Pick presets in the projectM card; <code>pm_mix</code> blends in our post-pass (kaleido / zoom / rotate / hue) on top. See the projectM section below.</td></tr>
     </tbody></table>
     <p>Scenes 0–7 are one shader, so <code>kaleido</code>, <code>rotation</code>, <code>zoom</code>, the palette controls, <code>beat_pulse</code> and <code>bar_swing</code> work on every scene, and switching scenes is one integer in the packet — all projectors flip on the same frame. Adding a scene is a function in <code>renderer/shaders/fractal.frag</code> and a name in the mode list.</p>
@@ -984,7 +992,7 @@ sudo bash setup/install.sh master</pre>
       <div class="pgrid c2"><button class="pbtn huge primary" id="pf-tap">TAP<small>space</small></button><button class="pbtn huge" id="pf-beat1">SET BEAT 1<small>re-align the bar</small></button></div>
       <canvas id="pf-grid" class="pf-grid" aria-label="beat grid"></canvas>
       <div class="plabel">Engine</div>
-      <div class="pgrid c3"><button class="pbtn eng" id="pf-eng-shader">SHADER SCENES<small>fractals · plasma · waves</small></button><button class="pbtn eng" id="pf-eng-pm">MILKDROP<small id="pf-eng-pm-sub">milkdrop presets</small></button><button class="pbtn eng" id="pf-eng-video">VIDEO<small id="pf-eng-video-sub">clips · LIVE feed</small></button></div>
+      <div class="pgrid c3"><button class="pbtn eng" id="pf-eng-shader">SHADER SCENES<small>14 scenes · fractals to raymarch</small></button><button class="pbtn eng" id="pf-eng-pm">MILKDROP<small id="pf-eng-pm-sub">milkdrop presets</small></button><button class="pbtn eng" id="pf-eng-video">VIDEO<small id="pf-eng-video-sub">clips · LIVE feed</small></button></div>
       <div class="plabel" id="pf-scenes-label">Scene</div>
       <div class="pgrid c3" id="pf-scenes"></div>
       <div class="pgrid c3" id="pf-engine-quick"></div>
