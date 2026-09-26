@@ -304,11 +304,23 @@
   .pf-clip { position: relative; overflow: hidden; }
   .pf-clip .bg { position: absolute; inset: 0; background: center/cover no-repeat; opacity: .35; }
   .pf-clip span { position: relative; }
-  .engine button { border: 1px solid var(--line); background: var(--panel2); border-radius: 10px; padding: 12px 14px; text-align: left; color: var(--text); display: grid; gap: 3px; }
-  .engine button b { font-size: 14px; letter-spacing: .04em; }
+  :root { --eng-shader: #4bb9d3; --eng-pm: #c06cf0; --eng-video: #f0a040; }
+  .engine button { border: 2px solid var(--line); background: var(--panel2); border-radius: 12px; padding: 14px 16px; text-align: left; color: var(--text); display: grid; gap: 3px; min-height: 76px; position: relative; overflow: hidden; transition: transform .08s; }
+  .engine button:active { transform: scale(.98); }
+  .engine button b { font-size: 15px; letter-spacing: .05em; }
   .engine button small { color: var(--muted); font-size: 11px; }
-  .engine button.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.18), rgba(128,88,161,.18)); }
-  .engine button.active b { color: var(--accent2); }
+  .engine button::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--eng); opacity: .5; }
+  .engine button[data-eng="shader"] { --eng: var(--eng-shader); } .engine button[data-eng="pm"] { --eng: var(--eng-pm); } .engine button[data-eng="video"] { --eng: var(--eng-video); }
+  .engine button b { color: var(--eng); }
+  .engine button.active { border-color: var(--eng); background: linear-gradient(135deg, color-mix(in srgb, var(--eng) 28%, var(--panel2)), color-mix(in srgb, var(--eng) 10%, var(--panel2))); box-shadow: 0 0 0 1px var(--eng) inset, 0 6px 22px -8px var(--eng); }
+  .engine button.active::before { opacity: 1; }
+  .engine button.active b { color: #fff; } .engine button.active small { color: var(--text); }
+  .engine button.active::after { content: 'LIVE'; position: absolute; right: 10px; top: 10px; font-size: 10px; letter-spacing: .12em; color: var(--eng); border: 1px solid var(--eng); border-radius: 999px; padding: 1px 7px; }
+  .preset-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+  .presets .btn.other { opacity: .45; }
+  #pf-eng-shader { --eng: var(--eng-shader); } #pf-eng-pm { --eng: var(--eng-pm); } #pf-eng-video { --eng: var(--eng-video); }
+  .pbtn.eng { border-width: 2px; border-color: color-mix(in srgb, var(--eng) 45%, var(--line)); color: var(--eng); }
+  .pbtn.eng.active { background: linear-gradient(135deg, color-mix(in srgb, var(--eng) 35%, var(--panel2)), color-mix(in srgb, var(--eng) 12%, var(--panel2))); border-color: var(--eng); color: #fff; box-shadow: 0 0 0 1px var(--eng) inset; }
   #pm-card.expanded .pm-ext { display: block; }
   #pm-card.expanded #pm-select { display: none; }
   .pm-ext { display: none; }
@@ -404,9 +416,9 @@
     <div class="card">
       <h2>Engine <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">what every projector is running right now</span></h2>
       <div class="engine">
-        <button id="eng-shader"><b>SHADER SCENES</b><small id="eng-shader-sub">fractals · plasma · tunnel · starfield · waves — pixel-synced</small></button>
-        <button id="eng-pm"><b>PROJECTM · MILKDROP</b><small id="eng-pm-sub">real .milk presets on every Pi</small></button>
-        <button id="eng-video"><b>VIDEO</b><small id="eng-video-sub">clips on every Pi, frame-locked · or a LIVE HDMI feed</small></button>
+        <button id="eng-shader" data-eng="shader"><b>SHADER SCENES</b><small id="eng-shader-sub">fractals · plasma · tunnel · starfield · waves — pixel-synced</small></button>
+        <button id="eng-pm" data-eng="pm"><b>PROJECTM · MILKDROP</b><small id="eng-pm-sub">real .milk presets on every Pi</small></button>
+        <button id="eng-video" data-eng="video"><b>VIDEO</b><small id="eng-video-sub">clips on every Pi, frame-locked · or a LIVE HDMI feed</small></button>
       </div>
     </div>
 
@@ -449,7 +461,7 @@
     </div>
 
     <div class="card">
-      <h2>Presets</h2>
+      <h2>Presets <span class="spacer"></span><span class="seg" id="preset-filter"><button data-f="engine" class="active">this engine</button><button data-f="all">all</button></span></h2>
       <div class="presets" id="presets"></div>
       <div class="row" style="margin-top:10px">
         <input class="text" id="preset-name" placeholder="new preset name">
@@ -1169,14 +1181,15 @@ sudo bash setup/install.sh master</pre>
       <div class="pgrid c2"><button class="pbtn huge primary" id="pf-tap">TAP<small>space</small></button><button class="pbtn huge" id="pf-beat1">SET BEAT 1<small>re-align the bar</small></button></div>
       <canvas id="pf-grid" class="pf-grid" aria-label="beat grid"></canvas>
       <div class="plabel">Engine</div>
-      <div class="pgrid c3"><button class="pbtn" id="pf-eng-shader">SHADER SCENES</button><button class="pbtn" id="pf-eng-pm">PROJECTM</button><button class="pbtn" id="pf-eng-video">VIDEO</button></div>
-      <div class="plabel">Scene</div>
+      <div class="pgrid c3"><button class="pbtn eng" id="pf-eng-shader">SHADER SCENES<small>fractals · plasma · waves</small></button><button class="pbtn eng" id="pf-eng-pm">PROJECTM<small id="pf-eng-pm-sub">milkdrop presets</small></button><button class="pbtn eng" id="pf-eng-video">VIDEO<small id="pf-eng-video-sub">clips · LIVE feed</small></button></div>
+      <div class="plabel" id="pf-scenes-label">Scene</div>
       <div class="pgrid c3" id="pf-scenes"></div>
+      <div class="pgrid c3" id="pf-engine-quick"></div>
       <div class="plabel">Safety</div>
       <div class="pgrid c3"><button class="pbtn danger" id="pf-blackout">BLACKOUT<small>brightness → 0</small></button><button class="pbtn" id="pf-freeze">FREEZE<small>clock speed → 0</small></button><button class="pbtn" id="pf-autotoggle">AUTO DRIFT<small>on / off</small></button></div>
     </div>
     <div class="ppage" data-pg="1">
-      <div class="plabel">Saved looks <span class="pf-hint">— tap to recall · the scene switches with it</span></div>
+      <div class="plabel">Saved looks <span class="pf-hint">— tap to recall · the scene switches with it</span> <span class="seg" id="pf-preset-filter" style="margin-left:8px"><button data-f="engine" class="active">this engine</button><button data-f="all">all</button></span></div>
       <div class="pgrid c3" id="pf-presets"></div>
       <div class="pgrid c2"><button class="pbtn" id="pf-preset-save">+ SAVE CURRENT LOOK<small>name it</small></button><button class="pbtn" id="pf-preset-update">UPDATE LAST LOADED<small id="pf-preset-last">—</small></button></div>
       <div class="plabel">projectM</div>
@@ -1248,6 +1261,10 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 let PARAMS = window.FRX_PARAMS || [];
 const idx = {}; PARAMS.forEach((p, i) => idx[p.key] = i);
 const GROUPS = ['shape', 'colour', 'music', 'projectm'];
+const ENGINE_GROUPS = {shader: ['shape', 'colour', 'music'], pm: ['projectm', 'colour', 'music'], video: ['colour', 'music', 'projectm']};   // video reuses the projectM group for the post-pass 'Shader mix'
+const engineOf = mode => Math.round(mode) === 8 ? 'pm' : Math.round(mode) === 9 ? 'video' : 'shader';
+const ENGINE_LABEL = {shader: 'Shader', pm: 'projectM', video: 'Video'};
+let presetFilter = 'engine';
 const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'projectM', 'Video'];
 
 // ------------------------------------------------------------ state (mirrors engine.py)
@@ -1389,9 +1406,12 @@ function setConn(cls, label) { $('conn-dot').className = 'dot ' + cls; $('conn-l
 // ------------------------------------------------------------ controls
 let activeGroup = 'shape';
 function buildControls() {
-  $('modes').innerHTML = MODE_NAMES.map((n, i) => `<button class="btn small" data-mode="${i}">${n}</button>`).join('');
+  $('modes').innerHTML = MODE_NAMES.slice(0, 8).map((n, i) => `<button class="btn small" data-mode="${i}">${n}</button>`).join('');
   $('modes').querySelectorAll('button').forEach(b => b.onclick = () => send({set: {mode: +b.dataset.mode}}));
-  $('tabs').innerHTML = GROUPS.map(g => `<button data-g="${g}" class="${g === activeGroup ? 'active' : ''}">${g === 'projectm' ? 'projectM' : g}</button>`).join('');
+  const eng = engineOf(S.base.mode || 0), groups = ENGINE_GROUPS[eng];
+  if (!groups.includes(activeGroup)) activeGroup = groups[0];
+  $('modes').style.display = eng === 'shader' ? '' : 'none';
+  $('tabs').innerHTML = groups.map(g => `<button data-g="${g}" class="${g === activeGroup ? 'active' : ''}">${g === 'projectm' ? (eng === 'video' ? 'post-pass' : 'projectM') : g}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => { activeGroup = b.dataset.g; buildControls(); });
   $('params').innerHTML = PARAMS.filter(p => p.group === activeGroup && p.key !== 'mode').map(p => `
     <div class="param" data-key="${p.key}">
@@ -1425,7 +1445,8 @@ function renderControls() {
   $('tempo-label').textContent = src; $('tempo-dot').className = 'dot ' + (S.tempo_source === 'prodj' || S.tempo_source === 'link' ? 'ok' : S.bpm ? 'warn' : '');
   $('tempo-src').textContent = S.tempo_source === 'prodj' ? 'Locked to Pro DJ Link beat packets' : S.live ? 'Pro DJ Link: waiting for beat packets on udp/50001 · tap or type a BPM meanwhile' : 'Demo: tap or type a BPM';
   $('decks').innerHTML = Object.entries(S.decks || {}).map(([d, x]) => `<span class="pill">deck ${d} · ${x.bpm} · beat ${x.beat}</span>`).join('');
-  $('presets').innerHTML = Object.keys(S.presets).map(n => `<span class="btn small" data-p="${esc(n)}">${esc(n)} <span class="x" data-del="${esc(n)}">✕</span></span>`).join('') || '<span style="color:var(--muted)">none yet</span>';
+  const engNowP = engineOf(S.base.mode); const pnames = Object.keys(S.presets).filter(n => presetFilter === 'all' || engineOf((S.presets[n] || {}).mode || 0) === engNowP);
+  $('presets').innerHTML = pnames.map(n => { const pe = engineOf((S.presets[n] || {}).mode || 0); return `<span class="btn small ${pe === engNowP ? '' : 'other'}" data-p="${esc(n)}" title="${ENGINE_LABEL[pe]} · ${MODE_NAMES[Math.round((S.presets[n] || {}).mode || 0)]}"><i class="preset-dot" style="background:var(--eng-${pe})"></i>${esc(n)} <span class="x" data-del="${esc(n)}">✕</span></span>`; }).join('') || `<span style="color:var(--muted)">${Object.keys(S.presets).length ? 'no ' + ENGINE_LABEL[engNowP] + ' presets yet — switch the filter to "all" or save one' : 'none yet'}</span>`;
   $('presets').querySelectorAll('[data-p]').forEach(b => b.onclick = e => { if (e.target.dataset.del) { if (confirm('Delete preset "' + e.target.dataset.del + '"?')) send({preset: {delete: e.target.dataset.del}}); } else send({preset: {load: b.dataset.p}}); });
   const fl = Object.entries(S.fleet || {});
   $('pill-fleet').textContent = fl.length + (fl.length === 1 ? ' projector' : ' projectors');
@@ -1545,12 +1566,13 @@ function renderPm() {
   $('pm-hold').textContent = pm.cycle_bars === 0 && pmHeld ? 'held' : 'hold';
   if (list.length && (pmHist[0] !== pm.index)) { pmHist = [pm.index].concat(pmHist.filter(i => i !== pm.index)).slice(0, 8); $('pm-history').innerHTML = pmHist.length > 1 ? '<span style="font-size:11px;color:var(--muted);align-self:center">recent:</span>' + pmHist.slice(1).map(i => `<button class="btn small" data-h="${i}" title="${esc(list[i] || '')}">#${i} ${esc(shortName(list[i] || '').slice(0, 28))}</button>`).join('') : ''; $('pm-history').querySelectorAll('[data-h]').forEach(b => b.onclick = () => send({pm: {index: +b.dataset.h}})); }
   if (on8) renderPmList();
-  // in projectM mode the card sits right under the preview
-  const previewCard = document.querySelector('.previewwrap').closest('.card'), pmCard = $('pm-card');
+  // the engine's own card sits right under the preview; the other engines' cards are hidden (their summary lives on the Engine buttons)
+  const previewCard = document.querySelector('.previewwrap').closest('.card'), pmCard = $('pm-card'), vCard = $('video-card');
+  pmCard.hidden = !on8; vCard.hidden = !on9;
   if (on8 && pmCard.previousElementSibling !== previewCard) previewCard.after(pmCard);
-  if (!on8 && pmCard.previousElementSibling === previewCard) document.querySelector('#fleet').closest('.card').before(pmCard);
+  if (on9 && vCard.previousElementSibling !== previewCard) previewCard.after(vCard);
   if (!on8) $('pm-overlay').hidden = true;
-  if (on8 !== wasOn8) { wasOn8 = on8; if (on8) { activeGroup = 'projectm'; buildControls(); } else if (activeGroup === 'projectm') { activeGroup = 'shape'; buildControls(); } }
+  const engNow = engineOf(S.base.mode); if (engNow !== wasOn8) { wasOn8 = engNow; activeGroup = ENGINE_GROUPS[engNow][0]; buildControls(); }
   if (!on8 && !on9 && Math.round(S.base.mode) !== lastShaderMode) { lastShaderMode = Math.round(S.base.mode); try { localStorage.setItem('frx.lastShader', lastShaderMode); } catch (e) {} }
 }
 
@@ -2707,6 +2729,7 @@ function perfEnter(on) {
   if (on) { buildPerf(); renderPerf(); }
 }
 $('perf-enter').onclick = () => perfEnter(true);
+$('preset-filter').querySelectorAll('button').forEach(b => b.onclick = () => { presetFilter = b.dataset.f; $('preset-filter').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b)); renderControls(); });
 $('out-res').onchange = () => send({set: {out_res: +$('out-res').value}});
 $('perf-exit').onclick = () => perfEnter(false);
 let pfCur = 0;
@@ -2725,7 +2748,8 @@ $('pf-down').onclick = () => { const p = pfCurPage(); if (p) p.scrollBy({top: p.
 $('pf-black-rail').onclick = () => $('pf-blackout').click();
 try { const pp = +localStorage.getItem('frx.perfpage'); if (pp >= 0 && pp <= 6) pfPage(pp); } catch (e) {}
 // presets: save / update from Perform
-let pfLastPreset = null;
+let pfLastPreset = null, pfPresetFilter = 'engine';
+$('pf-preset-filter').querySelectorAll('button').forEach(b => b.onclick = () => { pfPresetFilter = b.dataset.f; $('pf-preset-filter').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b)); renderPerf(); });
 $('pf-preset-save').onclick = () => { const n = prompt('Name for this look'); if (n && n.trim()) { send({preset: {save: n.trim()}}); pfLastPreset = n.trim(); } };
 $('pf-preset-update').onclick = () => { if (!pfLastPreset) return alert('load or save a look first'); if (confirm(`Overwrite "${pfLastPreset}" with the current look?`)) send({preset: {save: pfLastPreset}}); };
 // clips page extras
@@ -2774,13 +2798,21 @@ function renderPerf() {
   $('pf-src').textContent = $('tempo-label').textContent;
   const on8 = Math.round(S.base.mode) === 8;
   const on9p = Math.round(S.base.mode) === 9;
-  $('pf-eng-shader').className = 'pbtn' + ((on8 || on9p) ? '' : ' active'); $('pf-eng-pm').className = 'pbtn' + (on8 ? ' active' : ''); $('pf-eng-video').className = 'pbtn' + (on9p ? ' active' : '');
+  $('pf-eng-shader').className = 'pbtn eng' + ((on8 || on9p) ? '' : ' active'); $('pf-eng-pm').className = 'pbtn eng' + (on8 ? ' active' : ''); $('pf-eng-video').className = 'pbtn eng' + (on9p ? ' active' : '');
+  $('pf-eng-pm-sub').textContent = on8 && S.pm.name ? shortName(S.pm.name).slice(0, 28) : 'milkdrop presets'; $('pf-eng-video-sub').textContent = on9p && S.video.name ? S.video.name : 'clips · LIVE feed';
+  // Show page: scene grid for the shader engine, quick controls for the other two
+  const engP = engineOf(S.base.mode); $('pf-scenes').style.display = engP === 'shader' ? '' : 'none'; $('pf-scenes-label').textContent = engP === 'shader' ? 'Scene' : engP === 'pm' ? 'projectM' : 'Video';
+  const qsig = engP + '|' + (S.pm.name || '') + '|' + (S.video.name || '');
+  if ($('pf-engine-quick').dataset.sig !== qsig) { $('pf-engine-quick').dataset.sig = qsig;
+    $('pf-engine-quick').innerHTML = engP === 'pm' ? `<button class="pbtn" data-q="pm-prev">◀ PREV</button><button class="pbtn primary" data-q="pm-random">RANDOM<small>${esc(shortName(S.pm.name || '').slice(0, 26))}</small></button><button class="pbtn" data-q="pm-next">NEXT ▶</button>`
+      : engP === 'video' ? `<button class="pbtn" data-q="vid-prev">◀ PREV</button><button class="pbtn primary" data-q="vid-restart">↻ RESTART<small>${esc(S.video.name || '')}</small></button><button class="pbtn" data-q="vid-next">NEXT ▶</button>` : '';
+    $('pf-engine-quick').querySelectorAll('[data-q]').forEach(b => b.onclick = () => ({'pm-prev': () => send({pm: {prev: 1}}), 'pm-random': () => send({pm: {random: 1}}), 'pm-next': () => send({pm: {next: 1}}), 'vid-prev': () => send({video: {prev: 1}}), 'vid-restart': () => send({video: {restart: 1}}), 'vid-next': () => send({video: {next: 1}})})[b.dataset.q]()); }
   const clips = (S.media.clips || []), csig = clips.map(c => c.name).join('|') + '#' + S.video.index + on9p;
   if ($('pf-clips').dataset.sig !== csig) { $('pf-clips').dataset.sig = csig; $('pf-clips').innerHTML = clips.slice(0, 24).map((c, i) => `<button class="pbtn pf-clip ${on9p && i === S.video.index ? 'active' : ''}" data-c="${i}">${c.thumb ? `<i class="bg" style="background-image:url(${c.thumb})"></i>` : ''}<span>${esc(c.name)}</span></button>`).join('') + `<button class="pbtn pf-clip ${on9p && S.video.index === 255 ? 'active' : ''}" data-c="255"><span>● LIVE</span></button>` || ''; $('pf-clips').querySelectorAll('[data-c]').forEach(b => b.onclick = () => send({video: {play: +b.dataset.c}})); }
   $('pf-scenes').querySelectorAll('button').forEach(b => b.className = 'pbtn' + (+b.dataset.m === Math.round(S.base.mode) ? ' active' : ''));
   $('pf-blackout').className = 'pbtn danger' + (S.base.brightness === 0 ? ' active' : ''); $('pf-freeze').className = 'pbtn' + (S.clock_speed === 0 ? ' active' : ''); $('pf-autotoggle').className = 'pbtn' + (S.auto_enabled ? ' active' : '');
-  const names = Object.keys(S.presets || {});
-  const psig = names.join('|') + '#' + pfLastPreset; if ($('pf-presets').dataset.sig !== psig) { $('pf-presets').dataset.sig = psig; $('pf-presets').innerHTML = names.map(n => { const pr = S.presets[n] || {}; const sc = MODE_NAMES[Math.round(pr.mode || 0)] || ''; return `<button class="pbtn pf-preset ${n === pfLastPreset ? 'active' : ''}" data-p="${esc(n)}">${esc(n)}<small>${sc}${pr.pm_preset != null && Math.round(pr.mode) === 8 ? ' #' + Math.round(pr.pm_preset) : ''}</small></button>`; }).join('') || '<span class="hint">no looks saved yet — set one up and press SAVE CURRENT LOOK</span>'; $('pf-presets').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { pfLastPreset = b.dataset.p; send({preset: {load: b.dataset.p}}); renderPerf(); }); }
+  const engPP = engineOf(S.base.mode); const names = Object.keys(S.presets || {}).filter(n => pfPresetFilter === 'all' || engineOf((S.presets[n] || {}).mode || 0) === engPP);
+  const psig = names.join('|') + '#' + pfLastPreset + pfPresetFilter; if ($('pf-presets').dataset.sig !== psig) { $('pf-presets').dataset.sig = psig; $('pf-presets').innerHTML = names.map(n => { const pr = S.presets[n] || {}; const sc = MODE_NAMES[Math.round(pr.mode || 0)] || ''; return `<button class="pbtn pf-preset ${n === pfLastPreset ? 'active' : ''}" data-p="${esc(n)}" style="border-left:5px solid var(--eng-${engineOf(pr.mode || 0)})">${esc(n)}<small>${sc}${pr.pm_preset != null && Math.round(pr.mode) === 8 ? ' #' + Math.round(pr.pm_preset) : ''}</small></button>`; }).join('') || `<span class="hint">${Object.keys(S.presets || {}).length ? 'no ' + ENGINE_LABEL[engPP] + ' looks — tap "all" or save one' : 'no looks saved yet — set one up and press SAVE CURRENT LOOK'}</span>`; $('pf-presets').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { pfLastPreset = b.dataset.p; send({preset: {load: b.dataset.p}}); renderPerf(); }); }
   $('pf-preset-last').textContent = pfLastPreset || 'nothing loaded yet';
   $('pf-scene-pill').textContent = (MODE_NAMES[Math.round(S.base.mode)] || '') + (on8 && S.pm.name ? ' · ' + shortName(S.pm.name) : on9p && S.video.name ? ' · ' + S.video.name : '');
   $('pf-vid-name').textContent = S.video.name ? (S.video.index === 255 ? 'LIVE feed' : `#${S.video.index} · ${S.video.name}`) + (S.video.duration ? ` · ${Math.floor(S.video.position)}s / ${Math.floor(S.video.duration)}s` : '') : 'no clip';
