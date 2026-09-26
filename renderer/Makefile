@@ -28,8 +28,8 @@ NDI_LIBDIR := $(firstword $(wildcard $(NDI_SDK_DIR)/lib/aarch64-rpi4-linux-gnuea
 LDLIBS  += -L$(NDI_LIBDIR) -lndi -Wl,-rpath,$(NDI_LIBDIR)
 endif
 
-fractal: fractal.c pm_bridge.c pm_bridge.h ndi_out.c ndi_out.h video_bridge.c video_bridge.h mapping.c mapping.h params.h shaders/params.glsl shaders/fractal.frag shaders/post.frag shaders/warp.frag
-	$(CC) $(CFLAGS) -o $@ fractal.c pm_bridge.c ndi_out.c video_bridge.c mapping.c $(LDLIBS)
+fractal: fractal.c pm_bridge.c pm_bridge.h ndi_out.c ndi_out.h video_bridge.c video_bridge.h mapping.c mapping.h shaderlib.c shaderlib.h gpufx.c gpufx.h params.h shaders/params.glsl shaders/fractal.frag shaders/post.frag shaders/warp.frag shaders/mix.frag
+	$(CC) $(CFLAGS) -o $@ fractal.c pm_bridge.c ndi_out.c video_bridge.c mapping.c shaderlib.c gpufx.c $(LDLIBS)
 	@echo "built fractal — projectM: $(if $(HAVE_PM),yes,no) · NDI: $(if $(NDI_INC),yes,no) · video (libmpv): $(if $(HAVE_MPV),yes,no)"
 
 params.h shaders/params.glsl: ../master/params.py ../master/gen_params.py

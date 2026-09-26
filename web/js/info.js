@@ -7,12 +7,12 @@
   let closed = new Set(); try { closed = new Set(JSON.parse(localStorage.getItem('frx.info.closed') || '[]')); } catch (e) {}
   const remember = () => { try { localStorage.setItem('frx.info.closed', JSON.stringify([...closed])); } catch (e) {} };
   cards.forEach(c => {
-    const h = c.querySelector('h3'); if (!h) return;
+    const h = c.querySelector('h3'); if (!h) return; if (c.dataset.group) h.dataset.group = c.dataset.group;
     const body = document.createElement('div'); body.className = 'ibody'; while (h.nextSibling) body.appendChild(h.nextSibling); c.appendChild(body);
     c.classList.toggle('closed', closed.has(c.id));
     h.onclick = () => { c.classList.toggle('closed'); if (c.classList.contains('closed')) closed.add(c.id); else closed.delete(c.id); remember(); };
   });
-  let lastG = null; $('info-nav').innerHTML = cards.map(c => { const g = c.dataset.group || ''; const head = g && g !== lastG ? `<div class="im-group">${esc(g)}</div>` : ''; lastG = g; return head + `<a href="#${c.id}" data-t="${c.id}">${esc(c.querySelector('h3').textContent.replace(/\s+/g, ' ').trim())}</a>`; }).join('');
+  let lastG = null; $('info-nav').innerHTML = cards.map(c => { const g = c.dataset.group || ''; const head = g && g !== lastG ? `<div class="im-group" data-group="${esc(g)}">${esc(g)}</div>` : ''; lastG = g; return head + `<a href="#${c.id}" data-t="${c.id}" data-group="${esc(g)}">${esc(c.querySelector('h3').textContent.replace(/\s+/g, ' ').trim())}</a>`; }).join('');
   $('info-nav').querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); const c = $(a.dataset.t); c.classList.remove('closed'); closed.delete(c.id); remember(); c.scrollIntoView({behavior: 'smooth', block: 'start'}); history.replaceState(null, '', '#' + c.id); });
   const setAll = open => { cards.forEach(c => { c.classList.toggle('closed', !open); if (open) closed.delete(c.id); else closed.add(c.id); }); remember(); };
   $('info-expand').onclick = () => setAll(true); $('info-collapse').onclick = () => setAll(false);

@@ -18,7 +18,7 @@ config. Wired gigabit switch strongly recommended; on Wi-Fi many APs throttle
 multicast to 1–6 Mbps and drop it under load (our stream is 58 kbit/s, so it
 usually still works, but jitter goes from <1 ms to 20–50 ms).
 
-## Packet (164 bytes, little-endian)
+## Packet (168 bytes, little-endian)
 
 ```
 offset  type   field       meaning
@@ -31,7 +31,7 @@ offset  type   field       meaning
 24      f64    beat_t      animation-clock time of the most recent beat
 32      f32    bpm         0 = no tempo
 36      f32    bar_beat    beat-within-bar (1..4) at beat_t, 0 = unknown
-40      f32×31 params      in the order defined in master/params.py
+40      f32×32 params      in the order defined in master/params.py
 ```
 
 `master/params.py` is the single source of truth for the parameter table.
@@ -82,7 +82,7 @@ kick/hat from `t`, `beat_t` and `bpm` instead — identical on every Pi.
 ## Heartbeat (renderer → master)
 
 ```
-HB 5 <name> <fps> <WxH> <cols> <rows> <x> <y> <packets> <lost> <version> <cpuTempC> <pmPresets> <pmCurrent> <audioPkts> ndi:<off|on|live|unavailable> media:<N> map:<hash8> video:<ok|idle|none>
+HB 5 <name> <fps> <WxH> <cols> <rows> <x> <y> <packets> <lost> <version> <cpuTempC> <pmPresets> <pmCurrent> <audioPkts> ndi:<off|on|live|unavailable> media:<N> map:<hash8> video:<ok|idle|none> out:<mode>/<displays> lib:<count>/<current>
 ```
 
 `pmPresets` = −1 when the renderer was built without libprojectM. Everything after
@@ -138,3 +138,29 @@ is already guarded by the `nparams` field.
 
 ### Heartbeat token `out:` (v0.8.0)
 `out:<mode>/<displays>` — which HDMI port(s) the renderer drives: `1`, `2`, `mirror` (both, same picture) or `dual` (both, two side-by-side tiles), and how many displays KMSDRM enumerated. Chosen by `--outputs` or the `<state>.out` file the master writes through the Pi's status service (`POST :8082/outputs {mode}`), followed by a renderer restart.
+
+### Heartbeat token `lib:` (v0.10.0)
+`lib:<count>/<current>` — how many shader-library files this renderer sees (seed pack in the checkout + `/var/lib/fractal-rig/shaders`
+mirrored from the master's uploads by fractal-media-sync) and the index it last drew (−1 = none yet). The master's card compares
+`count` with its own list; a Pi with a different count would map `shader_idx` to a different file.
+
+## Shader library (scene 18, v0.10.0)
+`shader_idx` (param 31) indexes a byte-sorted list of `.fs / .frag / .glsl` files: uploads (`master/shaders/` on the master,
+`/var/lib/fractal-rig/shaders` on a renderer) first, then the seed pack `renderer/shaders/lib`, de-duplicated by file name
+(an upload shadows a pack file), sorted by UTF-8 bytes (C `strcmp`). `master/shaderlib.py`, `renderer/shaderlib.c` and
+`web/js/library.js` all apply this rule — change all three or none.
+
+The wrapper (identical in `shaderlib.c build()` and `library.js libWrap()`): `#version 300 es`, Shadertoy uniforms
+(`iResolution` = whole wall in px, `iTime` = master clock, `iTimeDelta`, `iFrame`, `iMouse` = 0, `iDate`, `iChannel0` = this
+device's previous scene frame), `frx_tile_off` (this tile's pixel offset in the wall — `fragCoord` is pre-offset for
+`mainImage`), `frx_dev_res` / `frx_dev_uv` (device-local, for feedback reads), ISF macros (`TIME`, `RENDERSIZE`,
+`isf_FragNormCoord`, `IMG_*`, `gl_FragColor`), `params.glsl` + `uniform float u_p[NP]`, `u_beat_t u_bpm u_bar_beat u_tile u_view`,
+`frx_beat_phase()`, `frx_kick()`. ISF `INPUTS` become uniforms of the matching GLSL type; names containing hue / zoom|scale /
+intens|bright|gain / level|audio|energy|volume / bass|low / beat are driven from `hue`, `zoom` (2^(clamp(zoom,−2,4)/2) × default),
+`brightness` (× default), `energy`, `bass`, kick; the rest keep `DEFAULT`. Single pass only. A compile failure logs once
+(`[lib] name: compile failed — …`) and the renderer draws plasma for that index.
+
+HTTP on the master: `GET /api/shaderlib` → `{shaders:[{name,src:pack|user,size,sha1,kind:isf|shadertoy,desc,inputs}],
+count,index,name}` (`?rescan=1` re-reads the folders), `GET /shaderlib/{name}` (the file), `POST /api/shaderlib/upload`
+(multipart `file` parts, or JSON `{name, source}`), `DELETE /api/shaderlib/{name}` (uploads only). WebSocket:
+`{lib:{index|name|next|prev|random|rescan}}`; snapshot `lib:{count,index,name}`.

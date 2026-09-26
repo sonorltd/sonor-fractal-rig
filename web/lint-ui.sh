@@ -7,6 +7,8 @@
 #   3. no inline <style> or <script> blocks in index.html — styles live in css/, behaviour in js/
 #   4. no hard-coded colours in js/ or index.html — colours are tokens from css/theme.css
 #   5. js/nav.js is the only place that lists tabs / Perform pages
+#   6. the four version sites agree and Info → Version history has a row for it
+#   7. js/library.js LIB_PACK matches renderer/shaders/lib (the Pages demo browses that list)
 cd "$(dirname "$0")" || exit 2
 fail=0
 hit() { echo "✗ $1"; shift; printf '    %s\n' "$@"; fail=1; }
@@ -17,6 +19,13 @@ r=$(grep -n '<style\|<script>' index.html); [ -n "$r" ] && hit "inline <style>/<
 r=$(grep -nP 'style="[^"]*#[0-9a-fA-F]{6}\b' index.html | grep -v 'brandstrip\|<meta'); [ -n "$r" ] && hit "hard-coded colour in markup — use a var(--…) token from css/theme.css (canvas drawing code in js/ is exempt)" "$r"
 r=$(grep -n 'data-view="' index.html js/*.js | grep -v 'js/nav.js'); [ -n "$r" ] && hit "tab list outside js/nav.js" "$r"
 r=$(grep -n '<button data-pg=' index.html); [ -n "$r" ] && hit "Perform rail button in index.html — add it to PERF_PAGES in js/nav.js" "$r"
+# 6. version sites in step (renderer, master, page pill, CLAUDE.md) and the Info version history has an entry for it
+v_c=$(grep -oP '#define APP_VERSION "\K[0-9.]+' ../renderer/fractal.c); v_m=$(grep -oP 'APP_VERSION\s*=\s*"\K[0-9.]+' ../master/master.py | head -1); v_w=$(grep -oP 'id="pill-ver">v\K[0-9.]+' index.html); v_d=$(grep -oP '^# STUDIO - Fractal Rig \(v\K[0-9.]+' ../CLAUDE.md)
+[ "$v_c" = "$v_m" ] && [ "$v_c" = "$v_w" ] && [ "$v_c" = "$v_d" ] || hit "version sites disagree — bump all four together" "renderer $v_c · master $v_m · page $v_w · CLAUDE.md $v_d"
+grep -q "<tr><td>v$v_c</td>" index.html || hit "Info → Version history has no row for v$v_c" "add it to #i-history (newest first)"
+# 7. the shader seed pack listed for the Pages demo (js/library.js LIB_PACK) is exactly renderer/shaders/lib
+want=$(ls ../renderer/shaders/lib | grep -iE '\.(fs|frag|glsl)$' | LC_ALL=C sort | tr '\n' ' '); have=$(grep -oP "const LIB_PACK = \[\K[^\]]*" js/library.js | tr -d "'" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep . | LC_ALL=C sort | tr '\n' ' ')
+[ "$want" = "$have" ] || hit "js/library.js LIB_PACK ≠ renderer/shaders/lib" "folder: $want" "list:   $have"
 for f in js/*.js; do node -e "new Function(require('fs').readFileSync('$f','utf8'))" 2>/dev/null || hit "syntax error" "$f"; done
 [ $fail = 0 ] && echo "✓ web UI lint clean ($(ls js/*.js | wc -l) modules, $(ls css/*.css | wc -l) stylesheets)"
 exit $fail

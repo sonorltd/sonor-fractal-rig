@@ -213,7 +213,8 @@ label.mini { display: flex; flex-direction: column; gap: 3px; font-size: 11px; c
 #info td:first-child { font-family: var(--mono); white-space: nowrap; color: var(--text); }
 #info .toc { display: flex; flex-wrap: wrap; gap: 6px; }
 /* engine switch + extended projectM UI */
-.engine { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+.engine { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+@media (max-width: 1100px) { .engine { grid-template-columns: 1fr 1fr 1fr; } }
 @media (max-width: 900px) { .engine { grid-template-columns: 1fr 1fr; } }
 .srcstrip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .srcstrip span { font-size: 11px; font-family: var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; display: inline-flex; align-items: center; gap: 5px; }
@@ -249,7 +250,7 @@ label.mini { display: flex; flex-direction: column; gap: 3px; font-size: 11px; c
 .engine button b { font-size: 15px; letter-spacing: .05em; }
 .engine button small { color: var(--muted); font-size: 11px; }
 .engine button::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--eng); opacity: .5; }
-.engine button[data-eng="shader"] { --eng: var(--eng-shader); } .engine button[data-eng="pm"] { --eng: var(--eng-pm); } .engine button[data-eng="video"] { --eng: var(--eng-video); } .engine button[data-eng="resolume"] { --eng: var(--eng-resolume); }
+.engine button[data-eng="shader"] { --eng: var(--eng-shader); } .engine button[data-eng="pm"] { --eng: var(--eng-pm); } .engine button[data-eng="video"] { --eng: var(--eng-video); } .engine button[data-eng="resolume"] { --eng: var(--eng-resolume); } .engine button[data-eng="lib"] { --eng: var(--eng-lib); }
 .engine button b { color: var(--eng); }
 .engine button.active { border-color: var(--eng); background: linear-gradient(135deg, color-mix(in srgb, var(--eng) 28%, var(--panel2)), color-mix(in srgb, var(--eng) 10%, var(--panel2))); box-shadow: 0 0 0 1px var(--eng) inset, 0 6px 22px -8px var(--eng); }
 .engine button.active::before { opacity: 1; }
@@ -257,8 +258,8 @@ label.mini { display: flex; flex-direction: column; gap: 3px; font-size: 11px; c
 .engine button.active::after { content: 'LIVE'; position: absolute; right: 10px; top: 10px; font-size: 10px; letter-spacing: .12em; color: var(--eng); border: 1px solid var(--eng); border-radius: 999px; padding: 1px 7px; }
 .preset-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
 .presets .btn.other { opacity: .45; }
-#pf-eng-shader { --eng: var(--eng-shader); } #pf-eng-pm { --eng: var(--eng-pm); } #pf-eng-video { --eng: var(--eng-video); }
-#pm-card.expanded .pm-ext { display: block; }
+#pf-eng-shader { --eng: var(--eng-shader); } #pf-eng-pm { --eng: var(--eng-pm); } #pf-eng-video { --eng: var(--eng-video); } #pf-eng-lib { --eng: var(--eng-lib); }
+#pm-card.expanded .pm-ext, #lib-card .pm-ext { display: block; }
 #pm-card.expanded #pm-select { display: none; }
 .pm-ext { display: none; }
 .pm-big { font-family: var(--mono); font-size: 18px; color: var(--text); line-height: 1.25; margin: 4px 0 10px; word-break: break-word; }
@@ -415,3 +416,34 @@ h3.subhead { margin: 16px 0 6px; font-size: 12px; letter-spacing: .08em; text-tr
 /* touch: bigger toggles and source-row controls (kiosk / tablet) */
 @media (pointer: coarse) { .toggle { width: 52px; height: 30px; } .toggle::after { width: 24px; height: 24px; } .toggle.on::after { left: 25px; } .src .ctl { gap: 10px; } .src .ctl .btn.small, .src select { min-height: 34px; } }
 .toggle:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ---- Info: group colours (menu headings, card accents) + readable measure + at-a-glance tiles */
+:root { --g-overview: var(--accent2); --g-build: var(--ok); --g-inputs: var(--pink); --g-picture: var(--eng-video); --g-perform: var(--warn); --g-ops: var(--accent); }
+#info-nav .im-group { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; margin: 12px 0 3px 10px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+#info-nav .im-group::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--gc, var(--muted)); }
+#info-nav .im-group { color: var(--gc, var(--muted)); }
+#info-nav a { border-left: 2px solid transparent; } #info-nav a.cur { border-left-color: var(--gc, var(--accent2)); }
+#info .card[data-group] { border-left: 3px solid var(--gc, var(--line)); }
+#info .card h3 { font-size: 17px; letter-spacing: -.01em; }
+#info .card h3::after { content: attr(data-group); margin-left: auto; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--gc, var(--muted)); font-weight: 600; }
+#info h4 { margin: 18px 0 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--gc, var(--accent2)); padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+#info p, #info li { max-width: 82ch; }
+#info .card > .ibody > p:first-child { color: var(--text); }
+#info td:first-child { color: var(--gc, var(--text)); }
+[data-group="Overview"] { --gc: var(--g-overview); } [data-group="Build & install"] { --gc: var(--g-build); } [data-group="Inputs"] { --gc: var(--g-inputs); }
+[data-group="Picture"] { --gc: var(--g-picture); } [data-group="Performing & saving"] { --gc: var(--g-perform); } [data-group="Operations"] { --gc: var(--g-ops); }
+.glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.gtile { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); border-top: 3px solid var(--gc, var(--accent)); text-decoration: none; color: var(--text); min-height: 96px; }
+.gtile:hover { border-color: var(--gc, var(--accent)); background: var(--panel3); }
+.gtile b { font-size: 14px; color: var(--gc, var(--text)); } .gtile span { font-size: 12.5px; color: var(--text); line-height: 1.4; } .gtile small { font-size: 11px; color: var(--muted); margin-top: auto; }
+.gtile.g-build { --gc: var(--g-build); } .gtile.g-inputs { --gc: var(--g-inputs); } .gtile.g-picture { --gc: var(--g-picture); } .gtile.g-perform { --gc: var(--g-perform); } .gtile.g-ops { --gc: var(--g-ops); } .gtile.g-overview { --gc: var(--g-overview); }
+
+/* shader library card (scene 18) — same shapes as the Milkdrop card; the list is the shared listBox */
+#lib-card .fl-body { max-height: 260px; }
+#lib-card .lib-drop { border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+#lib-card .lib-drop.over { border-color: var(--eng-lib); color: var(--text); }
+#lib-card .lib-kind { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 6px; background: var(--panel2); color: var(--muted); }
+#lib-card .lib-err { font-family: var(--mono); font-size: 11px; color: var(--warn); white-space: pre-wrap; max-height: 120px; overflow: auto; margin-top: 6px; }
+
+/* the hidden attribute must win over inline display styles (the Milkdrop / video overlay pills carry display:flex inline) */
+[hidden] { display: none !important; }

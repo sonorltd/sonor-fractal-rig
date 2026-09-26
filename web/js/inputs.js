@@ -196,11 +196,21 @@ function frame(now) {
   // scale preview resolution to the CSS size (cap at 960 wide for laptops/phones)
   const w = Math.min(960, Math.round(canvas.clientWidth * Math.min(devicePixelRatio, 1.5))), h = Math.round(w * 9 / 16);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-  gl.viewport(0, 0, w, h); gl.useProgram(prog);
+  // draw into the current ping-pong target with the other one bound as u_prev, then blit to the canvas
+  ppEnsure(w, h); PP.i ^= 1;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, PP.fbo[PP.i]); gl.viewport(0, 0, w, h);
+  // scene 18 = a library shader compiled in this browser with the Pi's wrapper (library.js); falls back to plasma while it loads / if it fails
+  const pvMode = Math.round(cur[idx.mode]);
+  if (!((pvMode === 18 && libDraw(t, dt, w, h, PP.tex[PP.i ^ 1], cur)) || ((pvMode === 19 || pvMode === 20) && fxDraw(pvMode, t, dt, w, h, PP.tex[PP.i ^ 1], PP.fbo[PP.i], cur)))) {
+  gl.useProgram(prog);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, PP.tex[PP.i ^ 1]); gl.uniform1i(U.u_prev, 1); gl.activeTexture(gl.TEXTURE0);
   gl.uniform2f(U.u_res, w, h); gl.uniform1f(U.u_time, t % 100000); gl.uniform1f(U.u_beat_t, S.beat_t % 100000);
   gl.uniform1f(U.u_bpm, S.bpm); gl.uniform1f(U.u_bar_beat, S.bar_beat); gl.uniform4f(U.u_tile, 0, 0, 1, 1); gl.uniform3f(U.u_view, 0, 0, 0);
   gl.uniform1fv(U.u_p, new Float32Array(cur));
   gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, PP.fbo[PP.i]); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+  gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   // beat LEDs
   let beatIdx = 0;
   if (S.bpm > 1) { const beats = (t - S.beat_t) * S.bpm / 60; const bb = S.bar_beat ? S.bar_beat - 1 : 0; beatIdx = ((Math.floor(beats) + bb) % 4 + 4) % 4 + 1; const ph = beats - Math.floor(beats); for (let i = 1; i <= 4; i++) $('beat' + i).className = 'beat' + (i === beatIdx && ph < 0.25 ? ' on' : ''); }

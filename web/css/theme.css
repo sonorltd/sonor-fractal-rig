@@ -11,7 +11,7 @@
   --mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --glow: 0 0 0 1px rgba(47,143,255,.35), 0 0 18px rgba(47,143,255,.18);
 }
-:root { --eng-shader: #45c8ff; --eng-pm: #c06cf0; --eng-video: #f0a040; --eng-resolume: #ff5a5a; }
+:root { --eng-shader: #45c8ff; --eng-pm: #c06cf0; --eng-video: #f0a040; --eng-resolume: #ff5a5a; --eng-lib: #4ade80; }
 /* the line under the header — one accent gradient, no brand strip */
 .strip { display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 35%, rgba(69,200,255,.15) 70%, transparent 100%); }
 .strip i { display: none; }

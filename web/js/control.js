@@ -63,6 +63,7 @@ function renderControls() {
   $('last-cc').textContent = S.last_cc == null ? '—' : 'CC ' + S.last_cc;
   renderSources();
   renderPm();
+  renderLib();
   renderVideo();
   renderLog();
   if (!$('status').hidden) renderStatus();
@@ -175,18 +176,18 @@ function renderPm() {
   if (document.activeElement !== $('pm-select')) $('pm-select').value = String(pm.index || 0);
   if (document.activeElement !== $('pm-cycle')) $('pm-cycle').value = pm.cycle_bars == null ? 16 : pm.cycle_bars;
   $('pm-shuffle').className = 'btn small' + (pm.shuffle ? ' active' : '');
-  const on8 = Math.round(S.base.mode) === 8, on9 = Math.round(S.base.mode) === 9;
+  const on8 = Math.round(S.base.mode) === 8, on9 = Math.round(S.base.mode) === 9, on18 = Math.round(S.base.mode) === 18;
   $('pm-card').style.borderColor = on8 ? 'var(--accent)' : '';
   $('pm-card').classList.toggle('expanded', on8);
   document.body.classList.toggle('pm-mode', on8);
   const lvS = (S.video && S.video.live) || {}; const onRes = on9 && S.video.index === 255 && String(lvS.source || '').startsWith('ndi:');
-  $('eng-shader').className = (on8 || on9) ? '' : 'active'; $('eng-pm').className = on8 ? 'active' : ''; $('eng-video').className = (on9 && !onRes) ? 'active' : ''; $('eng-resolume').className = onRes ? 'active' : '';
+  $('eng-shader').className = (on8 || on9 || on18) ? '' : 'active'; $('eng-pm').className = on8 ? 'active' : ''; $('eng-video').className = (on9 && !onRes) ? 'active' : ''; $('eng-resolume').className = onRes ? 'active' : '';
   $('eng-resolume-sub').textContent = onRes ? '▶ ' + lvS.source.slice(4) : lvS.running && String(lvS.source || '').startsWith('ndi:') ? 'feed ready: ' + lvS.source.slice(4) + ' — tap to show' : lvS.msg && /NDI|ndi/.test(lvS.msg) && !lvS.running ? lvS.msg.slice(0, 60) : "grab Resolume's NDI output and put it on every projector";
   const clipsN = (S.media.clips || []).length, feedTxt = lvS.running ? `<b>${esc(lvS.source || 'running')}</b>` : 'none';
   $('srcstrip').innerHTML = [`<span class="${lvS.running ? 'on' : ''}">LIVE feed · ${feedTxt}</span>`, `<span>clips · <b>${clipsN}</b>${S.video.playlist && S.video.playlist.length ? ` · playlist ${S.video.playlist.length}` : ''}</span>`,
     `<span class="${S.base.live_mix > 0.003 ? 'on' : ''}">feed mix · <b>${Math.round((S.base.live_mix || 0) * 100)} %</b></span>`, `<span class="${S.pm_presets.length ? '' : 'warn'}">milkdrop · <b>${S.pm_presets.length || 'no'}</b> presets</span>`,
     `<span class="${Object.keys(S.fleet || {}).length ? 'on' : 'warn'}">projectors · <b>${Object.keys(S.fleet || {}).length}</b></span>`].join('');
-  $('eng-shader-sub').textContent = (on8 || on9) ? 'switch back to ' + MODE_NAMES[lastShaderMode] : MODE_NAMES[Math.round(S.base.mode)] + ' · fractals · plasma · tunnel · starfield · waves — pixel-synced';
+  $('eng-shader-sub').textContent = (on8 || on9 || on18) ? 'switch back to ' + MODE_NAMES[lastShaderMode] : MODE_NAMES[Math.round(S.base.mode)] + ' · fractals · plasma · raymarch · feedback · fluid · particles';
   $('eng-pm-sub').textContent = list.length ? `${list.length} presets · ${pm.cycle_bars ? 'auto-cycle ' + pm.cycle_bars + ' bars' : 'manual'}` : 'real .milk presets on every Pi';
   $('pm-big-name').textContent = list.length ? shortName(name) : '—';
   $('pm-big-sub').textContent = list.length ? `#${pm.index} of ${list.length} · ${name.includes('/') ? name.split('/')[0] + ' pack' : ''}${pmFavs.has(name) ? ' · ★ favourite' : ''}` : '';
@@ -202,5 +203,5 @@ function renderPm() {
   if (on9 && vCard.previousElementSibling !== previewCard) previewCard.after(vCard);
   if (!on8) $('pm-overlay').hidden = true;
   const engNow = engineOf(S.base.mode); if (engNow !== wasOn8) { wasOn8 = engNow; activeGroup = ENGINE_GROUPS[engNow][0]; buildControls(); }
-  if (!on8 && !on9 && Math.round(S.base.mode) !== lastShaderMode) { lastShaderMode = Math.round(S.base.mode); try { localStorage.setItem('frx.lastShader', lastShaderMode); } catch (e) {} }
+  if (!on8 && !on9 && !on18 && Math.round(S.base.mode) !== lastShaderMode) { lastShaderMode = Math.round(S.base.mode); try { localStorage.setItem('frx.lastShader', lastShaderMode); } catch (e) {} }
 }

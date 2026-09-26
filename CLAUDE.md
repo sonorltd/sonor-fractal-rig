@@ -1,10 +1,10 @@
-# STUDIO - Fractal Rig (v0.8.0)
+# STUDIO - Fractal Rig (v0.10.0)
 
-> Current version: 0.8.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.10.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
-Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 164-byte UDP multicast
-state packet at 60 Hz, N Pi renderers (C + SDL2 + GLES3) drawing the same GLSL shader to
+Multi-Raspberry-Pi fractal projection rig: one master broadcasting a UDP multicast
+state packet at 60 Hz (168 bytes / 32 params from v0.10), N Pi renderers (C + SDL2 + GLES3) drawing the same GLSL shader to
 projectors over HDMI. Inputs: web UI, MIDI, OSC, Pioneer Pro DJ Link (passive beat listener),
 optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
 
@@ -167,6 +167,34 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   inline matrix builder, Perform **LEDS** page (output, brightness, test, per-zone mute, saved configs). Rig tab:
   Projectors table carries health dot / loss % / temp / heartbeat jitter (engine `hb_worst`, `loss_rate`,
   `fps_min` from HB timing), a Health & network tile strip, Sources moved under Projectors, one Log card.
+- 2026-09-26 **v0.10.0** — **Shader library engine, scene 18** (`renderer/shaderlib.c` + `master/shaderlib.py` + `web/js/library.js`):
+  Shadertoy (`mainImage`) and single-pass ISF (JSON header) files from `renderer/shaders/lib` (seed pack, in git) and
+  `master/shaders/` (uploads, gitignored → `fractal-media-sync sync_shaders` mirrors them to `/var/lib/fractal-rig/shaders`
+  on every Pi, dir mtime bump → renderer `sl_rescan_if_changed`). One wrapper in C AND JS (keep them identical): `iResolution`
+  = whole wall, `fragCoord` offset by `frx_tile_off`, `iChannel0`/`inputImage` = previous frame, `frx_dev_uv`, params.glsl +
+  `u_p[NP]`, `frx_kick()`; ISF INPUTS declared as uniforms, name-heuristic live mapping (hue/zoom/intensity/level/bass/beat).
+  Index contract = byte-sorted names, uploads shadow pack (`shaderlib.py _files` ⇄ `shaderlib.c scan`) — like clips/presets.
+  New packet param `shader_idx` (0..4095) → **168 bytes / 32 params**; `mode` max 18; HB token `lib:count/current`; WS
+  `{lib:{index|name|next|prev|random|rescan}}`; routes `/api/shaderlib`, `/api/shaderlib/upload` (multipart or JSON
+  {name,source}), `DELETE /api/shaderlib/{name}`, `/shaderlib/{name}`; snapshot `lib`; favourites kind `shader`; engine
+  tile LIBRARY (`--eng-lib` green) + `#lib-card` (listBox, drop zone, compile log, fleet-sync line) + Perform tile; compile
+  failure → plasma (`fractal.frag` treats 18 like 8/9) + log. `lint-ui.sh` rule 7: `LIB_PACK` in library.js == folder.
+  **Feedback scenes 16 Flow / 17 Ink**: ping-pong scene FBOs (`stex/sfbo[2]`, `u_prev` on unit 1) in fractal.c and `PP` in
+  preview.js; `mix.frag` camera modes 5 silhouette / 6 neon edges / 7 shadow (`live_blend` max 7). Six default Library
+  looks + Flow/Ink looks. Pi 4 1 GB is fine as a renderer (renderer ~50 MB; Milkdrop adds ~200 MB); master with kiosk
+  stays on the Pi 5. **GPU sims** (`renderer/gpufx.c` ⇄ `web/js/gpufx.js`, shaders in `renderer/shaders/fx/` shared by
+  both): scene 19 **Fluid** — stable fluids (advect · 3 orbiting emitter splats + curl turbulence · divergence · Jacobi
+  ×(iterations/10, 8..40) · project · dye advect/inject · shade) on RGBA16F targets (¼-res velocity, ½-res dye; needs
+  `EXT_color_buffer_float`, else plasma); scene 20 **Particles** — transform feedback (interleaved `a_state xy vxvy` +
+  `a_meta life seed`, two VBO/VAO/TFO pairs, attrib locations bound 0/1), count = iterations×250 (4 k..160 k), fade pass
+  over `prev_tex` for trails, additive points. Pass order and constants are duplicated in C and JS on purpose — keep them
+  identical. Both hold per-Pi state → alike, not pixel-identical (documented like Milkdrop). `--frames N` now counts total
+  frames (it reset with the fps window before). Godot deliberately not built (separate engine per Pi, nothing these don't do).
+  Fixed: `[hidden]` now wins over inline `display:` (app.css) — the Milkdrop/video overlay pills had been showing on every scene.
+- 2026-09-26 **v0.9.0** — version bumped across all four sites (renderer, master, page pill, this banner) and
+  `web/lint-ui.sh` now FAILS when they disagree or when Info → Version history lacks a row for the current version:
+  every release = bump + history row + timeline line here, no exceptions. Info: coloured groups (menu headings, card
+  left-border, h4 rules, group tag on each heading), an **At a glance** card of six tiles, 82ch measure.
 - 2026-09-26 v0.8.0 (cont. 7) — Info tab reorganised: cards carry `data-group` (Overview · Build & install · Inputs ·
   Picture · Performing & saving · Operations) and `js/info.js` renders group headings in the side menu; new
   `#i-projectors` card (RS-232 / PJLink / HDMI ports) with an **SVG wiring diagram** (`.wiring` styles) — projector
@@ -261,7 +289,8 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   at event time, but must not EXECUTE them at load; boot-time work belongs in `js/boot.js`.
 - Never send anything TO the Pioneer network (no virtual CDJ) without an explicit decision.
 - Version sites: `renderer/fractal.c APP_VERSION`, `master/master.py APP_VERSION`,
-  `web/index.html #pill-ver`, this banner. Bump all four together.
+  `web/index.html #pill-ver`, this banner. Bump all four together AND add a row to Info → Version history
+  (`#i-history`, newest first) + a timeline line here — `web/lint-ui.sh` enforces the four-way match and the history row.
 - Protocol changes: bump `PROTOCOL_VERSION` in `params.py` only when the header changes.
 - GLSL gotcha (learned v0.2.0): `smoothstep(a, b, x)` with a > b is undefined on Mesa — always
   write `1.0 - smoothstep(b, a, x)`.

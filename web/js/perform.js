@@ -70,6 +70,7 @@ $('pf-beat1').onclick = () => send({beat1: 1});
 $('pf-eng-shader').onclick = () => send({set: {mode: lastShaderMode}});
 $('pf-eng-pm').onclick = () => send({set: {mode: 8}});
 $('pf-eng-video').onclick = () => send({video: {play: S.video.index === 255 ? 255 : Math.max(0, S.video.index || 0)}});
+$('pf-eng-lib').onclick = () => send({set: {mode: 18}});
 $('pf-vid-prev').onclick = () => send({video: {prev: 1}}); $('pf-vid-next').onclick = () => send({video: {next: 1}}); $('pf-vid-restart').onclick = () => send({video: {restart: 1}});
 $('pf-blackout').onclick = () => { if (pfBlackPrev == null) { pfBlackPrev = S.base.brightness; send({set: {brightness: 0}}); } else { send({set: {brightness: pfBlackPrev || 1}}); pfBlackPrev = null; } };
 $('pf-freeze').onclick = () => { if (pfFreezePrev == null) { pfFreezePrev = S.clock_speed; send({clock_speed: 0}); } else { send({clock_speed: pfFreezePrev || 1}); pfFreezePrev = null; } };
@@ -93,16 +94,18 @@ function renderPerf() {
   $('pf-bpm').textContent = S.bpm ? S.bpm.toFixed(1) : '—';
   $('pf-src').textContent = $('tempo-label').textContent;
   const on8 = Math.round(S.base.mode) === 8;
-  const on9p = Math.round(S.base.mode) === 9;
-  $('pf-eng-shader').className = 'pbtn eng' + ((on8 || on9p) ? '' : ' active'); $('pf-eng-pm').className = 'pbtn eng' + (on8 ? ' active' : ''); $('pf-eng-video').className = 'pbtn eng' + (on9p ? ' active' : '');
+  const on9p = Math.round(S.base.mode) === 9, on18p = Math.round(S.base.mode) === 18;
+  $('pf-eng-lib').className = 'pbtn eng' + (on18p ? ' active' : ''); $('pf-eng-lib-sub').textContent = on18p && S.lib.name ? libShort(S.lib.name).slice(0, 28) : 'shadertoy · isf';
+  $('pf-eng-shader').className = 'pbtn eng' + ((on8 || on9p || on18p) ? '' : ' active'); $('pf-eng-pm').className = 'pbtn eng' + (on8 ? ' active' : ''); $('pf-eng-video').className = 'pbtn eng' + (on9p ? ' active' : '');
   $('pf-eng-pm-sub').textContent = on8 && S.pm.name ? shortName(S.pm.name).slice(0, 28) : 'milkdrop presets'; $('pf-eng-video-sub').textContent = on9p && S.video.name ? S.video.name : 'clips · LIVE feed';
   // Show page: scene grid for the shader engine, quick controls for the other two
-  const engP = engineOf(S.base.mode); $('pf-scenes').style.display = engP === 'shader' ? '' : 'none'; $('pf-scenes-label').textContent = engP === 'shader' ? 'Scene' : engP === 'pm' ? 'Milkdrop' : 'Video';
-  const qsig = engP + '|' + (S.pm.name || '') + '|' + (S.video.name || '');
+  const engP = engineOf(S.base.mode); $('pf-scenes').style.display = engP === 'shader' ? '' : 'none'; $('pf-scenes-label').textContent = engP === 'shader' ? 'Scene' : engP === 'pm' ? 'Milkdrop' : engP === 'lib' ? 'Library' : 'Video';
+  const qsig = engP + '|' + (S.pm.name || '') + '|' + (S.video.name || '') + '|' + (S.lib.name || '');
   if ($('pf-engine-quick').dataset.sig !== qsig) { $('pf-engine-quick').dataset.sig = qsig;
     $('pf-engine-quick').innerHTML = engP === 'pm' ? `<button class="pbtn" data-q="pm-prev">◀ PREV</button><button class="pbtn primary" data-q="pm-random">RANDOM<small>${esc(shortName(S.pm.name || '').slice(0, 26))}</small></button><button class="pbtn" data-q="pm-next">NEXT ▶</button>`
-      : engP === 'video' ? `<button class="pbtn" data-q="vid-prev">◀ PREV</button><button class="pbtn primary" data-q="vid-restart">↻ RESTART<small>${esc(S.video.name || '')}</small></button><button class="pbtn" data-q="vid-next">NEXT ▶</button>` : '';
-    $('pf-engine-quick').querySelectorAll('[data-q]').forEach(b => b.onclick = () => ({'pm-prev': () => send({pm: {prev: 1}}), 'pm-random': () => send({pm: {random: 1}}), 'pm-next': () => send({pm: {next: 1}}), 'vid-prev': () => send({video: {prev: 1}}), 'vid-restart': () => send({video: {restart: 1}}), 'vid-next': () => send({video: {next: 1}})})[b.dataset.q]()); }
+      : engP === 'video' ? `<button class="pbtn" data-q="vid-prev">◀ PREV</button><button class="pbtn primary" data-q="vid-restart">↻ RESTART<small>${esc(S.video.name || '')}</small></button><button class="pbtn" data-q="vid-next">NEXT ▶</button>`
+      : engP === 'lib' ? `<button class="pbtn" data-q="lib-prev">◀ PREV</button><button class="pbtn primary" data-q="lib-random">RANDOM<small>${esc(libShort(S.lib.name || '').slice(0, 26))}</small></button><button class="pbtn" data-q="lib-next">NEXT ▶</button>` : '';
+    $('pf-engine-quick').querySelectorAll('[data-q]').forEach(b => b.onclick = () => ({'pm-prev': () => send({pm: {prev: 1}}), 'pm-random': () => send({pm: {random: 1}}), 'pm-next': () => send({pm: {next: 1}}), 'vid-prev': () => send({video: {prev: 1}}), 'vid-restart': () => send({video: {restart: 1}}), 'vid-next': () => send({video: {next: 1}}), 'lib-prev': () => send({lib: {prev: 1}}), 'lib-random': () => send({lib: {random: 1}}), 'lib-next': () => send({lib: {next: 1}})})[b.dataset.q]()); }
   const clips = (S.media.clips || []), csig = clips.map(c => c.name).join('|') + '#' + S.video.index + on9p;
   if ($('pf-clips').dataset.sig !== csig) { $('pf-clips').dataset.sig = csig; $('pf-clips').innerHTML = clips.slice(0, 24).map((c, i) => `<button class="pbtn pf-clip ${on9p && i === S.video.index ? 'active' : ''}" data-c="${i}">${c.thumb ? `<i class="bg" style="background-image:url(${c.thumb})"></i>` : ''}<span>${esc(c.name)}</span></button>`).join('') + `<button class="pbtn pf-clip ${on9p && S.video.index === 255 ? 'active' : ''}" data-c="255"><span>● LIVE</span></button>` || ''; $('pf-clips').querySelectorAll('[data-c]').forEach(b => b.onclick = () => send({video: {play: +b.dataset.c}})); }
   $('pf-scenes').querySelectorAll('button').forEach(b => b.className = 'pbtn' + (+b.dataset.m === Math.round(S.base.mode) ? ' active' : ''));

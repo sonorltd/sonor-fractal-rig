@@ -24,7 +24,7 @@ from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
 import inputs, outputs
 
-APP_VERSION = "0.8.0"
+APP_VERSION = "0.10.0"
 osc_out = led = thumbs = link = xair = None
 
 
@@ -293,6 +293,14 @@ async def web_app(engine, cfg):
                     if q.get("rescan"):
                         engine.pm_presets = inputs_pm_scan(engine)
                         await ws.send_json(dict(type="pm_presets", pm_presets=engine.pm_presets))
+                if "lib" in m:
+                    q = m["lib"]
+                    if "index" in q: engine.lib_set(q["index"])
+                    if q.get("name") is not None and engine.lib and engine.lib.index_of(q["name"]) is not None: engine.lib_set(engine.lib.index_of(q["name"]))
+                    if q.get("next"): engine.lib_step(1)
+                    if q.get("prev"): engine.lib_step(-1)
+                    if q.get("random"): engine.lib_random()
+                    if q.get("rescan") and engine.lib: engine.lib.scan()
                 if "bpm" in m:
                     engine.set_bpm(m["bpm"])
                 if "clock_speed" in m:
@@ -1022,6 +1030,50 @@ async def web_app(engine, cfg):
     app.router.add_get("/api/mapping", api_mapping)
     app.router.add_get("/api/mapping/{name}", api_mapping_get)
     app.router.add_put("/api/mapping/{name}", api_mapping_put)
+    # ---- shader library (scene 18): manifest for the UI + the renderers' sync script, files, uploads
+    async def api_lib(request):
+        lib = engine.lib
+        if lib and request.query.get("rescan"):
+            lib.scan()
+        return web.json_response(dict(**(lib.manifest() if lib else dict(shaders=[], count=0)), index=engine.lib_index(), name=engine.lib_name()))
+    async def api_lib_file(request):
+        name = request.match_info["name"]
+        p = engine.lib.path(name) if engine.lib and "/" not in name and not name.startswith(".") else None
+        if not p or not os.path.exists(p):
+            raise web.HTTPNotFound()
+        return web.FileResponse(p, headers={"Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8"})
+    async def api_lib_upload(request):
+        if not engine.lib:
+            raise web.HTTPServiceUnavailable(text="shader library disabled")
+        results = []
+        if request.content_type.startswith("multipart/"):
+            reader = await request.multipart()
+            while True:
+                part = await reader.next()
+                if part is None:
+                    break
+                if part.name != "file" or not part.filename:
+                    continue
+                data = await part.read(decode=False)
+                ok, msg = engine.lib.put(part.filename, data)
+                results.append(dict(name=part.filename, ok=ok, msg=msg))
+        else:
+            j = await request.json()
+            ok, msg = engine.lib.put(j.get("name") or "shader.frag", j.get("source") or "")
+            results.append(dict(name=j.get("name"), ok=ok, msg=msg))
+        engine.event("shader library: " + ", ".join(f"{r['msg']}" if r["ok"] else f"{r['name']} rejected ({r['msg']})" for r in results))
+        return web.json_response(dict(results=results, shaders=engine.lib.items()))
+    async def api_lib_delete(request):
+        name = request.match_info["name"]
+        if not engine.lib or not engine.lib.delete(name):
+            raise web.HTTPNotFound(text="not an uploaded shader")
+        if engine.lib_index() >= len(engine.lib.names()):
+            engine.lib_set(0, "deleted")
+        return web.json_response(dict(ok=True, shaders=engine.lib.items()))
+    app.router.add_get("/api/shaderlib", api_lib)
+    app.router.add_post("/api/shaderlib/upload", api_lib_upload)
+    app.router.add_delete("/api/shaderlib/{name}", api_lib_delete)
+    app.router.add_get("/shaderlib/{name}", api_lib_file)
     app.router.add_get("/api/media", api_media)
     app.router.add_get("/api/media/devices", api_media_devices)
     app.router.add_post("/api/media/upload", api_media_upload)
@@ -1084,6 +1136,13 @@ async def main():
         engine.event(f"video: {len(engine.media.clips())} clips in {engine.media.root} · ffmpeg {'ok' if engine.media.have_ffmpeg else 'MISSING (sudo apt install ffmpeg)'}")
     except Exception as ex:
         engine.event(f"video: media library disabled ({ex})")
+    try:
+        from shaderlib import ShaderLib
+        engine.lib = ShaderLib(os.path.join(ROOT, "renderer", "shaders", "lib"), cfg.get("shader_dir") or os.path.join(ROOT, "master", "shaders"))
+        engine.event(f"shader library: {len(engine.lib.names())} shaders (pack + {engine.lib.user_dir})")
+    except Exception as ex:
+        engine.lib = None
+        engine.event(f"shader library disabled ({ex})")
     try:
         engine.mapping = MappingStore(engine, cfg.get("mapping_dir") or os.path.join(ROOT, "master", "mapping"))
     except Exception as ex:

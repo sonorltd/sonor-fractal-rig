@@ -7,13 +7,13 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 let PARAMS = window.FRX_PARAMS || [];
 const idx = {}; PARAMS.forEach((p, i) => idx[p.key] = i);
 const GROUPS = ['shape', 'colour', 'music', 'projectm'];
-const ENGINE_GROUPS = {shader: ['shape', 'colour', 'music'], pm: ['projectm', 'colour', 'music'], video: ['colour', 'music', 'projectm']};   // video reuses the projectM group for the post-pass 'Shader mix'
-const engineOf = mode => Math.round(mode) === 8 ? 'pm' : Math.round(mode) === 9 ? 'video' : 'shader';
-const ENGINE_LABEL = {shader: 'Shader', pm: 'Milkdrop', video: 'Video'};
+const ENGINE_GROUPS = {shader: ['shape', 'colour', 'music'], pm: ['projectm', 'colour', 'music'], video: ['colour', 'music', 'projectm'], lib: ['colour', 'music', 'lib']};   // video reuses the projectM group for the post-pass 'Shader mix'
+const engineOf = mode => Math.round(mode) === 8 ? 'pm' : Math.round(mode) === 9 ? 'video' : Math.round(mode) === 18 ? 'lib' : 'shader';
+const ENGINE_LABEL = {shader: 'Shader', pm: 'Milkdrop', video: 'Video', lib: 'Library'};
 const presetMode = n => { const p = (S.presets || {})[n]; return (p && typeof p === 'object' && p.mode != null) ? p.mode : ((S.preset_modes || {})[n] || 0); };
 let presetFilter = 'engine';
-const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'Milkdrop', 'Video', 'Menger', 'Voronoi', 'Turing', 'Scope', 'Mandala', 'Truchet'];
-const SHADER_MODES = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15];   // everything that is not Milkdrop (8) or Video (9)
+const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'Milkdrop', 'Video', 'Menger', 'Voronoi', 'Turing', 'Scope', 'Mandala', 'Truchet', 'Flow', 'Ink', 'Library', 'Fluid', 'Particles'];
+const SHADER_MODES = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20];   // everything that is not Milkdrop (8), Video (9) or the shader Library (18); 19/20 are GPU sims that use the same params
 
 // ------------------------------------------------------------ state (mirrors engine.py)
 const S = {
@@ -23,6 +23,7 @@ const S = {
   audio_wave: [], audio_bands: [], audio_levels: null, bpm_hist: [], prodj_raw: {},
   video: {index: 0, name: null, position: 0, duration: 0, playlist: [], cycle: 'end', cycle_bars: 8, bar_sync: false, count: 0, live: null}, media: {clips: [], jobs: [], live: null, ffmpeg: false},
   pm: {count: 0, index: 0, name: null, cycle_bars: 16, shuffle: true, audio: null}, pm_presets: [],
+  lib: {count: 0, index: 0, name: null}, lib_shaders: [],
   sources: {
     web:   {enabled: true, ok: true, detail: 'this page'},
     prodj: {enabled: true, ok: false, detail: 'needs the master (demo)'},
@@ -70,6 +71,7 @@ function applyLocal(m) {   // demo-mode engine — same semantics as engine.py
   if (m.set) for (const k in m.set) S.base[k] = snap(k, m.set[k]);
   if (m.auto) for (const k in m.auto) S.auto[k] = !!m.auto[k];
   if (m.tap) tapLocal();
+  if (m.lib) { const q = m.lib, n = (S.lib_shaders || []).length || 1; if ('index' in q) S.lib.index = ((+q.index % n) + n) % n; if (q.name != null) { const i = S.lib_shaders.findIndex(x => x.name === q.name); if (i >= 0) S.lib.index = i; } if (q.next) S.lib.index = (S.lib.index + 1) % n; if (q.prev) S.lib.index = (S.lib.index - 1 + n) % n; if (q.random) S.lib.index = Math.floor(Math.random() * n); S.base.shader_idx = S.lib.index; S.lib.name = (S.lib_shaders[S.lib.index] || {}).name || null; }
   if (m.pm) { const q = m.pm, n = (S.pm_presets || []).length || 1; if ('index' in q) S.pm.index = ((+q.index % n) + n) % n; if (q.next) S.pm.index = (S.pm.index + 1) % n; if (q.prev) S.pm.index = (S.pm.index - 1 + n) % n; if (q.random) S.pm.index = Math.floor(Math.random() * n); if ('cycle_bars' in q) S.pm.cycle_bars = +q.cycle_bars; if ('shuffle' in q) S.pm.shuffle = !!q.shuffle; S.base.pm_preset = S.pm.index; }
   if (m.video) { const q = m.video, cl = S.media.clips || []; if ('play' in q) { const i = typeof q.play === 'string' ? cl.findIndex(c => c.name === q.play) : +q.play; if (i >= 0 || q.play === 255) { S.base.video_clip = q.play === 255 ? 255 : i; S.base.video_t0 = S.t; S.base.mode = 9; } } if (q.live) { S.base.video_clip = 255; S.base.video_t0 = S.t; S.base.mode = 9; } if (q.restart) S.base.video_t0 = S.t; if (q.next || q.prev) { const n = cl.length || 1; S.base.video_clip = ((Math.round(S.base.video_clip) + (q.next ? 1 : -1)) % n + n) % n; S.base.video_t0 = S.t; } if ('loop' in q) S.base.video_loop = q.loop ? 1 : 0; if ('speed' in q) S.base.video_speed = +q.speed; if ('playlist' in q) S.video.playlist = q.playlist; if ('cycle' in q) S.video.cycle = q.cycle; if ('cycle_bars' in q) S.video.cycle_bars = +q.cycle_bars; if ('bar_sync' in q) S.video.bar_sync = !!q.bar_sync; S.video.index = Math.round(S.base.video_clip); S.video.name = S.video.index === 255 ? 'LIVE' : (cl[S.video.index] || {}).name || null; }
   if (m.beat1) { S.beat_t = S.t; S.bar_beat = 1; if (S.bpm) S.tempo_source = 'tap'; logLocal('bar resync: beat 1'); }
@@ -159,7 +161,7 @@ function connect(url) {
   ws.onopen = () => { clearTimeout(timer); S.live = true; BR.connectedAt = Date.now(); if (BR.pingTimer) clearInterval(BR.pingTimer); BR.pingTimer = setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ping: performance.now()})); }, 2000); if (demoTimer) { clearInterval(demoTimer); demoTimer = null; } $('demo-banner').hidden = true; setConn('ok', 'master ' + new URL(url).host); $('pill-live').textContent = 'live'; };
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
-    if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); S.pm_presets = m.pm_presets || []; if (m.resolume_grid) RGRID = m.resolume_grid; buildControls(); buildPmList(); $('pill-ver').textContent = 'v' + m.version; setTimeout(migratePmFavs, 1500); return; }
+    if (m.type === 'hello') { PARAMS = m.params; PARAMS.forEach((p, i) => idx[p.key] = i); S.pm_presets = m.pm_presets || []; if (m.resolume_grid) RGRID = m.resolume_grid; buildControls(); buildPmList(); $('pill-ver').textContent = 'v' + m.version; setTimeout(migratePmFavs, 1500); libFetch(); return; }
     if (m.type === 'resolume_grid') { RGRID = m.resolume_grid; renderPad(); return; }
     if (m.type === 'pm_presets') { S.pm_presets = m.pm_presets || []; buildPmList(); return; }
     if (m.type === 'mapping') { MP.list = m.mapping || []; mapRenderList(); return; }
@@ -169,7 +171,7 @@ function connect(url) {
     Object.assign(S, {packets_sent: m.packets_sent, tick_hz: m.tick_hz, tick_gap_ms: m.tick_gap_ms, uptime: m.uptime, diag: m.diag || {}, prodj_raw: m.prodj_raw || {}, seq: m.seq});
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
       clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
-      auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, prodj_dev: m.prodj_dev, pm: m.pm || S.pm, outputs: m.outputs || S.outputs,
+      auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, prodj_dev: m.prodj_dev, pm: m.pm || S.pm, lib: m.lib || S.lib, outputs: m.outputs || S.outputs,
       audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video, osc_in_map: m.osc_in_map || {}, osc_last: m.osc_last || null, cue: m.cue || S.cue, cues: m.cues || S.cues, mods: m.mods || S.mods, cloud: m.cloud || null, palettes: m.palettes || S.palettes, palette_lock: !!m.palette_lock, palette_current: m.palette_current || null, favs: m.favs || S.favs || {}});
     S.t = m.t; S.tRecv = performance.now();
     noteBpm(m.bpm);
@@ -185,6 +187,7 @@ function startDemo() {
   $('demo-banner').hidden = false;
   try { S.presets = JSON.parse(localStorage.getItem('frx.presets') || 'null') || Object.assign({}, DEMO_PRESETS); } catch (e) { S.presets = Object.assign({}, DEMO_PRESETS); }
   S.pm_presets = ['demo/Flexi - infused with the spiral.milk', 'demo/Geiss - Feedback.milk', 'demo/Rovastar - Fractopia.milk', 'demo/martin - liquid palette.milk']; buildPmList();
+  libFetch();
   logLocal('demo mode: simulating the master locally');
   demoTimer = setInterval(demoTick, 1000 / 60);
   renderControls();

@@ -91,6 +91,8 @@ class Engine:
         self._pm_last_switch = 0.0
         # video (scene 9) — the Media object (master.media) owns the files; the engine owns playback state
         self.media = None                               # set by master.py
+        self.lib = None                                 # shader library (scene 18) — set by master.py
+        self.lib_history = []
         self.mapping = None                             # MappingStore, set by master.py
         self.shows = None                               # Shows store, set by master.py
         self.cloud = None                               # cloud.Cloud mirror, set by master.py
@@ -245,6 +247,36 @@ class Engine:
     def pm_find(self, text):
         t = text.lower()
         return [i for i, n in enumerate(self.pm_presets) if t in n.lower()][:50]
+
+    # ------------------------------------------------------------ shader library (scene 18)
+    def lib_names(self):
+        return self.lib.names() if self.lib else []
+
+    def lib_index(self):
+        return int(self.base[INDEX["shader_idx"]])
+
+    def lib_name(self, i=None):
+        names = self.lib_names()
+        i = self.lib_index() if i is None else i
+        return names[i % len(names)] if names else None
+
+    def lib_set(self, i, why="ui"):
+        names = self.lib_names()
+        if not names:
+            return
+        i = int(i) % len(names)
+        self.set("shader_idx", i, why)
+        self.lib_history = (self.lib_history + [i])[-50:]
+        self.event(f"library shader {i}: {names[i]} ({why})")
+
+    def lib_step(self, d=1, why="ui"):
+        self.lib_set(self.lib_index() + d, why)
+
+    def lib_random(self, why="ui"):
+        n = len(self.lib_names())
+        if n > 1:
+            choices = [i for i in range(n) if i not in self.lib_history[-10:]]
+            self.lib_set(random.choice(choices or range(n)), why)
 
     # ------------------------------------------------------------ video (scene 9)
     def video_clips(self):
@@ -438,6 +470,7 @@ class Engine:
             map_hash = kv.get("map")
             video = kv.get("video")
             out = kv.get("out")                          # v0.8: "mode/displays", e.g. mirror/2 — which HDMI port(s) this Pi drives
+            lib = kv.get("lib")                          # v0.10: "count/current" of the shader library on that Pi
             prev = self.fleet.get(name, {})
             now = time.time()
             # heartbeat-interval stats — a jittery/late HB on a Pi that is otherwise fine usually means the LAN
@@ -453,7 +486,7 @@ class Engine:
                                     packets=pk_i, lost=lost_i, version=appver, seen=now,
                                     temp=temp, first_seen=prev.get("first_seen", time.time()), hb=prev.get("hb", 0) + 1,
                                     pm_presets=pm_n, pm_current=pm_cur, audio_packets=audio_pk, ndi=ndi,
-                                    media=media_n, map=map_hash, video=video, out=out)
+                                    media=media_n, map=map_hash, video=video, out=out, lib=lib)
         except Exception:
             pass
 
@@ -622,6 +655,7 @@ class Engine:
             cue=self.show.snapshot(), cues=self.show.cues, mods=self.show.mods,
             cloud=self.cloud.status() if self.cloud else None,
             palettes=self.palettes, palette_lock=self.palette_lock, palette_current=self.palette_current, favs=self.cfg.get("favs", {}),
+            lib=dict(count=len(self.lib_names()), index=self.lib_index(), name=self.lib_name()),
             pm=dict(count=len(self.pm_presets), dir=self.pm_dir, index=self.pm_index(), name=self.pm_name(),
                     cycle_bars=self.pm_cycle_bars, shuffle=self.pm_shuffle,
                     audio=self.audio_stream.stats() if self.audio_stream else None),
@@ -677,6 +711,26 @@ DEFAULT_PRESETS = {
     "Mandala temple":  dict(mode=14, iterations=240, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.08, hue_spread=0.7, glow=0.6, warp=0.1, kaleido=0),
     "Mandala bloom":   dict(mode=14, iterations=400, zoom=0.3, center_x=0.0, center_y=0.0, hue=0.8, hue_spread=1.4, glow=0.9, warp=0.4, kaleido=0, beat_pulse=0.5),
     "Mandala ice":     dict(mode=14, iterations=160, zoom=-0.3, center_x=0.0, center_y=0.0, hue=0.55, hue_spread=0.3, contrast=1.3, glow=0.4, warp=0.0, kaleido=0),
+    "Flow field":      dict(mode=16, iterations=180, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.55, hue_spread=1.2, glow=0.6, warp=0.4, kaleido=0, beat_pulse=0.5),
+    "Flow embers":     dict(mode=16, iterations=120, zoom=0.5, center_x=0.0, center_y=0.0, hue=0.03, hue_spread=0.3, glow=0.9, warp=0.8, kaleido=0, beat_pulse=0.7),
+    "Flow kaleido":    dict(mode=16, iterations=260, zoom=-0.3, center_x=0.0, center_y=0.0, hue=0.8, hue_spread=1.8, glow=0.5, warp=0.2, kaleido=6),
+    "Ink drift":       dict(mode=17, iterations=200, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.6, hue_spread=1.0, glow=0.5, warp=0.5, kaleido=0, beat_pulse=0.4),
+    "Ink lava":        dict(mode=17, iterations=140, zoom=0.4, center_x=0.0, center_y=0.0, hue=0.0, hue_spread=0.4, glow=0.8, warp=0.9, contrast=1.3, kaleido=0),
+    "Ink kaleido":     dict(mode=17, iterations=300, zoom=-0.2, center_x=0.0, center_y=0.0, hue=0.45, hue_spread=1.5, glow=0.6, warp=0.3, kaleido=8),
+    # GPU sims (scenes 19 / 20)
+    "Fluid smoke":     dict(mode=19, iterations=200, hue=0.58, hue_spread=1.2, warp=0.3, glow=0.4, brightness=1.0, contrast=1.0, beat_pulse=0.5),
+    "Fluid lava":      dict(mode=19, iterations=240, hue=0.02, hue_spread=0.6, warp=0.15, glow=0.7, brightness=1.1, contrast=1.2, beat_pulse=0.6),
+    "Fluid nebula":    dict(mode=19, iterations=160, hue=0.75, hue_spread=2.0, warp=0.6, glow=0.85, brightness=0.9, contrast=0.9, beat_pulse=0.3),
+    "Particle vortex": dict(mode=20, iterations=160, hue=0.8, hue_spread=1.0, warp=0.3, glow=0.4, brightness=1.0, beat_pulse=0.6),
+    "Particle storm":  dict(mode=20, iterations=320, hue=0.55, hue_spread=1.6, warp=0.9, glow=0.7, brightness=0.9, beat_pulse=0.8),
+    "Particle embers": dict(mode=20, iterations=60, hue=0.06, hue_spread=0.5, warp=0.5, glow=0.85, brightness=1.2, beat_pulse=0.5),
+    # shader library (scene 18) — shader_idx counts into the byte-sorted pack: 0 aurora · 1 hex_pulse · 2 neon_rings · 3 plasma_storm · 4 starburst · 5 warp_grid
+    "Lib aurora":      dict(mode=18, shader_idx=0, hue=0.55, brightness=1.0, beat_pulse=0.4),
+    "Lib hex pulse":   dict(mode=18, shader_idx=1, hue=0.85, brightness=1.0, beat_pulse=0.6),
+    "Lib neon rings":  dict(mode=18, shader_idx=2, hue=0.62, brightness=1.0, beat_pulse=0.5),
+    "Lib plasma storm": dict(mode=18, shader_idx=3, hue=0.7, brightness=1.0, beat_pulse=0.3),
+    "Lib starburst":   dict(mode=18, shader_idx=4, hue=0.1, brightness=1.0, beat_pulse=0.6),
+    "Lib warp grid":   dict(mode=18, shader_idx=5, hue=0.9, brightness=1.0, beat_pulse=0.5),
     "Truchet flow":    dict(mode=15, iterations=200, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.45, hue_spread=1.0, glow=0.5, warp=0.2, kaleido=0),
     "Truchet circuit": dict(mode=15, iterations=400, zoom=0.4, center_x=0.0, center_y=0.0, hue=0.3, hue_spread=0.4, contrast=1.4, glow=0.9, warp=0.0, kaleido=0),
     "Truchet kaleido": dict(mode=15, iterations=150, zoom=-0.2, center_x=0.0, center_y=0.0, hue=0.95, hue_spread=1.6, glow=0.6, warp=0.5, kaleido=8),

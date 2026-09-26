@@ -16,6 +16,7 @@ uniform float u_bar_beat; // beat-in-bar at u_beat_t (1..4), 0 = unknown
 uniform vec4  u_tile;     // (ox, oy, sx, sy): this device's window in the global canvas, uv space
 uniform vec3  u_view;     // per-device offsets: (zoom log2, rotation, hue) — "family" mode
 uniform float u_p[NP];
+uniform sampler2D u_prev;  // this device's previous scene frame (same size) — feedback for scenes 16 Flow / 17 Ink
 
 const float TAU = 6.28318530718;
 
@@ -246,6 +247,61 @@ vec3 sceneTruchet(vec2 p, float t, float hue, float pulse) {
     return c * line * (0.35 + 0.65 * dash) * (1.0 + 0.5 * pulse) + c * 0.04 + c * P_WARP * 0.2 * (1.0 - line);
 }
 
+// ---------------------------------------------------------------- feedback scenes (16, 17) — read u_prev, write directly
+vec2 curl(vec2 p, float t) {   // divergence-free flow field from fbm: rotate the gradient
+    float e = 0.02;
+    float n1 = fbm(p + vec2(e, 0.0) + t), n2 = fbm(p - vec2(e, 0.0) + t), n3 = fbm(p + vec2(0.0, e) + t), n4 = fbm(p - vec2(0.0, e) + t);
+    return vec2((n3 - n4), -(n1 - n2)) / (2.0 * e);
+}
+// 16: Flow — thousands of luminous particles riding a curl-noise field, trails from the previous frame.
+//     iterations = particle density, warp = field turbulence, glow = trail length, zoom = field scale
+vec4 sceneFlow(vec2 p, vec2 uv, float t, float hue, float pulse) {
+    float sc = 3.0 * exp2(-P_ZOOM * 0.3);
+    vec2 v = curl(p * 0.6 * sc, t * 0.05) * (0.6 + P_WARP * 1.5);
+    // trails: pull the previous frame back along the flow and fade it
+    vec2 back = uv - v * 0.004 * (1.0 + pulse);
+    vec3 prev = texture(u_prev, back).rgb * (0.90 + 0.09 * P_GLOW);
+    // particles: one per cell of a jittered grid, each moving along the field with its own phase
+    float dens = 2.5 + P_ITERATIONS / 60.0;
+    vec2 q = p * dens; vec2 ic = floor(q); vec3 dots = vec3(0.0);
+    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+        vec2 g = ic + vec2(float(x), float(y)); vec2 h = hash2(g);
+        float ph = fract(t * (0.08 + 0.12 * h.x) + h.y);                    // lifetime 0..1
+        vec2 c = g + 0.5 + (h - 0.5) * 0.8 + curl((g + 0.5) / dens * 0.6 * sc, t * 0.05) * ph * 1.2;
+        float d = length(q - c);
+        float life = sin(ph * 3.14159) * step(0.35, hash(g + 7.7));            // ~2/3 of the cells carry a particle
+        float sz = 0.11 + 0.06 * pulse;
+        dots += palette(h.x * 0.5 + hue + ph * 0.2, hue, P_HUE_SPREAD) * smoothstep(sz + 0.04, sz * 0.3, d) * life * (0.8 + 0.6 * pulse);
+    }
+    vec3 col = prev + dots;
+    col *= 1.0 + 0.3 * P_ENERGY;
+    return vec4(clamp(col, 0.0, 1.0) * P_BRIGHTNESS, 1.0);
+}
+// 17: Ink — dye in water. The previous frame is advected along a curl field (semi-Lagrangian), slightly blurred and
+//     faded; dye is injected at slowly wandering points and on the beat. warp = swirl, glow = dye amount,
+//     iterations = field detail, zoom = field scale, hue/spread = the dyes
+vec4 sceneInk(vec2 p, vec2 uv, float t, float hue, float pulse) {
+    float sc = 1.5 * exp2(-P_ZOOM * 0.3) * (0.7 + P_ITERATIONS / 300.0);
+    vec2 v = curl(p * sc, t * 0.03) * (0.5 + P_WARP * 2.0);
+    vec2 px = 1.0 / u_res;
+    vec2 back = uv - v * px * (3.0 + 4.0 * pulse) * (u_res.y / 540.0);
+    // 5-tap blur while sampling = diffusion
+    vec3 prev = texture(u_prev, back).rgb * 0.4 + (texture(u_prev, back + vec2(px.x, 0.0)).rgb + texture(u_prev, back - vec2(px.x, 0.0)).rgb + texture(u_prev, back + vec2(0.0, px.y)).rgb + texture(u_prev, back - vec2(0.0, px.y)).rgb) * 0.15;
+    prev *= 0.992 - 0.008 * (1.0 - P_GLOW);                                  // slow fade so the tank never fills completely
+    // dye sources: three wandering emitters + a beat burst at the centre of the wander
+    vec3 dye = vec3(0.0);
+    for (int i = 0; i < 3; i++) {
+        float fi = float(i);
+        vec2 c = vec2(sin(t * (0.11 + 0.05 * fi) + fi * 2.1), cos(t * (0.09 + 0.04 * fi) + fi * 1.3)) * 0.9;
+        float d = length(p - c);
+        dye += palette(fi * 0.33 + hue + t * 0.01, hue, P_HUE_SPREAD) * smoothstep(0.22, 0.0, d) * (0.3 + 0.6 * P_GLOW);
+    }
+    dye += palette(0.5 + hue, hue + 0.3, 0.5) * smoothstep(0.5, 0.0, length(p)) * pulse * 0.6;
+    vec3 col = prev + dye * 0.5;
+    col = pow(max(col, 0.0), vec3(1.0 + (P_CONTRAST - 1.0) * 0.3));
+    return vec4(clamp(col, 0.0, 1.0) * P_BRIGHTNESS, 1.0);
+}
+
 void main() {
     // ---- global canvas coordinates (tiling) --------------------------------
     vec2 uv = gl_FragCoord.xy / u_res;                 // 0..1 on this device
@@ -285,10 +341,14 @@ void main() {
     int mode = int(floor(P_MODE + 0.5));
     float hue = P_HUE + u_view.z + P_HUE_SPEED * u_time * 0.1 + sway * 0.05;
 
+    // ---- feedback scenes: write and return (they manage their own gain — the generic post block would run away in a loop)
+    if (mode == 16) { fragColor = sceneFlow(p + centreShift(mode), uv, u_time, hue, pulse); return; }
+    if (mode == 17) { fragColor = sceneInk(p + centreShift(mode), uv, u_time, hue, pulse); return; }
+
     // ---- non-fractal scenes ------------------------------------------------
     if (mode >= 4) {
         vec2 q = p + centreShift(mode);
-        if (mode == 8 || mode == 9) mode = 4;          // Milkdrop / video not available here -> plasma stand-in
+        if (mode == 8 || mode == 9 || mode >= 18) mode = 4;  // Milkdrop / video / library / fluid / particles are not in this shader -> plasma stand-in
         vec3 sc = mode == 4 ? scenePlasma(q, u_time, hue, pulse)
                 : mode == 5 ? sceneTunnel(q, u_time, hue, pulse)
                 : mode == 6 ? sceneStars(q, u_time, hue, pulse)

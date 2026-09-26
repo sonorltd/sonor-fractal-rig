@@ -27,7 +27,7 @@ if [ "$ROLE" = "master" ]; then
 fi
 
 # per-Pi runtime state: synced clips, mapping.txt, the renderer's note of where the master is
-install -d -o "$USER_NAME" -g "$USER_NAME" /var/lib/fractal-rig /var/lib/fractal-rig/media
+install -d -o "$USER_NAME" -g "$USER_NAME" /var/lib/fractal-rig /var/lib/fractal-rig/media /var/lib/fractal-rig/shaders
 
 echo "== renderer build"
 ( cd "$REPO/renderer" && make -s )

@@ -42,8 +42,10 @@
 #include "ndi_out.h"
 #include "video_bridge.h"
 #include "mapping.h"
+#include "shaderlib.h"
+#include "gpufx.h"
 
-#define APP_VERSION "0.8.0"
+#define APP_VERSION "0.10.0"
 #define FREEWHEEL_AFTER 3.0      /* s without packets before we run on our own clock */
 #define FEED_STALL      3.0      /* s without a new LIVE frame before a renderer stops trusting the feed */
 #define SMOOTH_TAU 0.06          /* s — exponential smoothing of continuous params */
@@ -280,17 +282,20 @@ static float cpu_temp(void) {
     int t = -1000; fscanf(f, "%d", &t); fclose(f); return t / 1000.0f;
 }
 
+int frx_param_index(const char *key) { for (int i = 0; i < FRX_NPARAMS; i++) if (!strcmp(FRX_PARAM_NAMES[i], key)) return i; return -1; }
+static unsigned lib_frame = 0;   /* iFrame for library shaders */
+
 static const char *out_mode_name(int m) { return m == 2 ? "2" : m == 3 ? "mirror" : m == 4 ? "dual" : "1"; }
 static int out_mode_eff = 1, out_displays = 1;   /* what we actually run (after fallbacks) — reported in the heartbeat */
 
 static void send_heartbeat(int s, float fps, int w, int h) {
     if (!have_master_addr) return;
     char buf[256];
-    snprintf(buf, sizeof buf, "HB 5 %s %.1f %dx%d %d %d %d %d %u %u %s %.1f %d %d %u ndi:%s media:%d map:%08x video:%s out:%s/%d",
+    snprintf(buf, sizeof buf, "HB 5 %s %.1f %dx%d %d %d %d %d %u %u %s %.1f %d %d %u ndi:%s media:%d map:%08x video:%s out:%s/%d lib:%d/%d",
              cfg.name, fps, w, h, cfg.tile_cols, cfg.tile_rows, cfg.tile_x, cfg.tile_y, pkt_count, pkt_lost, APP_VERSION, cpu_temp(),
              pm_available() ? pm_preset_count() : -1, pm_current(), audio_pkts,
              ndi_available() ? (ndi_connections() > 0 ? "live" : "on") : (cfg.ndi ? "unavailable" : "off"),
-             vb_available() ? vb_count() : -1, map_hash(), vb_available() ? (vb_has_frame() ? "ok" : "idle") : "none", out_mode_name(out_mode_eff), out_displays);
+             vb_available() ? vb_count() : -1, map_hash(), vb_available() ? (vb_has_frame() ? "ok" : "idle") : "none", out_mode_name(out_mode_eff), out_displays, sl_count(), sl_current());
     struct sockaddr_in to = master_addr; to.sin_port = htons(cfg.hb_port);
     sendto(s, buf, strlen(buf), 0, (struct sockaddr*)&to, sizeof to);
     /* tell fractal-media-sync where the master is and who we are (it fetches clips + mapping over HTTP) */
@@ -433,6 +438,15 @@ static int pick_mode(int display, int want, SDL_DisplayMode *out) {   /* 1 = a m
     *out = bm; return 1;
 }
 
+/* scenes 19 Fluid / 20 Particles (gpufx.c) — returns 0 when unavailable so the caller shows plasma */
+static int fx_scene(int scene, int rw, int rh, const float *tile, double anim_t, double beat_t, float bpm, double dt, const float *cur, const float *view, GLuint prev_tex, GLuint fbo, GLuint vao) {
+    float ph = bpm > 1.0f ? (float)fmod(fmod((anim_t - beat_t) * bpm / 60.0, 1.0) + 1.0, 1.0) : 0.0f;
+    float kick = bpm > 1.0f ? expf(-ph * 7.0f) * cur[P_BEAT_PULSE] : 0.0f;
+    float t = (float)fmod(anim_t, 100000.0); int it = (int)cur[P_ITERATIONS];
+    if (scene == 19) return fx_fluid_render(rw, rh, tile, t, (float)dt, kick, cur[P_ENERGY], cur[P_HUE] + view[2], cur[P_HUE_SPREAD], cur[P_WARP], cur[P_GLOW], cur[P_BRIGHTNESS], cur[P_CONTRAST], it, fbo);
+    return fx_particles_render(rw, rh, t, (float)dt, kick, cur[P_ENERGY], cur[P_HUE] + view[2], cur[P_HUE_SPREAD], cur[P_WARP], cur[P_GLOW], cur[P_BRIGHTNESS], it, prev_tex, fbo, vao);
+}
+
 int main(int argc, char **argv) {
     parse_args(argc, argv);
     memcpy(target, FRX_PARAM_DEFAULTS, sizeof target); memcpy(cur, target, sizeof cur);
@@ -493,7 +507,17 @@ int main(int argc, char **argv) {
 
     /* low-res FBO for our shader, second one for projectM's output */
     int rw = (int)(W * cfg.scale) * (dual ? 2 : 1), rh = (int)(H * cfg.scale);   /* dual: one scene render, twice as wide */
-    GLuint tex, pm_tex; GLuint fbo = make_fbo(rw, rh, &tex); GLuint pm_fbo = make_fbo(rw, rh, &pm_tex);
+    /* two scene FBOs: this frame draws into one while reading the other as u_prev (feedback scenes 16/17 trails / ink) */
+    GLuint stex[2], sfbo[2]; sfbo[0] = make_fbo(rw, rh, &stex[0]); sfbo[1] = make_fbo(rw, rh, &stex[1]); int fb_i = 0;
+    GLuint tex = stex[0], fbo = sfbo[0], prev_tex = stex[1];
+    GLuint pm_tex; GLuint pm_fbo = make_fbo(rw, rh, &pm_tex);
+    GLint u_prev = glGetUniformLocation(prog, "u_prev");
+    /* scene 18 library: repo pack next to the built-ins + the per-Pi folder fractal-media-sync fills from the master */
+    { char pg[600], libdir[600]; snprintf(pg, sizeof pg, "%s/params.glsl", cfg.shader_dir); snprintf(libdir, sizeof libdir, "%s/lib", cfg.shader_dir);
+      char *pgs = read_file(pg); const char *dirs[2] = { "/var/lib/fractal-rig/shaders", libdir };
+      int n = sl_init(pgs ? pgs : "", dirs, 2); free(pgs); fprintf(stderr, "[lib] %d library shader(s) (%s, %s)\n", n, dirs[0], dirs[1]); }
+    double lib_scan_last = 0;
+    fx_init(cfg.shader_dir);   /* scenes 19 Fluid / 20 Particles */
 
     /* projectM (scene 8) — optional */
     GLuint post = build_program_named("post.frag");
@@ -542,7 +566,7 @@ int main(int argc, char **argv) {
                       (dual ? 2.0f : 1.0f) / cfg.tile_cols, 1.0f / cfg.tile_rows };   /* y flipped: tile row 0 = top; dual = this Pi spans two columns */
     float view[3] = { cfg.view_zoom, cfg.view_rot, cfg.view_hue };
 
-    double last = now_s(), hb_last = last, fps_t = last; int frames = 0; float fps = 0;
+    double last = now_s(), hb_last = last, fps_t = last; int frames = 0; float fps = 0; long total_frames = 0;
     double out_res_seen_t = 0; int out_res_restart = 0;
     int last_shader_scene = 4, feed_fallback = 0;   /* plasma until we have seen a shader scene */
     int running = 1;
@@ -564,6 +588,7 @@ int main(int argc, char **argv) {
         for (int i = 0; i < FRX_NPARAMS; i++)
             cur[i] = FRX_PARAM_DISCRETE[i] ? target[i] : cur[i] + (target[i] - cur[i]) * a;
 
+        fb_i ^= 1; fbo = sfbo[fb_i]; tex = stex[fb_i]; prev_tex = stex[fb_i ^ 1];   /* ping-pong the scene target every frame */
         int scene = (int)floorf(cur[P_MODE] + 0.5f);
         /* Fallback when the master is gone: we keep drawing the last state on our own clock (that is what freewheel
            is), but a LIVE feed comes from the master's ffmpeg, so it dies with it — after FEED_STALL seconds without
@@ -573,7 +598,7 @@ int main(int argc, char **argv) {
             if (!feed_fallback) { feed_fallback = 1; fprintf(stderr, "[video] LIVE feed stalled — falling back to scene %d until it returns\n", last_shader_scene); }
             scene = last_shader_scene;
         } else if (feed_fallback && !(scene == 9 && feed_stalled)) { feed_fallback = 0; fprintf(stderr, "[video] feed back\n"); }
-        if (scene <= 7 || scene >= 10) last_shader_scene = scene;   /* 8 = Milkdrop, 9 = video; 10+ are shader scenes again */
+        if (scene <= 7 || scene >= 10) last_shader_scene = scene;   /* 8 = Milkdrop, 9 = video; 10+ are shader scenes again (16/17 feedback) */
         /* Output selector: when the master asks for a different mode, remember it and restart (systemd brings us back) */
         if (!cfg.out_res_pin_set && !cfg.windowed && kms && have_master) {
             int want_res = (int)floorf(cur[P_OUT_RES] + 0.5f);
@@ -583,6 +608,7 @@ int main(int argc, char **argv) {
         }
         if (now - map_poll_last >= 1.0) { map_poll_last = now; if (map_poll()) glBindVertexArray(vao); }
         if (vb_ok && now - vb_scan_last >= 5.0) { vb_scan_last = now; vb_scan(); }
+        if (now - lib_scan_last >= 5.0) { lib_scan_last = now; sl_rescan_if_changed(); }
         if (scene == 9 && vb_ok) {
             /* ---- video path: libmpv draws the current clip into pm_fbo, then the same post-pass as projectM */
             vb_update((int)floorf(cur[P_VIDEO_CLIP] + 0.5f), cur[P_VIDEO_T0], cur[P_VIDEO_SPEED], cur[P_VIDEO_LOOP] > 0.5f, anim_t);
@@ -619,10 +645,18 @@ int main(int argc, char **argv) {
             glUniform1f(q_bpm, bpm); glUniform1f(q_bar_beat, bar_beat);
             glUniform4fv(q_tile, 1, tile); glUniform3fv(q_view, 1, view); glUniform1fv(q_p, FRX_NPARAMS, cur);
             glDrawArrays(GL_TRIANGLES, 0, 3);
+        } else if (scene == 18 && (glBindFramebuffer(GL_FRAMEBUFFER, fbo), glViewport(0, 0, rw, rh),
+                   sl_render((int)floorf(cur[P_SHADER_IDX] + 0.5f), rw, rh, tile, (float)fmod(anim_t, 100000.0), (float)dt, lib_frame++,
+                             cur, FRX_NPARAMS, (float)fmod(beat_t, 100000.0), bpm, bar_beat, prev_tex))) {
+            /* ---- shader library path: drew straight into fbo (falls through to plasma below when the file failed to compile) */
+        } else if ((scene == 19 || scene == 20) && fx_scene(scene, rw, rh, tile, anim_t, beat_t, bpm, dt, cur, view, prev_tex, fbo, vao)) {
+            /* ---- GPU fluid / particles drew into fbo (plasma below when unavailable) */
+            glBindVertexArray(vao); glDisable(GL_BLEND);
         } else {
         /* render low-res */
         glBindFramebuffer(GL_FRAMEBUFFER, fbo); glViewport(0, 0, rw, rh);
         glUseProgram(prog);
+        glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, prev_tex); glUniform1i(u_prev, 1); glActiveTexture(GL_TEXTURE0);
         glUniform2f(u_res, (float)rw, (float)rh);
         glUniform1f(u_time, (float)fmod(anim_t, 100000.0));
         glUniform1f(u_beat_t, (float)fmod(beat_t, 100000.0));
@@ -698,7 +732,7 @@ int main(int argc, char **argv) {
             }
             if (o) { SDL_GL_SwapWindow(win2); SDL_GL_MakeCurrent(win, ctx); }
         }
-        if (cfg.max_frames && frames + 1 >= cfg.max_frames) {
+        if (cfg.max_frames && total_frames + 1 >= cfg.max_frames) {
             running = 0;
             if (cfg.dump[0]) {   /* what the projector sees: after the mapping pass, full output size */
                 unsigned char *px = malloc((size_t)W * H * 4);
@@ -716,7 +750,7 @@ int main(int argc, char **argv) {
             next_t += 1.0 / 60.0; double wait = next_t - t2; if (wait > 0) SDL_Delay((Uint32)(wait * 1000));
         }
 
-        frames++;
+        frames++; total_frames++;
         if (now - fps_t >= 2.0) { fps = frames / (float)(now - fps_t); frames = 0; fps_t = now;
             fprintf(stderr, "[fps] %.1f  t=%.1f  bpm=%.1f  pkts=%u lost=%u %s\n", fps, anim_t, bpm, pkt_count, pkt_lost, have_master ? "" : "(freewheel)"); }
         if (now - hb_last >= 1.0 && sock >= 0) { send_heartbeat(sock, fps, W, H); hb_last = now; }

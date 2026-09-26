@@ -22,7 +22,7 @@ MAGIC = b"FRX1"
 
 PARAMS = [
     # key            label             min    max    default kind auto  group     tip
-    ("mode",         "Scene",          0,     15,    0,     'i', False, "shape",  "0 Mandelbrot · 1 Julia · 2 Burning Ship · 3 Tricorn · 4 Plasma · 5 Tunnel · 6 Starfield · 7 Waves · 8 Milkdrop · 9 Video · 10 Menger · 11 Voronoi · 12 Turing · 13 Scope · 14 Mandala · 15 Truchet"),
+    ("mode",         "Scene",          0,     20,    0,     'i', False, "shape",  "0 Mandelbrot · 1 Julia · 2 Burning Ship · 3 Tricorn · 4 Plasma · 5 Tunnel · 6 Starfield · 7 Waves · 8 Milkdrop · 9 Video · 10 Menger · 11 Voronoi · 12 Turing · 13 Scope · 14 Mandala · 15 Truchet · 16 Flow · 17 Ink · 18 Library · 19 Fluid · 20 Particles"),
     ("iterations",   "Iterations",     16,    1024,  160,   'i', False, "shape",  "Detail. Pi 5 is happy to ~300 at 1080p half-res"),
     ("zoom",         "Zoom (log2)",    -2,    28,    0.6,   'f', True,  "shape",  "log2 magnification. Float precision runs out ~22–24"),
     ("center_x",     "Centre X",       -2.5,  2.5,   -0.55, 'f', True,  "shape",  ""),
@@ -59,7 +59,10 @@ PARAMS = [
     # LIVE feed mixed over whatever the renderer is drawing (Resolume return / HDMI capture): 0 = pure renderer,
     # 1 = pure feed. Works on every scene except a video clip (one decoder per Pi); LIVE as the clip = feed only.
     ("live_mix",     "Feed mix",       0,     1,     0.0,   'f', False, "feed",   "crossfade the LIVE feed over the picture: 0 renderer · 1 feed"),
-    ("live_blend",   "Feed blend",     0,     4,     0,     'i', False, "feed",   "0 crossfade · 1 add · 2 multiply · 3 screen · 4 difference"),
+    ("live_blend",   "Feed blend",     0,     7,     0,     'i', False, "feed",   "0 crossfade · 1 add · 2 multiply · 3 screen · 4 difference · 5 silhouette (camera) · 6 neon edges (camera) · 7 shadow (camera)"),
+    # shader library (scene 18) — Shadertoy / ISF fragment shaders from renderer/shaders/lib (repo pack) + uploads
+    # synced to every Pi; index into the byte-sorted file list (same files on every Pi, like clips and presets).
+    ("shader_idx",   "Shader #",       0,     4095,  0,     'i', False, "lib",    "index into the sorted shader-library list (same files on every Pi)"),
 ]
 
 NPARAMS = len(PARAMS)
