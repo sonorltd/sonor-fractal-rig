@@ -101,6 +101,7 @@ class Shows:
                          osc_in_map=dict(getattr(e, "osc_in_map", {}) or {}), resolume_grid=self.cfg.get("resolume_grid")),
             out_res=int(round(e.base[KEYS.index("out_res")])),
             cues=json.loads(json.dumps(e.show.cues)), mods=json.loads(json.dumps(e.show.mods)),
+            palettes=json.loads(json.dumps(e.palettes)), palette_lock=e.palette_lock,
         )
         if keep_meta_from:
             show["created"] = keep_meta_from.get("created", keep_meta_from.get("saved"))
@@ -132,6 +133,8 @@ class Shows:
         want = lambda s: parts is None or s in parts
         e, cfg = self.e, self.cfg
         o = self.hooks["outputs"]()
+        if want("presets") and isinstance(show.get("palettes"), dict):
+            e.replace_palettes(show["palettes"]); e.palette_lock = bool(show.get("palette_lock", False)); cfg["palette_lock"] = e.palette_lock
         if want("presets") and isinstance(show.get("presets"), dict):
             e.presets = json.loads(json.dumps(show["presets"]))
             try:

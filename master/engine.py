@@ -106,6 +106,9 @@ class Engine:
         self.fleet = {}                                 # name -> heartbeat dict
         self.log = []                                   # recent events for the UI
         self.presets = self._load_presets()
+        self.palettes = self._load_palettes()
+        self.palette_lock = bool(cfg.get("palette_lock", False))
+        self.palette_current = None
         self._dirty = False
         self._last_save = 0.0
         self._load_state()
@@ -446,7 +449,10 @@ class Engine:
     def _load_presets(self):
         if os.path.exists(PRESET_FILE):
             try:
-                return json.load(open(PRESET_FILE))
+                bank = json.load(open(PRESET_FILE))
+                for k, v in DEFAULT_PRESETS.items():      # new built-ins appear on upgrade; yours are never touched
+                    bank.setdefault(k, dict(v))
+                return bank
             except Exception:
                 pass
         return DEFAULT_PRESETS.copy()
@@ -466,11 +472,62 @@ class Engine:
             if k == "_auto":
                 auto = set(v)
                 for i, kk in enumerate(KEYS):
+                    if self.palette_lock and kk in PALETTE_KEYS:
+                        continue
                     self.auto[i] = kk in auto
+            elif self.palette_lock and k in PALETTE_KEYS:
+                continue                                   # palette lock: keep the colours you are on
             else:
                 self.set(k, v, "preset")
-        self.event(f"preset: {name}")
+        self.event(f"preset: {name}" + (" (palette locked)" if self.palette_lock else ""))
         return True
+
+    # ------------------------------------------------------------ palettes (colour group only)
+    def _load_palettes(self):
+        if os.path.exists(PALETTE_FILE):
+            try:
+                return json.load(open(PALETTE_FILE))
+            except Exception:
+                pass
+        return DEFAULT_PALETTES.copy()
+
+    def _save_palettes(self, mirror=True):
+        json.dump(self.palettes, open(PALETTE_FILE, "w"), indent=1)
+        if mirror and self.cloud:
+            self.cloud.put("palette_bank", "default", self.palettes)
+
+    def palette_values(self):
+        return {k: self.base[INDEX[k]] for k in PALETTE_KEYS}
+
+    def save_palette(self, name):
+        self.palettes[str(name)[:40]] = self.palette_values()
+        self._save_palettes()
+        self.palette_current = str(name)[:40]
+        self.event(f"palette saved: {name}")
+
+    def load_palette(self, name, fade=None):
+        p = self.palettes.get(name)
+        if not p:
+            return False
+        for k, v in p.items():
+            if k in PALETTE_KEYS:
+                if fade is not None and hasattr(self, "show"):
+                    self.show.fade_to(k, v, fade, "palette")
+                else:
+                    self.set(k, v, "palette")
+        self.palette_current = name
+        self.event(f"palette: {name}")
+        return True
+
+    def delete_palette(self, name):
+        if name in self.palettes:
+            del self.palettes[name]
+            self._save_palettes()
+
+    def replace_palettes(self, bank):
+        if isinstance(bank, dict):
+            self.palettes = json.loads(json.dumps(bank))
+            self._save_palettes(mirror=False)
 
     def load_preset_index(self, idx):
         names = list(self.presets.keys())
@@ -544,7 +601,7 @@ class Engine:
             bpm=round(self.bpm, 2), bar_beat=self.bar_beat, beat_t=self.beat_t,
             tempo_source=self.tempo_source, prodj=self.prodj_ok, audio=self.audio_ok, prodj_dev=getattr(self, "_prodj_dev", None),
             decks=self.prodj_decks, clock_speed=self.clock_speed, auto_depth=self.auto_depth,
-            auto_rate=self.auto_rate, auto_enabled=self.auto_enabled, presets=list(self.presets.keys()), fleet=fleet,
+            auto_rate=self.auto_rate, auto_enabled=self.auto_enabled, presets=list(self.presets.keys()), preset_modes={k: int(v.get("mode", 0)) for k, v in self.presets.items()}, fleet=fleet,
             sources=self.sources, diag=self.diag, packets_sent=self.packets_sent, tick_hz=round(self.tick_hz, 1),
             tick_gap_ms=round(getattr(self, "_tick_gap_last", 0.0) * 1000, 1), uptime=round(time.time() - self.started),
             prodj_raw=self.prodj_raw, audio_wave=self.audio_wave if self.audio_ok else [], audio_bands=self.audio_bands if self.audio_ok else [],
@@ -552,6 +609,7 @@ class Engine:
             video=self._video_snapshot(), osc_in_map=self.osc_in_map, osc_last=self.osc_last,
             cue=self.show.snapshot(), cues=self.show.cues, mods=self.show.mods,
             cloud=self.cloud.status() if self.cloud else None,
+            palettes=self.palettes, palette_lock=self.palette_lock, palette_current=self.palette_current,
             pm=dict(count=len(self.pm_presets), dir=self.pm_dir, index=self.pm_index(), name=self.pm_name(),
                     cycle_bars=self.pm_cycle_bars, shuffle=self.pm_shuffle,
                     audio=self.audio_stream.stats() if self.audio_stream else None),
@@ -571,4 +629,45 @@ DEFAULT_PRESETS = {
     "Hyperspace":      dict(mode=6, iterations=320, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.6, hue_spread=1.5, glow=0.8, warp=0.6, kaleido=0, beat_pulse=0.5),
     "Scope waves":     dict(mode=7, iterations=256, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.3, hue_spread=1.2, glow=0.5, warp=0.1, kaleido=0, energy=0.3),
     "Kaleido plasma":  dict(mode=4, iterations=160, zoom=-0.5, center_x=0.4, center_y=0.2, hue=0.8, hue_spread=1.0, glow=0.4, warp=0.2, kaleido=6),
+    # v0.8 — more looks, spread across the scenes and the palette range
+    "Elephant valley": dict(mode=0, iterations=300, zoom=7.2, center_x=0.2705, center_y=0.0052, rotation=0.0, hue=0.12, hue_spread=1.8, glow=0.35, warp=0.0, kaleido=0),
+    "Spiral arm":      dict(mode=0, iterations=360, zoom=9.5, center_x=-0.7453, center_y=0.1127, rotation=0.6, hue=0.55, hue_spread=2.4, glow=0.25, kaleido=0, hue_speed=0.15),
+    "Mini brot":       dict(mode=0, iterations=480, zoom=14.0, center_x=-1.7687, center_y=0.0017, rotation=0.0, hue=0.85, hue_spread=1.0, glow=0.45, kaleido=0),
+    "Ice feathers":    dict(mode=0, iterations=220, zoom=5.0, center_x=-0.1592, center_y=1.0317, hue=0.58, hue_spread=0.5, contrast=1.4, brightness=1.1, glow=0.15, kaleido=0),
+    "Julia lightning": dict(mode=1, iterations=220, zoom=0.6, center_x=0.0, center_y=0.0, julia_x=-0.8, julia_y=0.156, hue=0.6, hue_spread=0.4, contrast=1.6, glow=0.7, kaleido=0),
+    "Julia rabbit":    dict(mode=1, iterations=160, zoom=0.5, center_x=0.0, center_y=0.0, julia_x=-0.123, julia_y=0.745, hue=0.95, hue_spread=1.3, glow=0.5, kaleido=0),
+    "Julia siegel":    dict(mode=1, iterations=200, zoom=0.7, center_x=0.0, center_y=0.0, julia_x=-0.391, julia_y=-0.587, hue=0.42, hue_spread=2.2, glow=0.35, kaleido=0, hue_speed=-0.1),
+    "Julia mandala":   dict(mode=1, iterations=150, zoom=0.9, center_x=0.0, center_y=0.0, julia_x=0.285, julia_y=0.01, hue=0.08, hue_spread=1.5, glow=0.6, kaleido=12, warp=0.1),
+    "Ship armada":     dict(mode=2, iterations=240, zoom=5.5, center_x=-1.7527, center_y=-0.0284, rotation=3.1416, hue=0.02, hue_spread=1.2, contrast=1.3, glow=0.3, kaleido=0),
+    "Ship kaleido":    dict(mode=2, iterations=180, zoom=2.0, center_x=-1.75, center_y=-0.03, rotation=3.1416, hue=0.68, hue_spread=1.0, glow=0.4, kaleido=6, warp=0.05),
+    "Tricorn crown":   dict(mode=3, iterations=200, zoom=1.2, center_x=0.0, center_y=0.0, julia_x=-0.5, julia_y=0.55, hue=0.25, hue_spread=1.1, glow=0.45, kaleido=0),
+    "Plasma ocean":    dict(mode=4, iterations=200, zoom=0.3, center_x=0.0, center_y=0.0, hue=0.55, hue_spread=0.5, contrast=1.2, glow=0.4, warp=0.5, kaleido=0, hue_speed=0.05),
+    "Plasma acid":     dict(mode=4, iterations=200, zoom=-0.3, center_x=0.0, center_y=0.0, hue=0.28, hue_spread=2.6, contrast=1.5, glow=0.6, warp=0.8, kaleido=0, hue_speed=0.4),
+    "Tunnel neon":     dict(mode=5, iterations=256, zoom=0.5, center_x=0.0, center_y=0.0, hue=0.85, hue_spread=0.6, contrast=1.4, glow=0.9, warp=0.0, kaleido=0, beat_pulse=0.8),
+    "Tunnel kaleido":  dict(mode=5, iterations=256, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.4, hue_spread=1.8, glow=0.6, warp=0.3, kaleido=8, beat_pulse=0.5),
+    "Starfield warp":  dict(mode=6, iterations=320, zoom=0.4, center_x=0.0, center_y=0.0, hue=0.0, hue_spread=0.3, contrast=1.3, glow=0.9, warp=0.9, kaleido=0, beat_pulse=0.7),
+    "Starfield slow":  dict(mode=6, iterations=320, zoom=-0.4, center_x=0.0, center_y=0.0, hue=0.62, hue_spread=0.8, brightness=0.8, glow=0.6, warp=0.2, kaleido=0, beat_pulse=0.2),
+    "Waves sunset":    dict(mode=7, iterations=256, zoom=0.0, center_x=0.0, center_y=0.0, hue=0.06, hue_spread=0.9, glow=0.5, warp=0.3, kaleido=0, energy=0.5, beat_pulse=0.4),
+    "Waves kaleido":   dict(mode=7, iterations=256, zoom=0.2, center_x=0.0, center_y=0.0, hue=0.5, hue_spread=1.6, glow=0.6, warp=0.2, kaleido=10, energy=0.4),
+    "Mono ice":        dict(mode=0, iterations=260, zoom=6.5, center_x=-0.7435, center_y=0.1314, hue=0.58, hue_spread=0.15, contrast=1.5, brightness=1.1, glow=0.2, kaleido=0, hue_speed=0.0),
+}
+
+# ---- palettes: the colour group only (hue, spread, cycle, contrast, brightness, glow). Recalled on their own, and
+# with palette lock on, kept when a preset with a different colour theme is loaded.
+PALETTE_KEYS = ("hue", "hue_spread", "hue_speed", "contrast", "brightness", "glow")
+PALETTE_FILE = os.path.join(HERE, "palettes.json")
+DEFAULT_PALETTES = {
+    "Ember":     dict(hue=0.02, hue_spread=0.7, hue_speed=0.03, contrast=1.2, brightness=1.0, glow=0.45),
+    "Sunset":    dict(hue=0.06, hue_spread=1.1, hue_speed=0.05, contrast=1.1, brightness=1.0, glow=0.4),
+    "Gold":      dict(hue=0.12, hue_spread=0.4, hue_speed=0.0, contrast=1.3, brightness=1.05, glow=0.35),
+    "Acid":      dict(hue=0.28, hue_spread=2.4, hue_speed=0.35, contrast=1.5, brightness=1.0, glow=0.6),
+    "Forest":    dict(hue=0.33, hue_spread=0.6, hue_speed=0.02, contrast=1.2, brightness=0.95, glow=0.3),
+    "Ocean":     dict(hue=0.55, hue_spread=0.6, hue_speed=0.04, contrast=1.2, brightness=1.0, glow=0.4),
+    "Ice":       dict(hue=0.58, hue_spread=0.2, hue_speed=0.0, contrast=1.5, brightness=1.1, glow=0.2),
+    "Deep blue": dict(hue=0.66, hue_spread=0.5, hue_speed=0.02, contrast=1.1, brightness=0.9, glow=0.3),
+    "UV":        dict(hue=0.75, hue_spread=0.5, hue_speed=0.08, contrast=1.4, brightness=1.0, glow=0.5),
+    "Magenta":   dict(hue=0.88, hue_spread=0.8, hue_speed=0.06, contrast=1.2, brightness=1.0, glow=0.45),
+    "Rainbow":   dict(hue=0.0, hue_spread=3.0, hue_speed=0.2, contrast=1.1, brightness=1.0, glow=0.4),
+    "Mono":      dict(hue=0.6, hue_spread=0.05, hue_speed=0.0, contrast=1.6, brightness=1.0, glow=0.15),
+    "Dark room": dict(hue=0.7, hue_spread=0.6, hue_speed=0.03, contrast=1.3, brightness=0.6, glow=0.25),
 }

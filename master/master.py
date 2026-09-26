@@ -31,7 +31,7 @@ osc_out = led = thumbs = link = None
 LOCAL_CFG = os.path.join(HERE, "config.local.json")
 
 
-def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods", "supabase_url", "supabase_key", "rig_id", "cloud_enabled", "out_res_boot")):
+def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods", "palette_lock", "supabase_url", "supabase_key", "rig_id", "cloud_enabled", "out_res_boot")):
     """Persist the UI-editable parts of the config to config.local.json (config.json stays pristine in git)."""
     try:
         cur = json.load(open(LOCAL_CFG)) if os.path.exists(LOCAL_CFG) else {}
@@ -232,6 +232,12 @@ async def web_app(engine, cfg):
                     if q.get("live_start") and media: await media.live_start(str(q["live_start"].get("source", "")), q["live_start"].get("kind", "file"), q["live_start"])
                     if q.get("live_stop") and media: await media.live_stop()
                     if q.get("rethumb") and media: await media.thumbnail(str(q["rethumb"]))
+                if "palette" in m:
+                    q = m["palette"]
+                    if q.get("load"): engine.load_palette(str(q["load"]), engine.show.bar_seconds(float(q["fade_bars"])) if q.get("fade_bars") else None)
+                    if q.get("save"): engine.save_palette(str(q["save"]))
+                    if q.get("delete"): engine.delete_palette(str(q["delete"]))
+                    if "lock" in q: engine.palette_lock = bool(q["lock"]); cfg["palette_lock"] = engine.palette_lock; save_local_config(cfg); engine.event(f"palette lock {'on' if engine.palette_lock else 'off'}")
                 if "cue" in m:
                     q = m["cue"]; sh = engine.show
                     if q.get("go"): sh.go(None if q["go"] is True else int(q["go"]) - 1, "ui")
@@ -601,6 +607,10 @@ async def web_app(engine, cfg):
             from engine import PRESET_FILE
             if data is None or _ts(upd) <= _mtime(PRESET_FILE): return False
             engine.replace_presets(data); return True
+        def h_palettes(name, data, upd):
+            from engine import PALETTE_FILE
+            if data is None or _ts(upd) <= _mtime(PALETTE_FILE): return False
+            engine.replace_palettes(data); return True
         def h_cues(name, data, upd):
             from cues import CUE_FILE
             if data is None or _ts(upd) <= _mtime(CUE_FILE) or not isinstance(data, list): return False
@@ -617,7 +627,7 @@ async def web_app(engine, cfg):
             if data is not None:
                 json.dump(data, open(os.path.join(HERE, "config.cloud.json"), "w"), indent=1)   # kept for manual restore
             return False
-        for k, h in (("show", h_show), ("led_config", h_led), ("preset_bank", h_presets), ("cue_stack", h_cues), ("mapping", h_mapping), ("config", h_config)):
+        for k, h in (("show", h_show), ("led_config", h_led), ("preset_bank", h_presets), ("palette_bank", h_palettes), ("cue_stack", h_cues), ("mapping", h_mapping), ("config", h_config)):
             engine.cloud.on(k, h)
 
     # ---- rig maintenance: update / restart the master itself, or any renderer through its status service (:8082)

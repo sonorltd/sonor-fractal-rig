@@ -243,7 +243,8 @@ class ShowLayer:
         if a.get("preset"):
             p = e.presets.get(a["preset"])
             if p:
-                vals = {k: v for k, v in p.items() if k != "_auto"}
+                from engine import PALETTE_KEYS
+                vals = {k: v for k, v in p.items() if k != "_auto" and not (e.palette_lock and k in PALETTE_KEYS)}
                 if "_auto" in p:
                     auto = set(p["_auto"])
                     for i, kk in enumerate(KEYS):

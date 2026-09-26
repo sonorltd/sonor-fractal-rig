@@ -17,6 +17,7 @@ import json
 import os
 import socket
 import time
+from urllib.parse import quote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUTBOX = os.path.join(HERE, "cloud_outbox.json")
@@ -140,7 +141,7 @@ class Cloud:
     async def pull(self, full=False):
         """Fetch rows newer than the last sync (or everything) and hand them to the kind handlers."""
         since = "1970-01-01T00:00:00Z" if full else self.state.get("since", "1970-01-01T00:00:00Z")
-        rows = await self._req("GET", f"{TABLE}?select=rig,kind,name,data,deleted,updated_at&updated_at=gt.{since}&or=(rig.eq.{self.rig},rig.eq.*)&order=updated_at.asc&limit=1000")
+        rows = await self._req("GET", f"{TABLE}?select=rig,kind,name,data,deleted,updated_at&updated_at=gt.{quote(since, safe='')}&or=(rig.eq.{quote(self.rig, safe='')},rig.eq.*)&order=updated_at.asc&limit=1000")
         newest = since
         n = 0
         for r in rows or []:
@@ -161,13 +162,13 @@ class Cloud:
     async def list_kind(self, kind):
         """Names available in the cloud for a kind (for menus) — live query, [] when offline."""
         try:
-            rows = await self._req("GET", f"{TABLE}?select=name,updated_at,rig&kind=eq.{kind}&deleted=eq.false&or=(rig.eq.{self.rig},rig.eq.*)&order=name.asc")
+            rows = await self._req("GET", f"{TABLE}?select=name,updated_at,rig&kind=eq.{quote(kind, safe='')}&deleted=eq.false&or=(rig.eq.{quote(self.rig, safe='')},rig.eq.*)&order=name.asc")
             return rows or []
         except Exception:
             return []
 
     async def fetch(self, kind, name):
-        rows = await self._req("GET", f"{TABLE}?select=data,updated_at&kind=eq.{kind}&name=eq.{name}&deleted=eq.false&or=(rig.eq.{self.rig},rig.eq.*)&limit=1")
+        rows = await self._req("GET", f"{TABLE}?select=data,updated_at&kind=eq.{quote(kind, safe='')}&name=eq.{quote(name, safe='')}&deleted=eq.false&or=(rig.eq.{quote(self.rig, safe='')},rig.eq.*)&limit=1")
         return rows[0] if rows else None
 
     # ------------------------------------------------------------ loop

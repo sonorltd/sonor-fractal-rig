@@ -15,3 +15,4 @@ master/led_configs/
 master/cloud_outbox.json
 master/cloud_sync.json
 master/config.cloud.json
+master/palettes.json

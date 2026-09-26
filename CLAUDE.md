@@ -143,7 +143,14 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   and LEDs, status pill in the top bar, settings card on Rig. **LED configurations** `master/led_configs/<name>.json`,
   `/api/led/configs…` (save/update/load/delete/download/import). Tabs: Control · Cues · Inputs · Outputs · Media ·
   Resolume · LEDs · Rig · Shows · Info; GitHub link dropped from the bar. Engine-aware Control/Perform: params groups,
-  scene buttons, engine cards and preset lists follow `engineOf(mode)`; engine buttons colour-coded (cyan/purple/amber).
+  scene buttons, engine cards and preset lists follow `engineOf(mode)`; engine buttons colour-coded (cyan/purple/amber/red).
+  **Palettes** (`engine.palettes`, PALETTE_KEYS = colour group, `palettes.json`, DEFAULT_PALETTES, cloud kind `palette_bank`,
+  in shows) with fade via ShowLayer and `palette_lock` (load_preset + cue preset actions skip colour keys); 20 more
+  DEFAULT_PRESETS merged into an existing presets.json on upgrade; snapshot `preset_modes` for the engine filter
+  (presets chips are signature-rendered now). Engine tile RESOLUME = `live_start(kind ndi, source 'auto')` → media.py
+  picks the NDI sender named RESOLUME/ARENA/AVENUE (else first) then `video.live`. UI says **Milkdrop** everywhere
+  (internal keys/ids stay `pm`/`projectm`). Presets + Palette cards live in the right column for every engine.
+  Cloud gotcha: PostgREST filter values must be URL-quoted (`+00:00` in timestamps became a space → HTTP 400).
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

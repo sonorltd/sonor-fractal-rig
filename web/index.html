@@ -23,7 +23,7 @@
   button, input, select { font: inherit; color: inherit; }
   button { cursor: pointer; }
 
-  header { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+  header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
   .logo { font-weight: 700; letter-spacing: .12em; font-size: 13px; }
   .logo span { color: var(--accent2); }
   .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-size: 12px; color: var(--muted); font-family: var(--mono); }
@@ -102,7 +102,8 @@
   .kv .card b { display: block; font-family: var(--mono); font-size: 18px; font-weight: 500; }
   .kv .card span { color: var(--muted); font-size: 11px; }
   .nav { display: flex; gap: 2px; background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
-  .nav button { background: none; border: 0; border-radius: 999px; padding: 4px 12px; color: var(--muted); font-size: 12px; }
+  .nav button { background: none; border: 0; border-radius: 999px; padding: 4px 10px; color: var(--muted); font-size: 12px; }
+  #pill-cloud { white-space: nowrap; }
   .nav button.active { background: var(--accent); color: #fff; }
   .src { display: grid; grid-template-columns: 14px 92px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--line); }
   .src:last-child { border-bottom: 0; }
@@ -275,7 +276,12 @@
   #info td:first-child { font-family: var(--mono); white-space: nowrap; color: var(--text); }
   #info .toc { display: flex; flex-wrap: wrap; gap: 6px; }
   /* engine switch + extended projectM UI */
-  .engine { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .engine { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+  @media (max-width: 900px) { .engine { grid-template-columns: 1fr 1fr; } }
+  .srcstrip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .srcstrip span { font-size: 11px; font-family: var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; display: inline-flex; align-items: center; gap: 5px; }
+  .srcstrip span b { color: var(--text); font-weight: 500; }
+  .srcstrip span.on { border-color: var(--ok); } .srcstrip span.warn { border-color: var(--warn); }
   @media (max-width: 700px) { .engine { grid-template-columns: 1fr; } }
   /* video scene + media library */
   .vid-big { font-family: var(--mono); font-size: 18px; line-height: 1.25; margin: 4px 0 6px; word-break: break-word; }
@@ -304,13 +310,13 @@
   .pf-clip { position: relative; overflow: hidden; }
   .pf-clip .bg { position: absolute; inset: 0; background: center/cover no-repeat; opacity: .35; }
   .pf-clip span { position: relative; }
-  :root { --eng-shader: #4bb9d3; --eng-pm: #c06cf0; --eng-video: #f0a040; }
+  :root { --eng-shader: #4bb9d3; --eng-pm: #c06cf0; --eng-video: #f0a040; --eng-resolume: #ec6061; }
   .engine button { border: 2px solid var(--line); background: var(--panel2); border-radius: 12px; padding: 14px 16px; text-align: left; color: var(--text); display: grid; gap: 3px; min-height: 76px; position: relative; overflow: hidden; transition: transform .08s; }
   .engine button:active { transform: scale(.98); }
   .engine button b { font-size: 15px; letter-spacing: .05em; }
   .engine button small { color: var(--muted); font-size: 11px; }
   .engine button::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--eng); opacity: .5; }
-  .engine button[data-eng="shader"] { --eng: var(--eng-shader); } .engine button[data-eng="pm"] { --eng: var(--eng-pm); } .engine button[data-eng="video"] { --eng: var(--eng-video); }
+  .engine button[data-eng="shader"] { --eng: var(--eng-shader); } .engine button[data-eng="pm"] { --eng: var(--eng-pm); } .engine button[data-eng="video"] { --eng: var(--eng-video); } .engine button[data-eng="resolume"] { --eng: var(--eng-resolume); }
   .engine button b { color: var(--eng); }
   .engine button.active { border-color: var(--eng); background: linear-gradient(135deg, color-mix(in srgb, var(--eng) 28%, var(--panel2)), color-mix(in srgb, var(--eng) 10%, var(--panel2))); box-shadow: 0 0 0 1px var(--eng) inset, 0 6px 22px -8px var(--eng); }
   .engine button.active::before { opacity: 1; }
@@ -417,9 +423,11 @@
       <h2>Engine <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">what every projector is running right now</span></h2>
       <div class="engine">
         <button id="eng-shader" data-eng="shader"><b>SHADER SCENES</b><small id="eng-shader-sub">fractals · plasma · tunnel · starfield · waves — pixel-synced</small></button>
-        <button id="eng-pm" data-eng="pm"><b>PROJECTM · MILKDROP</b><small id="eng-pm-sub">real .milk presets on every Pi</small></button>
+        <button id="eng-pm" data-eng="pm"><b>MILKDROP</b><small id="eng-pm-sub">real .milk presets on every Pi</small></button>
         <button id="eng-video" data-eng="video"><b>VIDEO</b><small id="eng-video-sub">clips on every Pi, frame-locked · or a LIVE HDMI feed</small></button>
+        <button id="eng-resolume" data-eng="resolume"><b>RESOLUME</b><small id="eng-resolume-sub">grab Resolume's NDI output and put it on every projector</small></button>
       </div>
+      <div class="srcstrip" id="srcstrip"></div>
     </div>
 
     <div class="card">
@@ -430,7 +438,7 @@
         <div id="pv-video-overlay" hidden style="position:absolute;left:10px;top:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;pointer-events:none"><span class="pill"><i class="dot ok"></i><span id="pv-video-label">video</span></span></div>
         <canvas id="pm-canvas" hidden style="position:absolute;inset:0;width:100%;height:100%;border-radius:8px;background:#000"></canvas>
         <div id="pm-overlay" hidden style="position:absolute;left:10px;top:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;pointer-events:none">
-          <span class="pill" style="background:rgba(11,12,16,.75)"><i class="dot" id="pm-sim-dot"></i><span id="pm-sim-label">projectM · browser simulation</span></span>
+          <span class="pill" style="background:rgba(11,12,16,.75)"><i class="dot" id="pm-sim-dot"></i><span id="pm-sim-label">Milkdrop · browser simulation</span></span>
           <span class="pill" id="pm-overlay-name" style="background:rgba(11,12,16,.75);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
         </div>
         <div class="overlay">
@@ -460,17 +468,9 @@
       <div class="hint">Beat grid: 4 bars × 4 beats, playhead follows the master clock; bar 1 = last SET BEAT 1 / deck downbeat. Decks appear when Pro DJ Link packets arrive. Waveform + spectrum need <b>Audio in</b> enabled in Sources (demo shows a synthetic signal).</div>
     </div>
 
-    <div class="card">
-      <h2>Presets <span class="spacer"></span><span class="seg" id="preset-filter"><button data-f="engine" class="active">this engine</button><button data-f="all">all</button></span></h2>
-      <div class="presets" id="presets"></div>
-      <div class="row" style="margin-top:10px">
-        <input class="text" id="preset-name" placeholder="new preset name">
-        <button class="btn small primary" id="preset-save">Save current</button>
-      </div>
-    </div>
 
     <div class="card" id="pm-card">
-      <h2>projectM · Milkdrop presets <span class="spacer"></span><span class="pill" id="pm-count">—</span></h2>
+      <h2>Milkdrop presets <span class="spacer"></span><span class="pill" id="pm-count">—</span></h2>
       <div class="pm-ext">
         <div class="pm-big"><span id="pm-big-name">—</span><small id="pm-big-sub"></small></div>
         <div class="pm-nav">
@@ -538,6 +538,26 @@
     </div>
 
     <div class="card">
+      <h2>Presets <span class="spacer"></span><span class="seg" id="preset-filter"><button data-f="engine" class="active">this engine</button><button data-f="all">all</button></span></h2>
+      <div class="presets" id="presets"></div>
+      <div class="row" style="margin-top:10px">
+        <input class="text" id="preset-name" placeholder="new preset name">
+        <button class="btn small primary" id="preset-save">Save current</button>
+      </div>
+    </div>
+
+    <div class="card" id="palette-card">
+      <h2>Palette <span class="spacer"></span><button class="btn small" id="palette-lock" title="keep the current colours when loading presets that carry a different colour theme">🔒 lock</button></h2>
+      <div class="presets" id="palettes"></div>
+      <div class="row" style="margin-top:8px;gap:6px">
+        <input class="text" id="palette-name" placeholder="save current colours as…" style="flex:1">
+        <button class="btn small primary" id="palette-save">Save</button>
+        <select id="palette-fade" class="btn small" title="fade time when recalling a palette"><option value="0">snap</option><option value="1">1 bar</option><option value="2" selected>2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option></select>
+      </div>
+      <div class="hint">A palette is just the colour group — hue, spread, cycle, contrast, brightness, glow — so it recalls over any scene or Milkdrop/video post-pass. <b>Lock</b> keeps your palette when you change preset or cue, so a set stays on one colour theme.</div>
+    </div>
+
+    <div class="card">
       <h2>Master</h2>
       <div class="param"><label>Clock speed<small>animation time rate</small></label><input type="range" id="clock_speed" min="0" max="3" step="0.01"><span class="val" id="clock_speed_v"></span><span></span></div>
       <div class="param"><label>Auto depth<small>how far drift wanders</small></label><input type="range" id="auto_depth" min="0" max="1" step="0.01"><span class="val" id="auto_depth_v"></span><span></span></div>
@@ -590,7 +610,7 @@
       <label><input type="checkbox" class="show-part" value="presets" checked> preset bank</label>
       <label><input type="checkbox" class="show-part" value="mappings" checked> projection mapping</label>
       <label><input type="checkbox" class="show-part" value="video" checked> video playlist</label>
-      <label><input type="checkbox" class="show-part" value="pm" checked> projectM cycling</label>
+      <label><input type="checkbox" class="show-part" value="pm" checked> Milkdrop cycling</label>
       <label><input type="checkbox" class="show-part" value="outputs" checked> Resolume / Link / LEDs</label>
       <label><input type="checkbox" class="show-part" value="out_res" checked> output resolution</label>
       <span style="margin-left:6px">(untick to keep what you have for that part)</span>
@@ -686,7 +706,7 @@
     <h2>MIDI / OSC</h2>
     <div style="font-size:12px;color:var(--muted);line-height:1.6">
       OSC: <code>/frx/&lt;param&gt; f</code> · <code>/frx/tap</code> · <code>/frx/beat1</code> · <code>/frx/bpm f</code> · <code>/frx/preset s|i</code> · <code>/frx/auto_&lt;param&gt; 0|1</code> on udp/9000.<br>
-      MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; 35 tap · 34 set beat 1 · 33/32 projectM next/prev · 31/30 video next/prev · 29 video restart · 28 LIVE.<br>
+      MIDI: CC → param via <code>config.json midi_map</code>; notes 36+ recall presets in order; 35 tap · 34 set beat 1 · 33/32 Milkdrop next/prev · 31/30 video next/prev · 29 video restart · 28 LIVE.<br>
       Video OSC: <code>/frx/video i|s</code> · <code>/frx/video_next</code> · <code>/frx/video_prev</code> · <code>/frx/video_restart</code> · <code>/frx/video_live</code>.<br>
       Last CC seen: <b id="last-cc" style="color:var(--text)">—</b>
       <select id="learn-param" class="btn small"></select>
@@ -940,7 +960,7 @@
       <tr><td>8 projectM</td><td><b>Real Milkdrop presets</b> via libprojectM 4 on each Pi. Pick presets in the projectM card; <code>pm_mix</code> blends in our post-pass (kaleido / zoom / rotate / hue) on top. See the projectM section below.</td></tr>
     </tbody></table>
     <p>Scenes 0–7 are one shader, so <code>kaleido</code>, <code>rotation</code>, <code>zoom</code>, the palette controls, <code>beat_pulse</code> and <code>bar_swing</code> work on every scene, and switching scenes is one integer in the packet — all projectors flip on the same frame. Adding a scene is a function in <code>renderer/shaders/fractal.frag</code> and a name in the mode list.</p>
-    <h4>Scene 8 — projectM (Milkdrop)</h4>
+    <h4>Scene 8 — Milkdrop (projectM engine)</h4>
     <p>Each Pi runs <a href="https://github.com/projectM-visualizer/projectm" target="_blank" rel="noopener">libprojectM 4</a> (built for GLES by <code>setup/install-projectm.sh</code>) and renders the real <code>.milk</code> preset files — the original Winamp Milkdrop pack (~550) and optionally Cream of the Crop (~10,000). The <b>master</b> owns preset selection: the current preset's index in the sorted list rides in the packet as <code>pm_preset</code>, so every Pi loads the same file on the same frame, with a <code>pm_blend</code>-second crossfade. Prev / next / random / search / auto-cycle every N bars live in the projectM card; OSC <code>/frx/pm_next|pm_prev|pm_random</code>; MIDI notes 33 / 32.</p>
     <p><b>Audio:</b> projectM needs a waveform. When the master's audio input is running it multicasts the PCM to the Pis (udp/5007, ~700 kbit/s) so every preset reacts to the room. Without it, each Pi synthesises an identical beat-locked kick + hat from the shared clock and BPM — presets still pump on the beat, and because the signal is derived from the same numbers it is the same on every Pi.</p>
     <p><b>Honesty about sync:</b> Milkdrop presets use their own frame timing and random numbers, so two Pis on the same preset with the same audio look <em>alike</em> — same preset, same colours, same beat reaction — but are not pixel-identical, and they drift apart over minutes until the next preset change re-aligns them. That is fine for "same vibe on every projector" and for the family-of-variations layout; it is wrong for a seamless tiled wall (you'll see the seams move). Use scenes 0–7 for tiled walls. <code>pm_mix</code> runs projectM's frame through our post-pass so kaleidoscope, rotation, zoom, hue shift and beat pulse still apply.</p>
@@ -1122,7 +1142,7 @@ sudo bash setup/install.sh master</pre>
       <li><b>Sources — detail</b> — for each source: linked / waiting / off, the live detail line, plus raw counters: Pro DJ Link packets vs beat packets vs non-Pioneer traffic with last type and sender (and a hint that changes depending on which is zero), MIDI ports found and last CC, audio devices and live levels, last OSC message, which params are drifting.</li>
       <li><b>Pro DJ Link decks</b> — each deck heard with BPM, beat and age.</li>
       <li><b>Renderers — detail</b> — per Pi: fps, resolution, tile, packets, lost, temperature, projectM preset count (flagged if it differs from the master) and current preset, whether it is on the master's PCM stream or synthesising, heartbeat count, age, version (flagged if it differs).</li>
-      <li><b>projectM</b> — preset dir and count, current preset, auto-cycle setting, PCM stream stats, how many renderers have projectM built in.</li>
+      <li><b>Milkdrop</b> — preset dir and count, current preset, auto-cycle setting, PCM stream stats, how many renderers have projectM built in.</li>
       <li><b>Master config (effective)</b>, <b>Log (last 60)</b>, and <b>Copy diagnostics JSON</b> — one tap puts the whole picture on the clipboard to paste into a message.</li>
     </ul>
     <h4>On-Pi self-test</h4>
@@ -1163,7 +1183,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>MIDI never goes green</td><td><code>aconnect -l</code> lists the controller? Set <code>midi_port_contains</code> in config if several ports exist.</td></tr>
       <tr><td>Blank between tiles / seams</td><td>Tiling assumes edge-to-edge, same-resolution projectors. Edge-blend feathering is on the roadmap.</td></tr>
       <tr><td>projectM preset numbers don't match between Pis</td><td>Preset packs differ. Run <code>install-projectm.sh</code> (same flags) on every Pi and the master; the Renderers table flags any count mismatch.</td></tr>
-      <tr><td>projectM slow on a Pi</td><td>Heavy presets are heavy everywhere. Lower <code>--scale</code> to 0.5, avoid Cream-of-the-Crop's shader-heavy ones, or keep auto-cycle on so a slow preset never lasts long.</td></tr>
+      <tr><td>Milkdrop slow on a Pi</td><td>Heavy presets are heavy everywhere. Lower <code>--scale</code> to 0.5, avoid Cream-of-the-Crop's shader-heavy ones, or keep auto-cycle on so a slow preset never lasts long.</td></tr>
     </tbody></table>
   </div>
 
@@ -1173,7 +1193,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
-      <tr><td>v0.8.0</td><td><b>Cue stack</b> (Cues tab + Perform CUES page): each cue sets a scene / preset / show / projectM / video / feed mix / blackout / params, fades over N bars, optionally auto-follows to the next; GO / BACK on screen, key G/B, MIDI 27/26, OSC <code>/frx/go</code>. <b>Audio → parameters</b> (Inputs): any parameter follows a band, bass, energy or the beat pulse with attack/release. <b>Rig tab maintenance</b>: update everything from GitHub, restart or reboot any Pi from the page (per-Pi status service, <code>setup/rig-update</code>). Mapping editor: <b>Align all</b>, photo-of-the-wall overlay, per-projector R/G/B gain. Shows export <b>with media</b> as a zip and import back. <b>Supabase cloud sync</b> of everything the rig saves (offline-first, per-rig and shared documents, ☁ menus on Shows and LEDs), <b>saved LED configurations</b> (save / load / update / export / import), engine-aware UI, tabs reordered (Inputs · Outputs together, Shows before Info), cloud status pill replaces the GitHub link. 1080p is the boot default.</td></tr>
+      <tr><td>v0.8.0</td><td><b>Cue stack</b> (Cues tab + Perform CUES page): each cue sets a scene / preset / show / Milkdrop / video / feed mix / blackout / params, fades over N bars, optionally auto-follows to the next; GO / BACK on screen, key G/B, MIDI 27/26, OSC <code>/frx/go</code>. <b>Audio → parameters</b> (Inputs): any parameter follows a band, bass, energy or the beat pulse with attack/release. <b>Rig tab maintenance</b>: update everything from GitHub, restart or reboot any Pi from the page (per-Pi status service, <code>setup/rig-update</code>). Mapping editor: <b>Align all</b>, photo-of-the-wall overlay, per-projector R/G/B gain. Shows export <b>with media</b> as a zip and import back. <b>Supabase cloud sync</b> of everything the rig saves (offline-first, per-rig and shared documents, ☁ menus on Shows and LEDs), <b>saved LED configurations</b> (save / load / update / export / import), engine-aware UI, tabs reordered (Inputs · Outputs together, Shows before Info), cloud status pill replaces the GitHub link. <b>Palettes</b> (colour-group presets with fade and a <b>lock</b> that keeps your colours across presets/cues), 20 more shader looks, <b>RESOLUME</b> engine tile (auto-picks the Resolume NDI sender), sources strip under the engine buttons, Presets and Palette always in the right column. 1080p is the boot default.</td></tr>
       <tr><td>v0.7.0</td><td><b>Video scene</b> (9): clip library on the master with drag-and-drop upload and ffmpeg conversion, byte-sorted index synced to every Pi by <code>fractal-media-sync</code>, libmpv playback frame-locked to the master clock, playlist / auto-advance / bar sync, Perform clip tiles, OSC + MIDI triggers; <b>LIVE</b> multicast stream from an NDI source (Resolume over the network, via <code>setup/ndi-recv</code>), an HDMI capture dongle, any V4L2 camera, a file or test bars. <b>Projection mapping</b> per projector from the Outputs tab (keystone, masks with feather, edge blend, brightness/gamma, test pattern) applied live. <b>Output resolution</b> selector on the top bar (Auto / 1080p / 4K). Per-Pi status page on port 8082. Perform pages scroll. Tabs reorganised: <b>Shows</b> (whole-rig setups per venue — look, presets, every projector's mapping, playlist, outputs, resolution; save / load / update / download / import), <b>Inputs</b> (sources + MIDI/OSC moved off Control), <b>LEDs</b> (own tab; colour-coded zones you drag on the picture), <b>Rig</b> (projectors table, log and diagnostics together), <b>Resolume</b> (feed crossfade, clip pad, layer faders, OSC-in learn). Perform mode rebuilt: page rail on the left, one scrolling page at a time, Presets with save/update, Clips page with LIVE + feed mix, Shows page. NDI streams table in Outputs. Packet now 164 bytes / 31 params. Packet is now 156 bytes / 29 params — update every Pi together.</td></tr>
       <tr><td>v0.6.1</td><td>Pi 4 renderer fix: SDL now opens the DRM device that actually has a connected HDMI output (Pi 4 exposes the 3D core as <code>card0</code> with no outputs, which made KMSDRM fail on every start). Also tries <code>card0..3</code> as a fallback; <code>SDL_KMSDRM_DEVICE_INDEX</code> still overrides.</td></tr>
       <tr><td>v0.6.0</td><td><b>Inputs monitor</b> on the Control tab: 4-bar beat grid with playhead and lock badge (Pro DJ Link deck / Ableton Link peers / free-running), BPM stability readout, per-deck lanes, Link phase, audio waveform + 16-band spectrum + energy/bass meters streamed from the master, MIDI / OSC / Pro DJ Link activity chips; slim beat grid in Perform mode. Master streams <code>audio_wave</code> / <code>audio_bands</code> / <code>audio_levels</code> and the followed deck in the state snapshot.</td></tr>
@@ -1212,7 +1232,7 @@ sudo bash setup/install.sh master</pre>
       <div class="pgrid c2"><button class="pbtn huge primary" id="pf-tap">TAP<small>space</small></button><button class="pbtn huge" id="pf-beat1">SET BEAT 1<small>re-align the bar</small></button></div>
       <canvas id="pf-grid" class="pf-grid" aria-label="beat grid"></canvas>
       <div class="plabel">Engine</div>
-      <div class="pgrid c3"><button class="pbtn eng" id="pf-eng-shader">SHADER SCENES<small>fractals · plasma · waves</small></button><button class="pbtn eng" id="pf-eng-pm">PROJECTM<small id="pf-eng-pm-sub">milkdrop presets</small></button><button class="pbtn eng" id="pf-eng-video">VIDEO<small id="pf-eng-video-sub">clips · LIVE feed</small></button></div>
+      <div class="pgrid c3"><button class="pbtn eng" id="pf-eng-shader">SHADER SCENES<small>fractals · plasma · waves</small></button><button class="pbtn eng" id="pf-eng-pm">MILKDROP<small id="pf-eng-pm-sub">milkdrop presets</small></button><button class="pbtn eng" id="pf-eng-video">VIDEO<small id="pf-eng-video-sub">clips · LIVE feed</small></button></div>
       <div class="plabel" id="pf-scenes-label">Scene</div>
       <div class="pgrid c3" id="pf-scenes"></div>
       <div class="pgrid c3" id="pf-engine-quick"></div>
@@ -1223,7 +1243,7 @@ sudo bash setup/install.sh master</pre>
       <div class="plabel">Saved looks <span class="pf-hint">— tap to recall · the scene switches with it</span> <span class="seg" id="pf-preset-filter" style="margin-left:8px"><button data-f="engine" class="active">this engine</button><button data-f="all">all</button></span></div>
       <div class="pgrid c3" id="pf-presets"></div>
       <div class="pgrid c2"><button class="pbtn" id="pf-preset-save">+ SAVE CURRENT LOOK<small>name it</small></button><button class="pbtn" id="pf-preset-update">UPDATE LAST LOADED<small id="pf-preset-last">—</small></button></div>
-      <div class="plabel">projectM</div>
+      <div class="plabel">Milkdrop</div>
       <div style="font-family:var(--mono);font-size:16px;color:var(--accent2)" id="pf-pm-name">—</div>
       <div class="pgrid c3"><button class="pbtn" id="pf-pm-prev">◀ PREV</button><button class="pbtn primary" id="pf-pm-random">RANDOM</button><button class="pbtn" id="pf-pm-next">NEXT ▶</button></div>
       <div class="pgrid c2"><button class="pbtn" id="pf-pm-hold">HOLD<small>pause auto-cycle</small></button><button class="pbtn" id="pf-pm-fav">☆ FAVOURITE</button></div>
@@ -1244,6 +1264,9 @@ sudo bash setup/install.sh master</pre>
       <div class="pstep"><button class="pbtn" data-nudge="iterations" data-d="-40">−</button><div class="mid"><b>Detail</b><span data-show="iterations"></span></div><button class="pbtn" data-nudge="iterations" data-d="40">+</button></div>
     </div>
     <div class="ppage" data-pg="3">
+      <div class="plabel">Palettes <span class="pf-hint">— colour themes, fade over 2 bars</span></div>
+      <div class="pgrid c3" id="pf-palettes"></div>
+      <div class="pgrid c2"><button class="pbtn" id="pf-pal-lock">🔓 PALETTE LOCK<small>keep colours across presets</small></button><button class="pbtn" id="pf-pal-save">+ SAVE PALETTE</button></div>
       <div class="plabel">Hue</div>
       <div class="pgrid c4" id="pf-hues"></div>
       <div class="pslider"><label>Hue</label><input type="range" data-pk="hue" min="0" max="1" step="0.005"><span class="v"></span></div>
@@ -1294,9 +1317,10 @@ const idx = {}; PARAMS.forEach((p, i) => idx[p.key] = i);
 const GROUPS = ['shape', 'colour', 'music', 'projectm'];
 const ENGINE_GROUPS = {shader: ['shape', 'colour', 'music'], pm: ['projectm', 'colour', 'music'], video: ['colour', 'music', 'projectm']};   // video reuses the projectM group for the post-pass 'Shader mix'
 const engineOf = mode => Math.round(mode) === 8 ? 'pm' : Math.round(mode) === 9 ? 'video' : 'shader';
-const ENGINE_LABEL = {shader: 'Shader', pm: 'projectM', video: 'Video'};
+const ENGINE_LABEL = {shader: 'Shader', pm: 'Milkdrop', video: 'Video'};
+const presetMode = n => { const p = (S.presets || {})[n]; return (p && typeof p === 'object' && p.mode != null) ? p.mode : ((S.preset_modes || {})[n] || 0); };
 let presetFilter = 'engine';
-const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'projectM', 'Video'];
+const MODE_NAMES = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Plasma', 'Tunnel', 'Starfield', 'Waves', 'Milkdrop', 'Video'];
 
 // ------------------------------------------------------------ state (mirrors engine.py)
 const S = {
@@ -1317,7 +1341,7 @@ const S = {
     resolume: {enabled: false, ok: false, detail: 'OSC out'}, led: {enabled: false, ok: false, detail: 'pixel output'},
   },
   outputs: {resolume: {}, led: {strips: []}, thumbs: {}, link: {}, ndi: {renderers: {}}},
-  cue: {pos: -1, count: 0}, cues: [], mods: [], cloud: null,
+  cue: {pos: -1, count: 0}, cues: [], mods: [], cloud: null, palettes: {}, palette_lock: false, palette_current: null,
 };
 const SOURCE_META = {
   web:   {label: 'Web UI',       sub: 'this page · phone / laptop'},
@@ -1413,10 +1437,10 @@ function connect(url) {
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
       clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
       auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, prodj_dev: m.prodj_dev, pm: m.pm || S.pm, outputs: m.outputs || S.outputs,
-      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video, osc_in_map: m.osc_in_map || {}, osc_last: m.osc_last || null, cue: m.cue || S.cue, cues: m.cues || S.cues, mods: m.mods || S.mods, cloud: m.cloud || null});
+      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video, osc_in_map: m.osc_in_map || {}, osc_last: m.osc_last || null, cue: m.cue || S.cue, cues: m.cues || S.cues, mods: m.mods || S.mods, cloud: m.cloud || null, palettes: m.palettes || S.palettes, palette_lock: !!m.palette_lock, palette_current: m.palette_current || null});
     S.t = m.t; S.tRecv = performance.now();
     noteBpm(m.bpm);
-    S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
+    S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true); S.preset_modes = m.preset_modes || {};
     renderControls();
   };
   ws.onclose = () => { if (BR.pingTimer) { clearInterval(BR.pingTimer); BR.pingTimer = null; } if (S.live) { BR.reconnects++; S.live = false; setConn('bad', 'master lost — retrying'); setTimeout(() => connect(url), 2000); } else startDemo(); };
@@ -1476,9 +1500,11 @@ function renderControls() {
   $('tempo-label').textContent = src; $('tempo-dot').className = 'dot ' + (S.tempo_source === 'prodj' || S.tempo_source === 'link' ? 'ok' : S.bpm ? 'warn' : '');
   $('tempo-src').textContent = S.tempo_source === 'prodj' ? 'Locked to Pro DJ Link beat packets' : S.live ? 'Pro DJ Link: waiting for beat packets on udp/50001 · tap or type a BPM meanwhile' : 'Demo: tap or type a BPM';
   $('decks').innerHTML = Object.entries(S.decks || {}).map(([d, x]) => `<span class="pill">deck ${d} · ${x.bpm} · beat ${x.beat}</span>`).join('');
-  const engNowP = engineOf(S.base.mode); const pnames = Object.keys(S.presets).filter(n => presetFilter === 'all' || engineOf((S.presets[n] || {}).mode || 0) === engNowP);
-  $('presets').innerHTML = pnames.map(n => { const pe = engineOf((S.presets[n] || {}).mode || 0); return `<span class="btn small ${pe === engNowP ? '' : 'other'}" data-p="${esc(n)}" title="${ENGINE_LABEL[pe]} · ${MODE_NAMES[Math.round((S.presets[n] || {}).mode || 0)]}"><i class="preset-dot" style="background:var(--eng-${pe})"></i>${esc(n)} <span class="x" data-del="${esc(n)}">✕</span></span>`; }).join('') || `<span style="color:var(--muted)">${Object.keys(S.presets).length ? 'no ' + ENGINE_LABEL[engNowP] + ' presets yet — switch the filter to "all" or save one' : 'none yet'}</span>`;
-  $('presets').querySelectorAll('[data-p]').forEach(b => b.onclick = e => { if (e.target.dataset.del) { if (confirm('Delete preset "' + e.target.dataset.del + '"?')) send({preset: {delete: e.target.dataset.del}}); } else send({preset: {load: b.dataset.p}}); });
+  const engNowP = engineOf(S.base.mode); const pnames = Object.keys(S.presets).filter(n => presetFilter === 'all' || engineOf(presetMode(n)) === engNowP);
+  const presetSig = pnames.map(n => n + presetMode(n)).join('|') + engNowP + presetFilter;
+  if ($('presets').dataset.sig !== presetSig) { $('presets').dataset.sig = presetSig;   // rebuild only when the list changes (UI rule: never clobber clickable DOM every snapshot)
+  $('presets').innerHTML = pnames.map(n => { const pe = engineOf(presetMode(n)); return `<span class="btn small ${pe === engNowP ? '' : 'other'}" data-p="${esc(n)}" title="${ENGINE_LABEL[pe]} · ${MODE_NAMES[Math.round(presetMode(n))]}"><i class="preset-dot" style="background:var(--eng-${pe})"></i>${esc(n)} <span class="x" data-del="${esc(n)}">✕</span></span>`; }).join('') || `<span style="color:var(--muted)">${Object.keys(S.presets).length ? 'no ' + ENGINE_LABEL[engNowP] + ' presets yet — switch the filter to "all" or save one' : 'none yet'}</span>`;
+  $('presets').querySelectorAll('[data-p]').forEach(b => b.onclick = e => { if (e.target.dataset.del) { if (confirm('Delete preset "' + e.target.dataset.del + '"?')) send({preset: {delete: e.target.dataset.del}}); } else send({preset: {load: b.dataset.p}}); }); }
   const fl = Object.entries(S.fleet || {});
   $('pill-fleet').textContent = fl.length + (fl.length === 1 ? ' projector' : ' projectors');
   const nclips = (S.video && S.video.count != null) ? S.video.count : null;
@@ -1497,6 +1523,7 @@ function renderControls() {
   renderCues();
   renderMods();
   renderCloud();
+  renderPalettes();
   renderPerf();
 }
 let srcBuilt = '';
@@ -1588,7 +1615,13 @@ function renderPm() {
   $('pm-card').style.borderColor = on8 ? 'var(--accent)' : '';
   $('pm-card').classList.toggle('expanded', on8);
   document.body.classList.toggle('pm-mode', on8);
-  $('eng-shader').className = (on8 || on9) ? '' : 'active'; $('eng-pm').className = on8 ? 'active' : ''; $('eng-video').className = on9 ? 'active' : '';
+  const lvS = (S.video && S.video.live) || {}; const onRes = on9 && S.video.index === 255 && String(lvS.source || '').startsWith('ndi:');
+  $('eng-shader').className = (on8 || on9) ? '' : 'active'; $('eng-pm').className = on8 ? 'active' : ''; $('eng-video').className = (on9 && !onRes) ? 'active' : ''; $('eng-resolume').className = onRes ? 'active' : '';
+  $('eng-resolume-sub').textContent = onRes ? '▶ ' + lvS.source.slice(4) : lvS.running && String(lvS.source || '').startsWith('ndi:') ? 'feed ready: ' + lvS.source.slice(4) + ' — tap to show' : lvS.msg && /NDI|ndi/.test(lvS.msg) && !lvS.running ? lvS.msg.slice(0, 60) : "grab Resolume's NDI output and put it on every projector";
+  const clipsN = (S.media.clips || []).length, feedTxt = lvS.running ? `<b>${esc(lvS.source || 'running')}</b>` : 'none';
+  $('srcstrip').innerHTML = [`<span class="${lvS.running ? 'on' : ''}">LIVE feed · ${feedTxt}</span>`, `<span>clips · <b>${clipsN}</b>${S.video.playlist && S.video.playlist.length ? ` · playlist ${S.video.playlist.length}` : ''}</span>`,
+    `<span class="${S.base.live_mix > 0.003 ? 'on' : ''}">feed mix · <b>${Math.round((S.base.live_mix || 0) * 100)} %</b></span>`, `<span class="${S.pm_presets.length ? '' : 'warn'}">milkdrop · <b>${S.pm_presets.length || 'no'}</b> presets</span>`,
+    `<span class="${Object.keys(S.fleet || {}).length ? 'on' : 'warn'}">projectors · <b>${Object.keys(S.fleet || {}).length}</b></span>`].join('');
   $('eng-shader-sub').textContent = (on8 || on9) ? 'switch back to ' + MODE_NAMES[lastShaderMode] : MODE_NAMES[Math.round(S.base.mode)] + ' · fractals · plasma · tunnel · starfield · waves — pixel-synced';
   $('eng-pm-sub').textContent = list.length ? `${list.length} presets · ${pm.cycle_bars ? 'auto-cycle ' + pm.cycle_bars + ' bars' : 'manual'}` : 'real .milk presets on every Pi';
   $('pm-big-name').textContent = list.length ? shortName(name) : '—';
@@ -1653,6 +1686,7 @@ function renderVideo() {
   if (S.live && (on9 || !mediaLast)) fetchMedia(false);
 }
 $('eng-video').onclick = () => send({video: {play: S.video.index === 255 ? 255 : Math.max(0, S.video.index || 0)}});
+$('eng-resolume').onclick = () => { const lv = (S.video && S.video.live) || {}; if (lv.running && String(lv.source || '').startsWith('ndi:')) { send({video: {live: 1}}); return; } $('eng-resolume-sub').textContent = 'looking for Resolume on the network…'; send({video: {live_start: {kind: 'ndi', source: 'auto', low: false}}}); setTimeout(() => { send({video: {live: 1}}); fetchMedia(true); }, 4500); };
 $('video-prev').onclick = () => send({video: {prev: 1}}); $('video-next').onclick = () => send({video: {next: 1}}); $('video-restart').onclick = () => send({video: {restart: 1}});
 $('video-live').onclick = () => send({video: {live: 1}});
 $('video-loop').onclick = () => send({video: {loop: !(S.base.video_loop >= 0.5)}});
@@ -2091,7 +2125,7 @@ function renderStatus() {
 
   // ---- projectM
   if (S.live) { const pm = S.pm || {}; const au = pm.audio || {};
-    cards.push(['projectM', kv([
+    cards.push(['Milkdrop', kv([
       ['Preset dir', esc(pm.dir || '')], ['Presets on master', pm.count ? pm.count : '<span class="warn">0 — run setup/install-projectm.sh</span>'],
       ['Current', pm.count ? `#${pm.index} · ${esc(pm.name || '')}` : null],
       ['Auto-cycle', pm.cycle_bars ? `every ${pm.cycle_bars} bars · ${pm.shuffle ? 'shuffle' : 'sequential'}` : 'off'],
@@ -2195,6 +2229,19 @@ let thumbImgs = {};
 
 
 
+
+// ------------------------------------------------------------ palettes (colour group presets) + lock
+function renderPalettes() {
+  const pals = S.palettes || {}, names = Object.keys(pals), sig = names.join('|') + '#' + S.palette_current + '#' + S.palette_lock;
+  $('palette-lock').className = 'btn small' + (S.palette_lock ? ' active' : ''); $('palette-lock').textContent = S.palette_lock ? '🔒 locked' : '🔓 lock';
+  if ($('palettes').dataset.sig === sig) return; $('palettes').dataset.sig = sig;
+  const sw = p => { const h = (p.hue || 0) * 360, h2 = ((p.hue || 0) + (p.hue_spread || 1) * 0.35) * 360, l = 30 + 20 * Math.min(1, p.brightness || 1); return `linear-gradient(90deg, hsl(${h} 70% ${l}%), hsl(${h2 % 360} 70% ${l}%))`; };
+  $('palettes').innerHTML = names.map(n => `<span class="btn small ${n === S.palette_current ? 'active' : ''}" data-pal="${esc(n)}" title="${esc(n)}"><i class="preset-dot" style="width:22px;border-radius:4px;background:${sw(pals[n])}"></i>${esc(n)} <span class="x" data-pdel="${esc(n)}">✕</span></span>`).join('') || '<span style="color:var(--muted)">none</span>';
+  $('palettes').querySelectorAll('[data-pal]').forEach(b => b.onclick = e => { if (e.target.dataset.pdel) { if (confirm('Delete palette "' + e.target.dataset.pdel + '"?')) send({palette: {delete: e.target.dataset.pdel}}); return; } send({palette: {load: b.dataset.pal, fade_bars: +$('palette-fade').value}}); });
+}
+$('palette-lock').onclick = () => send({palette: {lock: !S.palette_lock}});
+$('palette-save').onclick = () => { const n = $('palette-name').value.trim(); if (!n) return; send({palette: {save: n}}); $('palette-name').value = ''; };
+
 // ------------------------------------------------------------ cloud (Supabase) status + settings, LED configs
 function renderCloud() {
   const c = S.cloud; const dot = $('cloud-dot'), lab = $('cloud-label');
@@ -2294,7 +2341,7 @@ function renderCueEditor() {
     <label>Scene<select id="ce-scene"><option value="">keep</option>${MODE_NAMES.map((n, i) => `<option value="${i}" ${a.scene === i ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <label>Preset (look)<select id="ce-preset">${opt(presets, a.preset, 'none')}</select></label>
     <label>Show (whole rig)<select id="ce-show">${opt(shows, a.show, 'none')}</select></label>
-    <label>projectM<select id="ce-pm"><option value="">keep</option><option value="random" ${a.pm && a.pm.random ? 'selected' : ''}>random preset</option><option value="next" ${a.pm && a.pm.next ? 'selected' : ''}>next preset</option>${(S.pm_presets || []).slice(0, 400).map(n => `<option value="name:${esc(n)}" ${a.pm && a.pm.name === n ? 'selected' : ''}>${esc(shortName(n))}</option>`).join('')}</select></label>
+    <label>Milkdrop<select id="ce-pm"><option value="">keep</option><option value="random" ${a.pm && a.pm.random ? 'selected' : ''}>random preset</option><option value="next" ${a.pm && a.pm.next ? 'selected' : ''}>next preset</option>${(S.pm_presets || []).slice(0, 400).map(n => `<option value="name:${esc(n)}" ${a.pm && a.pm.name === n ? 'selected' : ''}>${esc(shortName(n))}</option>`).join('')}</select></label>
     <label>Video<select id="ce-video"><option value="">keep</option><option value="live" ${a.video && a.video.live ? 'selected' : ''}>LIVE feed</option><option value="next" ${a.video && a.video.next ? 'selected' : ''}>next clip</option><option value="restart" ${a.video && a.video.restart ? 'selected' : ''}>restart clip</option>${clips.map(n => `<option value="play:${esc(n)}" ${a.video && a.video.play === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
     <label>Feed mix (blank = keep)<input id="ce-mix" type="number" min="0" max="1" step="0.05" value="${a.live_mix != null ? a.live_mix : ''}"></label>
     <label>Brightness (blank = keep)<input id="ce-bright" type="number" min="0" max="2" step="0.05" value="${a.brightness != null ? a.brightness : ''}"></label>
@@ -2323,6 +2370,8 @@ $('cue-clear').onclick = () => { if (confirm('Delete every cue?')) { cueEdit = n
 $('pf-cue-go').onclick = () => send({cue: {go: true}}); $('pf-cue-back').onclick = () => send({cue: {back: 1}}); $('pf-cue-stop').onclick = () => send({cue: {stop_follow: 1}});
 $('pf-cue-capture').onclick = () => { const n = prompt('Cue name', 'Cue ' + ((S.cues || []).length + 1)); if (n) send({cue: {capture: n}}); };
 $('pf-cue-reset').onclick = () => send({cue: {reset: 1}});
+$('pf-pal-lock').onclick = () => send({palette: {lock: !S.palette_lock}});
+$('pf-pal-save').onclick = () => { const n = prompt('Palette name'); if (n && n.trim()) send({palette: {save: n.trim()}}); };
 // modulation editor
 const MOD_SOURCES = ['energy', 'bass', 'beat'].concat(Array.from({length: 16}, (_, i) => 'band' + i));
 let modDraft = null;
@@ -2874,7 +2923,7 @@ function renderPerf() {
   $('pf-eng-shader').className = 'pbtn eng' + ((on8 || on9p) ? '' : ' active'); $('pf-eng-pm').className = 'pbtn eng' + (on8 ? ' active' : ''); $('pf-eng-video').className = 'pbtn eng' + (on9p ? ' active' : '');
   $('pf-eng-pm-sub').textContent = on8 && S.pm.name ? shortName(S.pm.name).slice(0, 28) : 'milkdrop presets'; $('pf-eng-video-sub').textContent = on9p && S.video.name ? S.video.name : 'clips · LIVE feed';
   // Show page: scene grid for the shader engine, quick controls for the other two
-  const engP = engineOf(S.base.mode); $('pf-scenes').style.display = engP === 'shader' ? '' : 'none'; $('pf-scenes-label').textContent = engP === 'shader' ? 'Scene' : engP === 'pm' ? 'projectM' : 'Video';
+  const engP = engineOf(S.base.mode); $('pf-scenes').style.display = engP === 'shader' ? '' : 'none'; $('pf-scenes-label').textContent = engP === 'shader' ? 'Scene' : engP === 'pm' ? 'Milkdrop' : 'Video';
   const qsig = engP + '|' + (S.pm.name || '') + '|' + (S.video.name || '');
   if ($('pf-engine-quick').dataset.sig !== qsig) { $('pf-engine-quick').dataset.sig = qsig;
     $('pf-engine-quick').innerHTML = engP === 'pm' ? `<button class="pbtn" data-q="pm-prev">◀ PREV</button><button class="pbtn primary" data-q="pm-random">RANDOM<small>${esc(shortName(S.pm.name || '').slice(0, 26))}</small></button><button class="pbtn" data-q="pm-next">NEXT ▶</button>`
@@ -2884,8 +2933,8 @@ function renderPerf() {
   if ($('pf-clips').dataset.sig !== csig) { $('pf-clips').dataset.sig = csig; $('pf-clips').innerHTML = clips.slice(0, 24).map((c, i) => `<button class="pbtn pf-clip ${on9p && i === S.video.index ? 'active' : ''}" data-c="${i}">${c.thumb ? `<i class="bg" style="background-image:url(${c.thumb})"></i>` : ''}<span>${esc(c.name)}</span></button>`).join('') + `<button class="pbtn pf-clip ${on9p && S.video.index === 255 ? 'active' : ''}" data-c="255"><span>● LIVE</span></button>` || ''; $('pf-clips').querySelectorAll('[data-c]').forEach(b => b.onclick = () => send({video: {play: +b.dataset.c}})); }
   $('pf-scenes').querySelectorAll('button').forEach(b => b.className = 'pbtn' + (+b.dataset.m === Math.round(S.base.mode) ? ' active' : ''));
   $('pf-blackout').className = 'pbtn danger' + (S.base.brightness === 0 ? ' active' : ''); $('pf-freeze').className = 'pbtn' + (S.clock_speed === 0 ? ' active' : ''); $('pf-autotoggle').className = 'pbtn' + (S.auto_enabled ? ' active' : '');
-  const engPP = engineOf(S.base.mode); const names = Object.keys(S.presets || {}).filter(n => pfPresetFilter === 'all' || engineOf((S.presets[n] || {}).mode || 0) === engPP);
-  const psig = names.join('|') + '#' + pfLastPreset + pfPresetFilter; if ($('pf-presets').dataset.sig !== psig) { $('pf-presets').dataset.sig = psig; $('pf-presets').innerHTML = names.map(n => { const pr = S.presets[n] || {}; const sc = MODE_NAMES[Math.round(pr.mode || 0)] || ''; return `<button class="pbtn pf-preset ${n === pfLastPreset ? 'active' : ''}" data-p="${esc(n)}" style="border-left:5px solid var(--eng-${engineOf(pr.mode || 0)})">${esc(n)}<small>${sc}${pr.pm_preset != null && Math.round(pr.mode) === 8 ? ' #' + Math.round(pr.pm_preset) : ''}</small></button>`; }).join('') || `<span class="hint">${Object.keys(S.presets || {}).length ? 'no ' + ENGINE_LABEL[engPP] + ' looks — tap "all" or save one' : 'no looks saved yet — set one up and press SAVE CURRENT LOOK'}</span>`; $('pf-presets').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { pfLastPreset = b.dataset.p; send({preset: {load: b.dataset.p}}); renderPerf(); }); }
+  const engPP = engineOf(S.base.mode); const names = Object.keys(S.presets || {}).filter(n => pfPresetFilter === 'all' || engineOf(presetMode(n)) === engPP);
+  const psig = names.join('|') + '#' + pfLastPreset + pfPresetFilter; if ($('pf-presets').dataset.sig !== psig) { $('pf-presets').dataset.sig = psig; $('pf-presets').innerHTML = names.map(n => { const pr = (typeof S.presets[n] === 'object' && S.presets[n]) || {mode: presetMode(n)}; const sc = MODE_NAMES[Math.round(pr.mode || 0)] || ''; return `<button class="pbtn pf-preset ${n === pfLastPreset ? 'active' : ''}" data-p="${esc(n)}" style="border-left:5px solid var(--eng-${engineOf(presetMode(n))})">${esc(n)}<small>${sc}${pr.pm_preset != null && Math.round(pr.mode) === 8 ? ' #' + Math.round(pr.pm_preset) : ''}</small></button>`; }).join('') || `<span class="hint">${Object.keys(S.presets || {}).length ? 'no ' + ENGINE_LABEL[engPP] + ' looks — tap "all" or save one' : 'no looks saved yet — set one up and press SAVE CURRENT LOOK'}</span>`; $('pf-presets').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { pfLastPreset = b.dataset.p; send({preset: {load: b.dataset.p}}); renderPerf(); }); }
   $('pf-preset-last').textContent = pfLastPreset || 'nothing loaded yet';
   $('pf-scene-pill').textContent = (MODE_NAMES[Math.round(S.base.mode)] || '') + (on8 && S.pm.name ? ' · ' + shortName(S.pm.name) : on9p && S.video.name ? ' · ' + S.video.name : '');
   $('pf-vid-name').textContent = S.video.name ? (S.video.index === 255 ? 'LIVE feed' : `#${S.video.index} · ${S.video.name}`) + (S.video.duration ? ` · ${Math.floor(S.video.position)}s / ${Math.floor(S.video.duration)}s` : '') : 'no clip';
@@ -2893,10 +2942,14 @@ function renderPerf() {
   $('pf-vid-cycle').className = 'pbtn' + (S.video.cycle !== 'off' ? ' active' : ''); $('pf-vid-cycle-sub').textContent = S.video.cycle === 'end' ? 'when the clip ends' : S.video.cycle === 'bars' ? `every ${S.video.cycle_bars} bars` : 'off';
   const lv = S.video.live || {}; $('pf-live-go').className = 'pbtn huge' + (on9p && S.video.index === 255 ? ' active' : ''); $('pf-live-sub').textContent = lv.running ? (lv.source || 'feed running') : 'no feed running — start one on the Media tab';
   const list = S.pm_presets || [], nm = list[S.pm.index] || '';
-  $('pf-pm-name').textContent = list.length ? `#${S.pm.index} · ${shortName(nm)}` : 'projectM presets not available';
+  $('pf-pm-name').textContent = list.length ? `#${S.pm.index} · ${shortName(nm)}` : 'Milkdrop presets not available';
   $('pf-pm-hold').className = 'pbtn' + (S.pm.cycle_bars === 0 && pmHeld ? ' active' : ''); $('pf-pm-fav').textContent = (pmFavs.has(nm) ? '★' : '☆') + ' FAVOURITE';
   const favs = list.map((n, i) => [n, i]).filter(([n]) => pmFavs.has(n)); const fsig = favs.map(f => f[1]).join(',') + '|' + S.pm.index;
   if ($('pf-pm-favs').dataset.sig !== fsig) { $('pf-pm-favs').dataset.sig = fsig; $('pf-pm-favs').innerHTML = favs.map(([n, i]) => `<button class="pbtn pm-tile ${i === S.pm.index ? 'active' : ''}" data-i="${i}">${esc(shortName(n))}</button>`).join('') || '<span class="hint">star presets in the projectM panel and they appear here</span>'; $('pf-pm-favs').querySelectorAll('[data-i]').forEach(b => b.onclick = () => send({pm: {index: +b.dataset.i}})); }
+  const palN = Object.keys(S.palettes || {}), palSig = palN.join('|') + S.palette_current; if ($('pf-palettes').dataset.sig !== palSig) { $('pf-palettes').dataset.sig = palSig;
+    $('pf-palettes').innerHTML = palN.map(n => { const p = S.palettes[n], h = (p.hue || 0) * 360, h2 = ((p.hue || 0) + (p.hue_spread || 1) * 0.35) * 360; return `<button class="pbtn pm-tile ${n === S.palette_current ? 'active' : ''}" data-pal="${esc(n)}" style="background:linear-gradient(135deg, hsl(${h} 60% 22%), hsl(${h2 % 360} 60% 22%))">${esc(n)}</button>`; }).join('') || '<span class="hint">no palettes</span>';
+    $('pf-palettes').querySelectorAll('[data-pal]').forEach(b => b.onclick = () => send({palette: {load: b.dataset.pal, fade_bars: 2}})); }
+  $('pf-pal-lock').className = 'pbtn' + (S.palette_lock ? ' active' : ''); $('pf-pal-lock').firstChild.textContent = S.palette_lock ? '🔒 PALETTE LOCKED' : '🔓 PALETTE LOCK';
   $('perf').querySelectorAll('input[data-pk]').forEach(r => { if (!(r.dataset.touch && performance.now() - r.dataset.touch < 800)) { r.value = S.base[r.dataset.pk]; r.parentElement.querySelector('.v').textContent = (+S.base[r.dataset.pk]).toFixed(2); } });
   $('perf').querySelectorAll('input[data-mk]').forEach(r => { if (!(r.dataset.touch && performance.now() - r.dataset.touch < 800)) { r.value = S[r.dataset.mk]; r.parentElement.querySelector('.v').textContent = (+S[r.dataset.mk]).toFixed(2); } });
   $('perf').querySelectorAll('[data-show]').forEach(sp => { const k = sp.dataset.show, p = PARAMS[idx[k]]; sp.textContent = fmt(S.base[k], p); });
@@ -2975,7 +3028,7 @@ function bcFrame(now, t) {
     const m = name ? bcMatch(name) : {key: BC.keys[idx % BC.keys.length], exact: false};
     if (m && m.key !== BC.currentKey) { BC.currentKey = m.key; BC.exact = !!m.exact; try { BC.viz.loadPreset(BC.presets[m.key], Math.min(5, +S.base.pm_blend || 0)); } catch (e) { console.warn(e); } }
     $('pm-sim-dot').className = 'dot ' + (m.exact ? 'ok' : m.weak ? 'warn' : 'warn');
-    $('pm-sim-label').textContent = 'projectM · browser sim' + (m.exact ? ' · same preset' : m.weak ? ' · no close match, showing a stand-in' : ' · closest match');
+    $('pm-sim-label').textContent = 'Milkdrop · browser sim' + (m.exact ? ' · same preset' : m.weak ? ' · no close match, showing a stand-in' : ' · closest match');
     $('pm-overlay-name').textContent = (name ? '#' + idx + ' ' + name.replace(/^.*\//, '').replace(/\.milk$/i, '') : '—') + (m.exact ? '' : '  →  ' + m.key);
   }
   const w = Math.min(640, Math.round(bcCanvas.clientWidth)), h = Math.round(w * 9 / 16);

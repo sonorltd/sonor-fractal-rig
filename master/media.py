@@ -285,6 +285,13 @@ class Media:
                 self.live.update(msg="NDI receiver not built — sudo bash setup/install-ndi.sh <SDK.tar.gz> on the master"); return False
             x = extra or {}
             low = bool(x.get("low"))
+            if not source or source.startswith("auto"):
+                # Engine card → RESOLUME: pick the Resolume sender automatically (name contains RESOLUME/ARENA/AVENUE), else the first NDI source
+                srcs = await self.ndi_sources()
+                pick = next((d["name"] for d in srcs if any(w in d["name"].upper() for w in ("RESOLUME", "ARENA", "AVENUE"))), None) or (srcs[0]["name"] if srcs else None)
+                if not pick:
+                    self.live.update(msg="no NDI sources on the network — enable Output → NDI in Resolume"); return False
+                source = pick
             self.live.update(msg=f"connecting to NDI '{source}'…")
             info, err = await self._ndi_probe(source, low)
             if not info:
