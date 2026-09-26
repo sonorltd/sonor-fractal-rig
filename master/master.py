@@ -24,14 +24,14 @@ from engine import Engine
 from params import PARAMS, KEYS, PACKET_SIZE
 import inputs, outputs
 
-APP_VERSION = "0.7.0"
+APP_VERSION = "0.8.0"
 osc_out = led = thumbs = link = None
 
 
 LOCAL_CFG = os.path.join(HERE, "config.local.json")
 
 
-def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid")):
+def save_local_config(cfg, keys=("osc_out", "led", "link_enabled", "link_mode", "ndi", "pm_cycle_bars", "pm_shuffle", "prodj_follow_device", "audio_device", "video_playlist", "video_cycle", "video_cycle_bars", "video_bar_sync", "last_show", "osc_in_map", "resolume_grid", "mods")):
     """Persist the UI-editable parts of the config to config.local.json (config.json stays pristine in git)."""
     try:
         cur = json.load(open(LOCAL_CFG)) if os.path.exists(LOCAL_CFG) else {}
@@ -226,6 +226,23 @@ async def web_app(engine, cfg):
                     if q.get("live_start") and media: await media.live_start(str(q["live_start"].get("source", "")), q["live_start"].get("kind", "file"), q["live_start"])
                     if q.get("live_stop") and media: await media.live_stop()
                     if q.get("rethumb") and media: await media.thumbnail(str(q["rethumb"]))
+                if "cue" in m:
+                    q = m["cue"]; sh = engine.show
+                    if q.get("go"): sh.go(None if q["go"] is True else int(q["go"]) - 1, "ui")
+                    if q.get("back"): sh.back()
+                    if q.get("jump") is not None: sh.go(int(q["jump"]), "ui")
+                    if q.get("capture"): sh.capture_cue(str(q["capture"]))
+                    if "add" in q: sh.cue_add(q["add"], q.get("at"))
+                    if "update" in q and q.get("id") is not None: sh.cue_update(int(q["id"]), q["update"])
+                    if q.get("delete") is not None: sh.cue_delete(int(q["delete"]))
+                    if q.get("move") is not None and q.get("id") is not None: sh.cue_move(int(q["id"]), int(q["move"]))
+                    if q.get("clear"): sh.cues = []; sh.cue_pos = -1; sh.save_cues()
+                    if q.get("stop_follow"): sh.cue_follow_due = None
+                    if q.get("reset"): sh.cue_pos = -1; sh.cue_follow_due = None
+                    if "fade" in q and isinstance(q["fade"], dict):      # {key, value, bars} — a manual timed fade
+                        f = q["fade"]; sh.fade_to(str(f.get("key")), float(f.get("value", 0)), sh.bar_seconds(float(f.get("bars", 1))), "ui")
+                if "mods" in m and isinstance(m["mods"], list):
+                    engine.show.set_mods(m["mods"]); save_local_config(cfg)
                 if "resolume" in m:
                     q = m["resolume"]
                     # generic send, restricted to Resolume's own namespace so the UI can drive clips/layers/master
@@ -251,6 +268,7 @@ async def web_app(engine, cfg):
                     if "put" in q and q.get("name"): engine.mapping.put(q["name"], q["put"])
                     if q.get("copy_from") and q.get("name"): engine.mapping.put(q["name"], engine.mapping.get(q["copy_from"]))
                     if q.get("clear") and q.get("name"): engine.mapping.put(q["name"], {})
+                    if "test_all" in q: engine.mapping.test_all(bool(q["test_all"]))
                     await ws.send_json(dict(type="mapping", mapping=engine.mapping.manifest()))
                 if "pm" in m:
                     q = m["pm"]
@@ -456,6 +474,60 @@ async def web_app(engine, cfg):
             raise web.HTTPBadRequest(text="json body expected")
         return web.json_response(engine.mapping.put(name, body))
 
+    # ---- rig maintenance: update / restart the master itself, or any renderer through its status service (:8082)
+    async def api_rig_self(request):
+        act = request.match_info["act"]
+        import subprocess
+        if act == "update":
+            subprocess.Popen(["bash", os.path.join(ROOT, "setup", "rig-update")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            engine.event("update requested from the web UI — pulling GitHub and re-running the installer (the master restarts itself)")
+            return web.json_response(dict(ok=True, msg="updating — this page will reconnect when the master comes back"))
+        if act == "restart":
+            engine.event("restart requested from the web UI")
+            subprocess.Popen(["sudo", "-n", "systemctl", "restart", "fractal-master"], start_new_session=True)
+            return web.json_response(dict(ok=True, msg="restarting the master"))
+        if act == "restart-renderer":
+            r = subprocess.run(["sudo", "-n", "systemctl", "restart", "fractal-renderer"], capture_output=True, text=True)
+            return web.json_response(dict(ok=r.returncode == 0, msg=r.stderr.strip() or "renderer restarted"))
+        if act == "reboot":
+            engine.event("REBOOT requested from the web UI")
+            subprocess.Popen(["sudo", "-n", "reboot"], start_new_session=True)
+            return web.json_response(dict(ok=True, msg="rebooting"))
+        raise web.HTTPNotFound()
+
+    async def api_rig_log(request):
+        try:
+            txt = open("/var/lib/fractal-rig/update.log", errors="ignore").read()[-8000:]
+        except OSError:
+            txt = "(no update log yet)"
+        return web.Response(text=txt, content_type="text/plain")
+
+    async def api_rig_remote(request):
+        name, act = request.match_info["name"], request.match_info["act"]
+        r = engine.fleet.get(name)
+        if not r:
+            raise web.HTTPNotFound(text="renderer not heard from")
+        if act not in ("update", "restart", "reboot", "update.log"):
+            raise web.HTTPNotFound()
+        import aiohttp
+        url = f"http://{r['ip']}:8082/{act}"
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8)) as sess:
+                if act == "update.log":
+                    async with sess.get(url) as resp:
+                        return web.Response(text=await resp.text(), content_type="text/plain")
+                async with sess.post(url) as resp:
+                    j = await resp.json()
+        except Exception as ex:
+            return web.json_response(dict(ok=False, msg=f"{name}: status service not reachable ({ex}) — is fractal-media-sync running on it?"))
+        engine.event(f"{name}: {act} → {j.get('msg', '')}")
+        return web.json_response(j)
+
+    app.router.add_post("/api/rig/self/{act}", api_rig_self)
+    app.router.add_get("/api/rig/self/update.log", api_rig_log)
+    app.router.add_post("/api/rig/{name}/{act}", api_rig_remote)
+    app.router.add_get("/api/rig/{name}/update.log", api_rig_remote)
+
     # ---- shows (whole-rig setups per venue / scenario)
     async def api_shows(request):
         return web.json_response(dict(shows=engine.shows.list() if engine.shows else [], last=cfg.get("last_show")))
@@ -464,6 +536,30 @@ async def web_app(engine, cfg):
         d = engine.shows.get(request.match_info["name"]) if engine.shows else None
         if not d:
             raise web.HTTPNotFound(text="no such show")
+        if request.query.get("bundle"):
+            # .fractalshow.zip = show.json + every clip the show refers to (playlist + cue video actions), so a
+            # venue setup moves to another master with its media. Written to a temp file, then streamed.
+            import zipfile, tempfile
+            names = set(str(x) for x in (d.get("video") or {}).get("playlist") or [])
+            for c in d.get("cues") or []:
+                v = (c.get("actions") or {}).get("video") or {}
+                if isinstance(v.get("play"), str):
+                    names.add(v["play"])
+            tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+            with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as z:
+                z.writestr("show.json", json.dumps(d, indent=1))
+                if media:
+                    for n in sorted(names):
+                        pth = os.path.join(media.root, clean_name(n) + ".mp4")
+                        if os.path.exists(pth):
+                            z.write(pth, "media/" + clean_name(n) + ".mp4")
+            tmp.close()
+            resp = web.FileResponse(tmp.name, headers={"Content-Disposition": f'attachment; filename="{clean_show(d["name"])}.fractalshow.zip"', "Content-Type": "application/zip"})
+            async def _cleanup(_):
+                try: os.remove(tmp.name)
+                except OSError: pass
+            request.task.add_done_callback(lambda t: asyncio.ensure_future(_cleanup(t)))
+            return resp
         resp = web.json_response(d)
         if request.query.get("download"):
             resp.headers["Content-Disposition"] = f'attachment; filename="{clean_show(d["name"])}.fractalshow.json"'
@@ -513,6 +609,49 @@ async def web_app(engine, cfg):
         ok = engine.shows.rename(request.match_info["name"], body.get("new", "")) if engine.shows else False
         return web.json_response(dict(ok=ok, shows=engine.shows.list() if engine.shows else []))
 
+    async def api_show_import_bundle(request):
+        """multipart upload of a .fractalshow.zip: clips go into the library (skipping identical ones), show is saved."""
+        import zipfile, tempfile, shutil
+        if not engine.shows:
+            raise web.HTTPServiceUnavailable(text="shows disabled")
+        reader = await request.multipart()
+        field = await reader.next()
+        tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+        while True:
+            chunk = await field.read_chunk(1 << 20)
+            if not chunk:
+                break
+            tmp.write(chunk)
+        tmp.close()
+        added, skipped = [], []
+        try:
+            with zipfile.ZipFile(tmp.name) as z:
+                d = json.loads(z.read("show.json").decode())
+                name = clean_show(request.query.get("name") or d.get("name") or "imported")
+                for info in z.infolist():
+                    if not info.filename.startswith("media/") or not info.filename.endswith(".mp4") or not media:
+                        continue
+                    fn = clean_name(os.path.basename(info.filename)[:-4]) + ".mp4"
+                    dest = os.path.join(media.root, fn)
+                    if os.path.exists(dest) and os.path.getsize(dest) == info.file_size:
+                        skipped.append(fn); continue
+                    with z.open(info) as src, open(dest, "wb") as out:
+                        shutil.copyfileobj(src, out)
+                    added.append(fn)
+                    asyncio.ensure_future(media.thumbnail(fn[:-4]))
+                d["name"] = name; d["saved"] = time.time()
+                json.dump(d, open(engine.shows.path(name), "w"), indent=1)
+        except Exception as ex:
+            raise web.HTTPBadRequest(text=f"not a show bundle: {ex}")
+        finally:
+            try: os.remove(tmp.name)
+            except OSError: pass
+        if media and added:
+            media._cache.clear() if hasattr(media, "_cache") else None
+        engine.event(f"show bundle imported: {name} (+{len(added)} clips, {len(skipped)} already here)")
+        return web.json_response(dict(ok=True, name=name, added=added, skipped=skipped, shows=engine.shows.list()))
+
+    app.router.add_post("/api/shows-import", api_show_import_bundle)
     app.router.add_get("/api/shows", api_shows)
     app.router.add_get("/api/shows/{name}", api_show_get)
     app.router.add_post("/api/shows/{name}", api_show_save)

@@ -192,6 +192,7 @@ pre{{background:#161a21;border:1px solid #262b34;border-radius:8px;padding:10px;
 <h2>Sync</h2><pre>{e(chr(10).join(LOG[-15:]) or '(nothing yet)')}</pre>
 <h2>Clips ({len(clips)}) — index order</h2><pre>{e(chr(10).join(f'{i:3d}  {c}' for i, c in enumerate(clips)) or '(none)')}</pre>
 <h2>Mapping — {e(mp)}</h2><pre>{e(mtxt)}</pre>
+<h2>Update log</h2><pre>{e(open('/var/lib/fractal-rig/update.log').read()[-3000:] if os.path.exists('/var/lib/fractal-rig/update.log') else '(never updated from the web UI)')}</pre>
 <h2>Fix-it commands</h2><pre>ssh sonorpi@{e(name)}.local
 journalctl -fu fractal-renderer          # live renderer log
 sudo systemctl restart fractal-renderer  # restart the picture
@@ -206,7 +207,35 @@ def serve_status():
         def log_message(self, *a):
             pass
 
+        def _json(self, code, obj):
+            body = json.dumps(obj).encode()
+            self.send_response(code); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+
+        def do_POST(self):
+            """Remote maintenance from the master's Rig tab: /update (git pull + reinstall), /restart, /reboot."""
+            import subprocess
+            repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if self.path == "/update":
+                subprocess.Popen(["bash", os.path.join(repo, "setup", "rig-update")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                log("update requested by the master — running setup/rig-update")
+                return self._json(200, dict(ok=True, msg="updating — the renderer restarts when the build is done"))
+            if self.path == "/restart":
+                r = subprocess.run(["sudo", "-n", "systemctl", "restart", "fractal-renderer"], capture_output=True, text=True)
+                log("renderer restart requested by the master")
+                return self._json(200, dict(ok=r.returncode == 0, msg=r.stderr.strip() or "renderer restarted"))
+            if self.path == "/reboot":
+                log("reboot requested by the master")
+                subprocess.Popen(["sudo", "-n", "reboot"], start_new_session=True)
+                return self._json(200, dict(ok=True, msg="rebooting"))
+            return self._json(404, dict(ok=False, msg="unknown"))
+
         def do_GET(self):
+            if self.path == "/update.log":
+                try:
+                    body = open("/var/lib/fractal-rig/update.log", "rb").read()[-8000:]
+                except OSError:
+                    body = b"(no update log yet)"
+                self.send_response(200); self.send_header("Content-Type", "text/plain; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
             if self.path.startswith("/api"):
                 body = json.dumps(dict(INFO, state=read_state(), log=LOG[-20:])).encode()
                 ct = "application/json"

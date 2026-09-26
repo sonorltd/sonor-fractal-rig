@@ -14,7 +14,7 @@ import os
 import re
 import time
 
-IDENTITY = dict(quad=[0, 0, 1, 0, 1, 1, 0, 1], masks=[], feather=0.0, edge=[0, 0, 0, 0], bright=1.0, gamma=1.0, test=0)
+IDENTITY = dict(quad=[0, 0, 1, 0, 1, 1, 0, 1], masks=[], feather=0.0, edge=[0, 0, 0, 0], bright=1.0, gamma=1.0, test=0, gain=[1.0, 1.0, 1.0])
 _NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
 
@@ -43,6 +43,8 @@ def normalise(m):
         out["bright"] = min(3.0, max(0.0, float(m.get("bright", 1))))
         out["gamma"] = min(4.0, max(0.2, float(m.get("gamma", 1))))
         out["test"] = 1 if m.get("test") else 0
+        g = [float(v) for v in (m.get("gain") or [1, 1, 1])][:3]
+        out["gain"] = [min(2.0, max(0.0, v)) for v in (g + [1, 1, 1])[:3]]
     except (TypeError, ValueError):
         pass
     return out
@@ -63,6 +65,8 @@ def to_text(m):
     lines.append(f"bright {m['bright']:.4f}")
     lines.append(f"gamma {m['gamma']:.4f}")
     lines.append(f"test {m['test']}")
+    if any(abs(v - 1) > 1e-6 for v in m["gain"]):
+        lines.append("gain " + " ".join(f"{v:.4f}" for v in m["gain"]))
     return "\n".join(lines) + "\n"
 
 
@@ -110,6 +114,13 @@ class MappingStore:
     def hash(self, name):
         """Hash the renderer will report once this mapping is applied (0 when no file)."""
         return 0 if is_identity(self.get(name)) else fnv1a(self.text(name))
+
+    def test_all(self, on):
+        """Alignment mode: the grid + coloured corners on every known projector at once."""
+        fleet = getattr(self.engine, "fleet", {})
+        for n in set(self.names()) | set(fleet.keys()):
+            m = self.get(n); m["test"] = 1 if on else 0
+            self.put(n, m)
 
     def manifest(self):
         """For the UI: every known renderer (stored or live) with its expected hash + applied state."""

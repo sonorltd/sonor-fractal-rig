@@ -17,7 +17,7 @@ static time_t g_mtime = -1;
 static off_t  g_size = -1;
 static unsigned g_hash = 0;
 static float  g_quad[8] = {0, 0, 1, 0, 1, 1, 0, 1};
-static float  g_feather = 0, g_edge[4] = {0, 0, 0, 0}, g_bright = 1, g_gamma = 1;
+static float  g_feather = 0, g_edge[4] = {0, 0, 0, 0}, g_bright = 1, g_gamma = 1, g_gain[3] = {1, 1, 1};
 static int    g_test = 0, g_npoly = 0, g_npts[MAXPOLY];
 static float  g_poly[MAXPOLY][MAXPTS * 2];
 static GLuint g_tex = 0;
@@ -32,6 +32,7 @@ unsigned map_mask_texture(void) { return g_npoly ? g_tex : 0; }
 void map_params(float *feather, float edge[4], float *bright, float *gamma, int *test) {
     *feather = g_feather; memcpy(edge, g_edge, sizeof g_edge); *bright = g_bright; *gamma = g_gamma; *test = g_test;
 }
+void map_gain(float gain[3]) { memcpy(gain, g_gain, sizeof g_gain); }
 
 /* square (0,0)(1,0)(1,1)(0,1) → quad, Heckbert's closed form; then the inverse (adjugate). */
 static void compute_homography(void) {
@@ -92,7 +93,7 @@ static void build_mask(void) {
 
 static void reset(void) {
     float q[8] = {0, 0, 1, 0, 1, 1, 0, 1}; memcpy(g_quad, q, sizeof q);
-    g_feather = 0; memset(g_edge, 0, sizeof g_edge); g_bright = 1; g_gamma = 1; g_test = 0; g_npoly = 0;
+    g_feather = 0; memset(g_edge, 0, sizeof g_edge); g_bright = 1; g_gamma = 1; g_test = 0; g_npoly = 0; g_gain[0] = g_gain[1] = g_gain[2] = 1;
 }
 
 static int parse(FILE *f) {
@@ -107,6 +108,7 @@ static int parse(FILE *f) {
         else if (!strncmp(s, "bright", 6)) sscanf(s + 6, "%f", &g_bright);
         else if (!strncmp(s, "gamma", 5)) sscanf(s + 5, "%f", &g_gamma);
         else if (!strncmp(s, "test", 4)) sscanf(s + 4, "%d", &g_test);
+        else if (!strncmp(s, "gain", 4)) sscanf(s + 4, "%f %f %f", &g_gain[0], &g_gain[1], &g_gain[2]);
         else if (!strncmp(s, "mask", 4) && g_npoly < MAXPOLY) {
             char *p = s + 4; int n = 0; float v; int adv;
             while (n < MAXPTS * 2 && sscanf(p, "%f%n", &v, &adv) == 1) { g_poly[g_npoly][n++] = v; p += adv; }
@@ -117,6 +119,7 @@ static int parse(FILE *f) {
     if (g_feather < 0) g_feather = 0; if (g_feather > 0.3f) g_feather = 0.3f;
     for (int i = 0; i < 4; i++) { if (g_edge[i] < 0) g_edge[i] = 0; if (g_edge[i] > 0.5f) g_edge[i] = 0.5f; }
     if (g_gamma < 0.2f) g_gamma = 0.2f; if (g_gamma > 4) g_gamma = 4;
+    for (int i = 0; i < 3; i++) { if (g_gain[i] < 0) g_gain[i] = 0; if (g_gain[i] > 2) g_gain[i] = 2; }
     return 1;
 }
 
@@ -124,7 +127,8 @@ static void finish(void) {
     compute_homography();
     float q[8] = {0, 0, 1, 0, 1, 1, 0, 1}; int qi = 1;
     for (int i = 0; i < 8; i++) if (fabsf(g_quad[i] - q[i]) > 1e-4f) qi = 0;
-    g_identity = qi && g_npoly == 0 && g_edge[0] == 0 && g_edge[1] == 0 && g_edge[2] == 0 && g_edge[3] == 0 && fabsf(g_bright - 1) < 1e-4f && fabsf(g_gamma - 1) < 1e-4f && !g_test;
+    g_identity = qi && g_npoly == 0 && g_edge[0] == 0 && g_edge[1] == 0 && g_edge[2] == 0 && g_edge[3] == 0 && fabsf(g_bright - 1) < 1e-4f && fabsf(g_gamma - 1) < 1e-4f && !g_test
+                 && fabsf(g_gain[0] - 1) < 1e-4f && fabsf(g_gain[1] - 1) < 1e-4f && fabsf(g_gain[2] - 1) < 1e-4f;
     if (g_npoly) build_mask();
     fprintf(stderr, "[map] %s: %s quad · %d mask%s · feather %.3f · edge %.2f/%.2f/%.2f/%.2f · bright %.2f gamma %.2f%s\n", g_path,
             qi ? "identity" : "keystone", g_npoly, g_npoly == 1 ? "" : "s", g_feather, g_edge[0], g_edge[1], g_edge[2], g_edge[3], g_bright, g_gamma, g_test ? " · TEST PATTERN" : "");

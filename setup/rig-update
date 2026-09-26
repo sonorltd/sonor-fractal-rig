@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Fractal Rig — self-update: pull the repo and re-run the installer with the SAME role and renderer arguments this
+# Pi was installed with (read back from the systemd units). Called by the master's "Update" button (master/master.py)
+# and by each slave's status service (setup/fractal-media-sync POST /update); safe to run by hand too:
+#     sudo bash setup/rig-update            # or:  ~/sonor-fractal-rig/setup/rig-update
+set -uo pipefail
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+LOG="/var/lib/fractal-rig/update.log"
+mkdir -p "$(dirname "$LOG")" 2>/dev/null || LOG="/tmp/fractal-update.log"
+exec > >(tee -a "$LOG") 2>&1
+echo "== $(date '+%F %T') rig-update in $REPO"
+UNIT=/etc/systemd/system/fractal-renderer.service
+ARGS=""
+if [ -f "$UNIT" ]; then ARGS="$(grep -m1 '^ExecStart=' "$UNIT" | sed -E 's|^ExecStart=\S+/fractal ?||')"; fi
+ROLE=slave; [ -f /etc/systemd/system/fractal-master.service ] && ROLE=master
+echo "== role=$ROLE args=[$ARGS]"
+cd "$REPO" || exit 1
+# a local edit (e.g. a chmod) must never block the pull
+git stash -q 2>/dev/null || true
+if ! git pull --ff-only; then echo "!! git pull failed"; exit 2; fi
+if [ "$(id -u)" = 0 ]; then bash setup/install.sh "$ROLE" $ARGS; else sudo -n bash setup/install.sh "$ROLE" $ARGS; fi
+rc=$?
+echo "== $(date '+%F %T') rig-update done rc=$rc ($(git rev-parse --short HEAD))"
+exit $rc

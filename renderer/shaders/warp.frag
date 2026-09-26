@@ -12,6 +12,7 @@ uniform vec2  u_res;          // output size in pixels
 uniform mat3  u_inv;          // output img-uv (top-left origin) → source img-uv
 uniform vec4  u_edge;         // l r t b blend widths in source space
 uniform float u_bright, u_gamma;
+uniform vec3  u_gain;         // per-channel gain for matching projectors
 uniform int   u_test;
 
 void main() {
@@ -40,6 +41,6 @@ void main() {
     if (u_edge.z > 0.0) eb *= pow(clamp(s.y / u_edge.z, 0.0, 1.0), 1.6);
     if (u_edge.w > 0.0) eb *= pow(clamp((1.0 - s.y) / u_edge.w, 0.0, 1.0), 1.6);
     float m = u_has_mask == 1 ? texture(u_mask, o).r : 1.0;   // mask rows are uploaded top-first, so v == top-left y
-    col = pow(max(col * u_bright, 0.0), vec3(1.0 / u_gamma)) * eb * m;
+    col = pow(max(col * u_bright * u_gain, 0.0), vec3(1.0 / u_gamma)) * eb * m;
     fragColor = vec4(col, 1.0);
 }

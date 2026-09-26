@@ -43,7 +43,7 @@
 #include "video_bridge.h"
 #include "mapping.h"
 
-#define APP_VERSION "0.7.0"
+#define APP_VERSION "0.8.0"
 #define FREEWHEEL_AFTER 3.0      /* s without packets before we run on our own clock */
 #define FEED_STALL      3.0      /* s without a new LIVE frame before a renderer stops trusting the feed */
 #define SMOOTH_TAU 0.06          /* s — exponential smoothing of continuous params */
@@ -481,7 +481,8 @@ int main(int argc, char **argv) {
     GLuint warp = build_program_plain("warp.frag");
     GLint w_tex = glGetUniformLocation(warp, "u_tex"), w_mask = glGetUniformLocation(warp, "u_mask"), w_has_mask = glGetUniformLocation(warp, "u_has_mask"),
           w_res = glGetUniformLocation(warp, "u_res"), w_inv = glGetUniformLocation(warp, "u_inv"), w_edge = glGetUniformLocation(warp, "u_edge"),
-          w_bright = glGetUniformLocation(warp, "u_bright"), w_gamma = glGetUniformLocation(warp, "u_gamma"), w_test = glGetUniformLocation(warp, "u_test");
+          w_bright = glGetUniformLocation(warp, "u_bright"), w_gamma = glGetUniformLocation(warp, "u_gamma"), w_test = glGetUniformLocation(warp, "u_test"),
+          w_gain = glGetUniformLocation(warp, "u_gain");
     map_init(cfg.mapping);
     double map_poll_last = 0;
 
@@ -642,8 +643,8 @@ int main(int argc, char **argv) {
             glBindFramebuffer(GL_READ_FRAMEBUFFER, out_fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
             glBlitFramebuffer(0, 0, rw, rh, 0, 0, W, H, GL_COLOR_BUFFER_BIT, GL_LINEAR);
         } else {
-            float inv[9], feather, edge[4], bright, gam; int test;
-            map_inverse(inv); map_params(&feather, edge, &bright, &gam, &test);
+            float inv[9], feather, edge[4], bright, gam, gain[3]; int test;
+            map_inverse(inv); map_params(&feather, edge, &bright, &gam, &test); map_gain(gain);
             unsigned mask = map_mask_texture();
             glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H);
             glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
@@ -653,7 +654,7 @@ int main(int argc, char **argv) {
             glActiveTexture(GL_TEXTURE0);
             glUniform1i(w_has_mask, mask ? 1 : 0);
             glUniform2f(w_res, (float)W, (float)H); glUniformMatrix3fv(w_inv, 1, GL_FALSE, inv);
-            glUniform4fv(w_edge, 1, edge); glUniform1f(w_bright, bright); glUniform1f(w_gamma, gam); glUniform1i(w_test, test);
+            glUniform4fv(w_edge, 1, edge); glUniform1f(w_bright, bright); glUniform1f(w_gamma, gam); glUniform1i(w_test, test); glUniform3fv(w_gain, 1, gain);
             glDrawArrays(GL_TRIANGLES, 0, 3);
         }
         if (cfg.max_frames && frames + 1 >= cfg.max_frames) {

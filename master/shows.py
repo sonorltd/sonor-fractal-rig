@@ -96,6 +96,7 @@ class Shows:
                          link=dict(enabled=bool(o["link"].enabled), mode=o["link"].mode) if o.get("link") else None,
                          osc_in_map=dict(getattr(e, "osc_in_map", {}) or {}), resolume_grid=self.cfg.get("resolume_grid")),
             out_res=int(round(e.base[KEYS.index("out_res")])),
+            cues=json.loads(json.dumps(e.show.cues)), mods=json.loads(json.dumps(e.show.mods)),
         )
         if keep_meta_from:
             show["created"] = keep_meta_from.get("created", keep_meta_from.get("saved"))
@@ -172,6 +173,11 @@ class Shows:
                 e.set("pm_preset", e.pm_presets.index(pmname), "show")
         if want("out_res"):
             e.set("out_res", int(show.get("out_res", 0) or 0), "show")
+        if want("cues"):
+            if isinstance(show.get("cues"), list):
+                e.show.cues = [e.show._clean(c) for c in show["cues"]]; e.show.cue_pos = -1; e.show.cue_follow_due = None; e.show.save_cues()
+            if isinstance(show.get("mods"), list):
+                e.show.set_mods(show["mods"]); cfg["mods"] = e.show.mods
         self.hooks["save_local_config"]()
         cfg["last_show"] = show["name"]
         self.e.event(f"show loaded: {show['name']}" + (f" ({', '.join(sorted(parts))})" if parts else ""))

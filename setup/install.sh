@@ -54,6 +54,12 @@ systemctl daemon-reload
 # KMSDRM needs the user in video/render/input groups; systemd-journal lets the status page show the renderer log
 usermod -aG video,render,input,systemd-journal "$USER_NAME" || true
 
+# one-button updates from the web UI: the master / status service run setup/rig-update, which needs to re-run this
+# installer as root without a password prompt (studio Pi, same trust level as sonor-rig)
+printf '%s ALL=(root) NOPASSWD: /usr/bin/bash %s/setup/install.sh *\n%s ALL=(root) NOPASSWD: /usr/bin/systemctl restart fractal-renderer, /usr/bin/systemctl restart fractal-master, /usr/bin/systemctl restart fractal-media-sync, /usr/sbin/reboot\n' "$USER_NAME" "$REPO" "$USER_NAME" > /etc/sudoers.d/fractal-rig
+chmod 440 /etc/sudoers.d/fractal-rig
+chmod +x "$REPO/setup/rig-update" "$REPO/setup/fractal-media-sync" 2>/dev/null || true
+
 # Pi 4/5 GPU memory + no screen blanking (Lite images)
 if [ -f /boot/firmware/cmdline.txt ] && ! grep -q consoleblank /boot/firmware/cmdline.txt; then
   sed -i 's/$/ consoleblank=0/' /boot/firmware/cmdline.txt

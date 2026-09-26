@@ -153,11 +153,14 @@
   .perf-rail button.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.25), rgba(128,88,161,.25)); color: #fff; }
   .perf-rail .spacer { flex: 1; }
   .perf-pages { flex: 1; min-height: 0; position: relative; display: flex; }
-  .ppage { flex: 1; min-height: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: 14px 16px 90px; display: none; flex-direction: column; gap: 14px; box-sizing: border-box; scrollbar-width: thin; }
+  .ppage { flex: 1; min-height: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: 14px 16px 110px; display: none; flex-direction: column; gap: 14px; box-sizing: border-box; scrollbar-width: thin; }
   .ppage.on { display: flex; }
   .ppage > * { flex: none; }
-  .pscroll { position: absolute; right: 10px; bottom: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
-  .pscroll button { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--line); background: rgba(22,26,33,.92); color: var(--text); font-size: 22px; }
+  /* page scroll arrows live in the rail (a floating pair bottom-right sat on top of the rig launcher's ⌂ button) */
+  .pscroll { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+  .pscroll button { min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; padding: 0; }
+  .perf-pages { padding-right: 0; }
+  .ppage { padding-right: 16px; }
   .pf-hint { font-size: 12px; color: var(--muted); }
   @media (max-width: 600px) { .perf-rail { width: 76px; } .perf-rail button { min-height: 52px; font-size: 12px; } .perf-rail button small { display: none; } }
   .pgrid { display: grid; gap: 10px; }
@@ -185,9 +188,27 @@
   @media (max-width: 500px) { .pgrid.c3 { grid-template-columns: 1fr 1fr; } .pgrid.c4 { grid-template-columns: 1fr 1fr; } .pslider { grid-template-columns: 90px 1fr 56px; } .pbtn { font-size: 16px; min-height: 64px; } .perf-top .tabs button { padding: 8px 8px; font-size: 13px; } }
 
   /* outputs tab */
-  #outputs, #inputs, #leds, #shows, #resolume { display: block; max-width: 1200px; margin: 0 auto; padding: 16px; }
-  #outputs[hidden], #inputs[hidden], #leds[hidden], #shows[hidden], #resolume[hidden] { display: none; }
-  #outputs .card, #inputs .card, #leds .card, #shows .card, #resolume .card { margin-bottom: 16px; }
+  #outputs, #inputs, #leds, #shows, #resolume, #cues { display: block; max-width: 1200px; margin: 0 auto; padding: 16px; }
+  #outputs[hidden], #inputs[hidden], #leds[hidden], #shows[hidden], #resolume[hidden], #cues[hidden] { display: none; }
+  #outputs .card, #inputs .card, #leds .card, #shows .card, #resolume .card, #cues .card { margin-bottom: 16px; }
+  .cuelist { display: flex; flex-direction: column; gap: 6px; }
+  .cue { display: grid; grid-template-columns: 34px 8px 1fr auto; gap: 10px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+  .cue.live { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2) inset; }
+  .cue.next { border-style: dashed; }
+  .cue .n { font-family: var(--mono); font-size: 15px; color: var(--muted); text-align: right; }
+  .cue .sw { width: 8px; height: 34px; border-radius: 4px; background: var(--line); }
+  .cue .nm { font-size: 14px; font-weight: 600; }
+  .cue .sum { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .cue .acts { display: flex; gap: 4px; }
+  .cuego { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .cuego .pbtn { min-height: 64px; }
+  .cue-editor { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 18px; }
+  .cue-editor label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+  .cue-editor input, .cue-editor select { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; color: var(--text); }
+  .modrow { display: grid; grid-template-columns: 1fr 1fr 1.4fr 70px 70px 40px 60px 30px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 12px; }
+  .modrow select, .modrow input[type=number] { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; color: var(--text); width: 100%; min-width: 0; }
+  .modrow .lvl { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; } .modrow .lvl i { display: block; height: 100%; background: var(--accent2); width: 0; }
+  @media (max-width: 700px) { .modrow { grid-template-columns: 1fr 1fr; } .cuego { grid-template-columns: 1fr 1fr; } }
   .rpad { border-collapse: separate; border-spacing: 4px; }
   .rpad th { font-family: var(--mono); font-size: 11px; color: var(--muted); font-weight: 400; padding: 2px; }
   .rpad th.col { cursor: pointer; border: 1px solid var(--line); border-radius: 6px; padding: 6px; } .rpad th.col:hover { color: var(--text); border-color: var(--accent2); }
@@ -361,8 +382,8 @@
   <div class="spacer"></div>
   <select class="btn small" id="out-res" title="Output resolution on every projector (Pi renderers on KMSDRM modeset and restart, ~3 s black). A Pi 4 is much smoother at 1080p."><option value="0">Auto res</option><option value="1">1080p</option><option value="2">4K</option></select>
   <button class="btn small primary" id="perf-enter" title="big-button touch mode">▶ PERFORM</button>
-  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="shows">Shows</button><button data-view="inputs">Inputs</button><button data-view="media">Media</button><button data-view="outputs">Outputs</button><button data-view="resolume">Resolume</button><button data-view="leds">LEDs</button><button data-view="status">Rig</button><button data-view="info">Info</button></nav>
-  <span class="pill" id="pill-ver">v0.7.0</span>
+  <nav class="nav" id="nav"><button data-view="control" class="active">Control</button><button data-view="cues">Cues</button><button data-view="shows">Shows</button><button data-view="inputs">Inputs</button><button data-view="media">Media</button><button data-view="outputs">Outputs</button><button data-view="resolume">Resolume</button><button data-view="leds">LEDs</button><button data-view="status">Rig</button><button data-view="info">Info</button></nav>
+  <span class="pill" id="pill-ver">v0.8.0</span>
   <a class="pill" href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">GitHub ↗</a>
 </header>
 <div class="strip" aria-hidden="true">
@@ -520,6 +541,26 @@
   </aside>
 </main>
 
+<section id="cues" hidden>
+  <div class="card">
+    <h2>Cue stack <span class="spacer"></span><span class="sub">a sequence for the set — each cue changes the look, fades over bars, and can auto-follow to the next</span><span class="pill" id="cue-pill">—</span></h2>
+    <div class="cuego">
+      <button class="pbtn" id="cue-back">◀ BACK</button>
+      <button class="pbtn primary huge" id="cue-go">GO<small id="cue-go-sub">next cue</small></button>
+      <button class="pbtn" id="cue-stopfollow">STOP<small>cancel auto-follow</small></button>
+    </div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn small primary" id="cue-capture">+ Capture current look as cue</button>
+      <button class="btn small" id="cue-add">+ Empty cue</button>
+      <button class="btn small" id="cue-reset" title="back to the top without firing anything">↺ Reset to top</button>
+      <button class="btn small" id="cue-clear">Clear all</button>
+      <span class="hint" style="margin:0 0 0 8px">GO also on MIDI note 27 (BACK 26), OSC <code>/frx/go</code> · <code>/frx/back</code> · <code>/frx/cue n</code>, key <b>G</b> in Perform. Cues are saved with a show.</span>
+    </div>
+    <div class="cuelist" id="cue-list"><span class="hint">no cues yet</span></div>
+    <div class="cue-editor" id="cue-editor" hidden></div>
+  </div>
+</section>
+
 <section id="shows" hidden>
   <div class="card">
     <h2>Shows <span class="spacer"></span><span class="sub">a whole rig setup per venue or scenario — look, presets, every projector's mapping, playlist, outputs, resolution</span><span class="pill" id="show-current">—</span></h2>
@@ -529,7 +570,7 @@
       <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted)">Venue</label><input class="text" id="show-venue" placeholder="where"></div>
       <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:220px"><label style="font-size:11px;color:var(--muted)">Notes</label><input class="text" id="show-notes" placeholder="cabling, which projector is which, anything future-you needs"></div>
       <button class="btn primary" id="show-save">Save current rig as show</button>
-      <label class="btn small" style="cursor:pointer">Import file… <input type="file" id="show-import" accept=".json,application/json" hidden></label>
+      <label class="btn small" style="cursor:pointer">Import file… <input type="file" id="show-import" accept=".json,.zip,application/json,application/zip" hidden></label>
     </div>
     <div class="parts" style="margin-top:10px">load parts:
       <label><input type="checkbox" class="show-part" value="params" checked> look &amp; params</label>
@@ -611,6 +652,15 @@
 </section>
 
 <section id="inputs" hidden>
+  <div class="card" id="i-mods">
+    <h2>Audio → parameters <span class="spacer"></span><span class="sub">make any parameter follow the music: a band, the bass, overall energy or the beat pulse</span></h2>
+    <div id="mod-list"></div>
+    <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn small primary" id="mod-add">+ add modulation</button>
+      <span class="hint" style="margin:0 0 0 8px">Needs <b>Audio in</b> enabled below (the beat pulse works from any tempo source). <b>Amount</b> is a fraction of the parameter's full range (0.05–0.2 is plenty; negative inverts). Attack / release in seconds shape the envelope. Applied on top of your sliders and auto-drift, saved with the show.</span>
+    </div>
+  </div>
+
   <div class="card">
     <h2>Inputs <span class="spacer"></span><span class="sub">what drives the rig: tempo sources, controllers, audio, autonomous drift</span></h2>
     <div class="hint" style="margin:0">Live link status for every source and the on/off switches. The Control tab shows the result (tempo pill, Inputs monitor); this page is where you connect things. The <b>tempo</b> pill in the top bar tells you at a glance which source is locked.</div>
@@ -700,6 +750,9 @@
       <span id="map-status" class="pill">—</span>
       <span class="sep"></span>
       <button class="btn small" id="map-test" title="grid + coloured corners on that projector (red TL · green TR · blue BR · yellow BL)">Test pattern</button>
+      <button class="btn small" id="map-align-all" title="test pattern on EVERY projector at once — walk the room and see which is which">Align all</button>
+      <label class="btn small" style="cursor:pointer" title="a photo of the wall / surface from the audience position: the picture is then drawn over it so you can drag the corners onto real features">📷 Photo… <input type="file" id="map-photo" accept="image/*" hidden></label>
+      <span id="map-photo-wrap" style="display:none;align-items:center;gap:4px;font-size:11px;color:var(--muted)">picture <input type="range" id="map-photo-alpha" min="0" max="1" step="0.05" value="0.6" style="width:80px"> <button class="btn small" id="map-photo-clear">✕ photo</button></span>
       <button class="btn small" id="map-addrect" title="drag a rectangle to black out (R)">+ Rect mask</button>
       <button class="btn small" id="map-addmask" title="click the corners of the area to black out, click the first point again (or Enter / double-click) to close (M)">+ Polygon mask</button>
       <button class="btn small" id="map-delmask" title="delete the selected mask — or Delete removes the selected point">Delete</button>
@@ -714,7 +767,7 @@
       <button class="btn small primary" id="map-save">Save</button>
     </div>
     <div class="mapwrap"><canvas id="map-canvas" width="960" height="540"></canvas></div>
-    <div class="hint">Drag the four corners onto the surface (the projector shows the same coloured corners with <b>Test pattern</b> on). Arrow keys nudge the selected point by 1 px on the projector, Shift = 10. Masks: <b>+ Rect</b> drag a box, <b>+ Polygon</b> click the corners and click the first point again to close; drag inside a mask to move it, drag a point to reshape, double-click an edge to add a point, Delete removes the selected point (or the mask), Ctrl/⌘ Z undoes. Masks live in <em>output</em> space, so they stay put when you move the corners — black out a doorway, a speaker, the bit of wall you don't want lit. Edge blend widths feather the source picture's sides for overlapping projectors. With <b>live</b> on, every change goes to the projector within a couple of seconds; Save just makes it explicit.</div>
+    <div class="hint">Drag the four corners onto the surface (the projector shows the same coloured corners with <b>Test pattern</b> on). Arrow keys nudge the selected point by 1 px on the projector, Shift = 10. Masks: <b>+ Rect</b> drag a box, <b>+ Polygon</b> click the corners and click the first point again to close; drag inside a mask to move it, drag a point to reshape, double-click an edge to add a point, Delete removes the selected point (or the mask), Ctrl/⌘ Z undoes. Masks live in <em>output</em> space, so they stay put when you move the corners — black out a doorway, a speaker, the bit of wall you don't want lit. Edge blend widths feather the source picture's sides for overlapping projectors; the R/G/B gains match one projector's colour to another. <b>Align all</b> puts the grid on every projector at once; <b>Photo</b> loads a picture of the wall taken from where the audience stands and draws the rig's picture over it, so you drag corners onto the real edges. With <b>live</b> on, every change goes to the projector within a couple of seconds; Save just makes it explicit.</div>
     <div class="mapgrid">
       <div class="param"><label>Mask feather<small>softness of mask edges</small></label><input type="range" id="map-feather" min="0" max="0.2" step="0.002"><span class="val" id="map-feather-v"></span></div>
       <div class="param"><label>Brightness</label><input type="range" id="map-bright" min="0.2" max="2" step="0.01"><span class="val" id="map-bright-v"></span></div>
@@ -723,6 +776,9 @@
       <div class="param"><label>Blend right</label><input type="range" id="map-edge1" min="0" max="0.5" step="0.005"><span class="val" id="map-edge1-v"></span></div>
       <div class="param"><label>Blend top</label><input type="range" id="map-edge2" min="0" max="0.5" step="0.005"><span class="val" id="map-edge2-v"></span></div>
       <div class="param"><label>Blend bottom</label><input type="range" id="map-edge3" min="0" max="0.5" step="0.005"><span class="val" id="map-edge3-v"></span></div>
+      <div class="param"><label>Red gain<small>colour match</small></label><input type="range" id="map-gain0" min="0.5" max="1.5" step="0.005"><span class="val" id="map-gain0-v"></span></div>
+      <div class="param"><label>Green gain</label><input type="range" id="map-gain1" min="0.5" max="1.5" step="0.005"><span class="val" id="map-gain1-v"></span></div>
+      <div class="param"><label>Blue gain</label><input type="range" id="map-gain2" min="0.5" max="1.5" step="0.005"><span class="val" id="map-gain2-v"></span></div>
     </div>
   </div>
 
@@ -762,11 +818,20 @@
       <button class="btn small" id="diag-refresh">Refresh MIDI / audio lists</button>
     </h2>
     <div id="st-summary" class="hint"></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center">
+      <button class="btn small primary" id="rig-update-all" title="git pull + reinstall on the master and every renderer that is online">⬆ Update everything from GitHub</button>
+      <button class="btn small" id="rig-update-master">Update master only</button>
+      <button class="btn small" id="rig-restart-master" title="restart the fractal-master service">Restart master</button>
+      <button class="btn small" id="rig-restart-renderer" title="restart this Pi's renderer">Restart master's renderer</button>
+      <button class="btn small" id="rig-log">Update log</button>
+      <span class="hint" style="margin:0 0 0 8px">Updates take 1–3 minutes (apt + build); the page reconnects by itself. Every renderer must be on the same version — after a packet change the projectors go dark until they are.</span>
+    </div>
+    <pre id="rig-log-out" style="display:none;max-height:260px;overflow:auto;font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px"></pre>
   </div>
   <div class="grid" style="margin-bottom:16px">
     <div class="card wide" style="grid-column:1/-1">
       <h2>Projectors <span class="spacer"></span><span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">heartbeats every second from each renderer</span></h2>
-      <div class="tablewrap"><table><thead><tr><th>name</th><th>ip</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>media</th><th>age</th></tr></thead><tbody id="fleet"></tbody></table></div>
+      <div class="tablewrap"><table><thead><tr><th>name</th><th>ip</th><th>ver</th><th>fps</th><th>res</th><th>tile</th><th>lost</th><th>media</th><th>age</th><th></th></tr></thead><tbody id="fleet"></tbody></table></div>
     </div>
     <div class="card">
       <h2>Log</h2>
@@ -781,7 +846,7 @@
     <h3>Fractal Rig — how it all fits together</h3>
     <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master renders too, so it is projector #1). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 20 parameters — in one 120-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet.</p>
     <div class="toc">
-      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-resolume2">Resolume tab</a><a class="btn small" href="#i-video">Video &amp; HDMI capture</a><a class="btn small" href="#i-mapping">Projection mapping</a><a class="btn small" href="#i-outres">Output resolution</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
+      <a class="btn small" href="#i-sources">Sources</a><a class="btn small" href="#i-monitor">Inputs monitor</a><a class="btn small" href="#i-scenes">Scenes &amp; controls</a><a class="btn small" href="#i-pi">Pi setup</a><a class="btn small" href="#i-layouts">Layouts</a><a class="btn small" href="#i-network">Network &amp; Pro DJ Link</a><a class="btn small" href="#i-protocol">Sync protocol</a><a class="btn small" href="#i-perform">Perform mode &amp; touchscreen</a><a class="btn small" href="#i-resolume">Resolume &amp; Ableton Link</a><a class="btn small" href="#i-ndi">NDI</a><a class="btn small" href="#i-cues">Cues &amp; audio modulation</a><a class="btn small" href="#i-rigops">Updating from the page</a><a class="btn small" href="#i-resolume2">Resolume tab</a><a class="btn small" href="#i-video">Video &amp; HDMI capture</a><a class="btn small" href="#i-mapping">Projection mapping</a><a class="btn small" href="#i-outres">Output resolution</a><a class="btn small" href="#i-led">LED pixel strips</a><a class="btn small" href="#i-status">Status &amp; debugging</a><a class="btn small" href="#i-ready">What's been tested</a><a class="btn small" href="#i-trouble">Troubleshooting</a><a class="btn small" href="#i-history">Version history</a>
     </div>
   </div>
 
@@ -949,6 +1014,16 @@ sudo bash setup/install.sh master</pre>
     <p>NDI publishes a Pi's picture as a network video source for Resolume, OBS, vMix, TouchDesigner… The NDI SDK is a free licence-click download, so it can't ship in the repo: download <i>NDI SDK for Linux</i> from ndi.video, then on the Pi <code>sudo bash setup/install-ndi.sh ~/Install_NDI_SDK_v6_Linux.tar.gz</code> (installs headers + libndi, rebuilds the renderer with NDI), and add <code>--ndi</code> to that renderer's arguments (<code>sudo systemctl edit fractal-renderer</code>). The source appears as <b>"Fractal Rig (pi-name)"</b>. Frames are sent at the render scale (1080p × 0.6 = 1152×648) at up to <code>--ndi-fps</code> (30 default) — a Pi 5 is comfortable there; ~40 Mbit/s on the LAN. The Outputs tab shows per-Pi NDI state (off / publishing / receiver connected). Use a wired switch; NDI over Wi-Fi is not a good evening.</p>
   </div>
 
+  <div class="card" id="i-cues">
+    <h3>Cues, fades and audio modulation</h3>
+    <p><b>Cues</b> are the sequencing layer: a stack of steps for the set. Build one by setting the rig up and pressing <em>Capture current look as cue</em> (every parameter goes in), or add an empty cue and pick actions: scene, a saved preset, a whole show, projectM (random / next / a named preset), video (a clip, LIVE, next), feed mix, brightness or blackout, auto-drift on/off. <b>Fade (bars)</b> glides every continuous parameter over that many bars at the current tempo (discrete ones like scene switch at the start); <b>Auto-follow</b> fires the next cue after N bars, so a whole intro can run itself. GO / BACK live on the Cues tab and the Perform CUES page, keys <b>G</b> / <b>B</b>, MIDI notes 27 / 26, OSC <code>/frx/go</code>, <code>/frx/back</code>, <code>/frx/cue n</code>. The stack is saved with a show. <b>Audio → parameters</b> (Inputs tab) makes any parameter follow the music: pick a source (one of the 16 analyser bands, bass, overall energy, or the beat pulse that works from any tempo source), an amount (a fraction of the parameter's range — small numbers) and attack / release times; the level bars show each envelope live. Modulation sits on top of your sliders and auto-drift and never touches the Pis — they still just receive numbers.</p>
+  </div>
+
+  <div class="card" id="i-rigops">
+    <h3>Updating and restarting from the web page</h3>
+    <p>Rig tab → <b>Update everything from GitHub</b> pulls the repo and re-runs the installer on the master and every renderer that is online (each Pi's <code>fractal-media-sync</code> status service on port 8082 accepts <code>/update</code>, <code>/restart</code>, <code>/reboot</code> from the master; <code>setup/rig-update</code> reads the role and renderer arguments back from the systemd units so nothing has to be typed). Per-Pi buttons do the same for one machine, and <b>status</b> opens that Pi's page (log, temperature, clips, mapping, update log). Expect 1–3 minutes of dark projectors while they rebuild; the <b>ver</b> column in the Projectors table goes amber for any Pi not on the master's version.</p>
+  </div>
+
   <div class="card" id="i-resolume2">
     <h3>Resolume tab (two-way)</h3>
     <p><b>Picture out:</b> the master renderer runs <code>--ndi</code> (headless on the rig, <code>--headless --ndi</code>) and appears in Resolume's Sources → NDI Servers. <b>Picture back:</b> Resolume's NDI screen (Output → Advanced → + Screen → NDI) is picked up on Outputs → NDI → <b>Use as LIVE</b> and multicast to every projector. <b>Feed mix</b> (<code>live_mix</code>, blend <code>live_blend</code>: crossfade / add / multiply / screen / difference) fades each projector between its own picture and that feed — works on every scene except while a video clip plays (one decoder per Pi). <b>Control out:</b> the clip pad (layers × columns, labels are yours), column launch, layer opacity / bypass / solo, composition master, tap and resync all send OSC to Resolume's OSC input (Preferences → OSC, default port 7000, set the host on the Connection card). <b>Control in:</b> turn on Resolume's OSC <em>output</em> aimed at the master, port 9000; move a knob, choose a rig parameter, press Map — Resolume's 0–1 values drive it. Mappings, pad size and labels are saved with a show.</p>
@@ -1055,6 +1130,7 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
       <tr><td>v0.2.0</td><td>Plasma / Tunnel / Starfield / Waves scenes; Sources panel with live link status and per-source on/off, audio device picker, Pro DJ Link deck-follow; this Info tab.</td></tr>
       <tr><td>v0.3.0</td><td>Status &amp; debugging tab; heartbeat carries CPU temp; <code>selftest.sh</code>; SET BEAT 1 bar resync (key 1, OSC, MIDI 34); mobile-adaptive layout.</td></tr>
+      <tr><td>v0.8.0</td><td><b>Cue stack</b> (Cues tab + Perform CUES page): each cue sets a scene / preset / show / projectM / video / feed mix / blackout / params, fades over N bars, optionally auto-follows to the next; GO / BACK on screen, key G/B, MIDI 27/26, OSC <code>/frx/go</code>. <b>Audio → parameters</b> (Inputs): any parameter follows a band, bass, energy or the beat pulse with attack/release. <b>Rig tab maintenance</b>: update everything from GitHub, restart or reboot any Pi from the page (per-Pi status service, <code>setup/rig-update</code>). Mapping editor: <b>Align all</b>, photo-of-the-wall overlay, per-projector R/G/B gain. Shows export <b>with media</b> as a zip and import back. 1080p is the boot default.</td></tr>
       <tr><td>v0.7.0</td><td><b>Video scene</b> (9): clip library on the master with drag-and-drop upload and ffmpeg conversion, byte-sorted index synced to every Pi by <code>fractal-media-sync</code>, libmpv playback frame-locked to the master clock, playlist / auto-advance / bar sync, Perform clip tiles, OSC + MIDI triggers; <b>LIVE</b> multicast stream from an NDI source (Resolume over the network, via <code>setup/ndi-recv</code>), an HDMI capture dongle, any V4L2 camera, a file or test bars. <b>Projection mapping</b> per projector from the Outputs tab (keystone, masks with feather, edge blend, brightness/gamma, test pattern) applied live. <b>Output resolution</b> selector on the top bar (Auto / 1080p / 4K). Per-Pi status page on port 8082. Perform pages scroll. Tabs reorganised: <b>Shows</b> (whole-rig setups per venue — look, presets, every projector's mapping, playlist, outputs, resolution; save / load / update / download / import), <b>Inputs</b> (sources + MIDI/OSC moved off Control), <b>LEDs</b> (own tab; colour-coded zones you drag on the picture), <b>Rig</b> (projectors table, log and diagnostics together), <b>Resolume</b> (feed crossfade, clip pad, layer faders, OSC-in learn). Perform mode rebuilt: page rail on the left, one scrolling page at a time, Presets with save/update, Clips page with LIVE + feed mix, Shows page. NDI streams table in Outputs. Packet now 164 bytes / 31 params. Packet is now 156 bytes / 29 params — update every Pi together.</td></tr>
       <tr><td>v0.6.1</td><td>Pi 4 renderer fix: SDL now opens the DRM device that actually has a connected HDMI output (Pi 4 exposes the 3D core as <code>card0</code> with no outputs, which made KMSDRM fail on every start). Also tries <code>card0..3</code> as a fallback; <code>SDL_KMSDRM_DEVICE_INDEX</code> still overrides.</td></tr>
       <tr><td>v0.6.0</td><td><b>Inputs monitor</b> on the Control tab: 4-bar beat grid with playhead and lock badge (Pro DJ Link deck / Ableton Link peers / free-running), BPM stability readout, per-deck lanes, Link phase, audio waveform + 16-band spectrum + energy/bass meters streamed from the master, MIDI / OSC / Pro DJ Link activity chips; slim beat grid in Perform mode. Master streams <code>audio_wave</code> / <code>audio_bands</code> / <code>audio_levels</code> and the followed deck in the state snapshot.</td></tr>
@@ -1082,12 +1158,13 @@ sudo bash setup/install.sh master</pre>
     <button data-pg="4">CLIPS<small>video · LIVE</small></button>
     <button data-pg="2">FEEL<small>speed · pulse</small></button>
     <button data-pg="3">COLOUR<small>hue · rotation</small></button>
+    <button data-pg="6">CUES<small>GO · BACK</small></button>
     <button data-pg="5">SHOWS<small>venue setups</small></button>
     <span class="spacer"></span>
+    <div class="pscroll"><button id="pf-up" title="scroll up">▲</button><button id="pf-down" title="scroll down">▼</button></div>
     <button id="pf-black-rail" class="danger">BLACK<small>hold to toggle</small></button>
   </div>
   <div class="perf-pages" id="pf-pages">
-    <div class="pscroll"><button id="pf-up" title="scroll up">▲</button><button id="pf-down" title="scroll down">▼</button></div>
     <div class="ppage on" data-pg="0">
       <div class="pgrid c2"><button class="pbtn huge primary" id="pf-tap">TAP<small>space</small></button><button class="pbtn huge" id="pf-beat1">SET BEAT 1<small>re-align the bar</small></button></div>
       <canvas id="pf-grid" class="pf-grid" aria-label="beat grid"></canvas>
@@ -1144,6 +1221,12 @@ sudo bash setup/install.sh master</pre>
       <div class="pslider"><label>Renderer ⇄ feed</label><input type="range" data-pk="live_mix" min="0" max="1" step="0.005"><span class="v"></span></div>
       <div class="pgrid c4"><button class="pbtn" data-pfeed="0">RENDERER</button><button class="pbtn" data-pfeed="0.33">⅓ FEED</button><button class="pbtn" data-pfeed="0.66">⅔ FEED</button><button class="pbtn" data-pfeed="1">FEED</button></div>
     </div>
+    <div class="ppage" data-pg="6">
+      <div class="pgrid c3"><button class="pbtn" id="pf-cue-back">◀ BACK</button><button class="pbtn huge primary" id="pf-cue-go">GO<small id="pf-cue-sub">—</small></button><button class="pbtn" id="pf-cue-stop">STOP<small>auto-follow</small></button></div>
+      <div class="plabel">Cues <span class="pf-hint">— tap one to jump straight to it</span></div>
+      <div class="pgrid c2" id="pf-cues"></div>
+      <div class="pgrid c2"><button class="pbtn" id="pf-cue-capture">+ CAPTURE LOOK AS CUE</button><button class="pbtn" id="pf-cue-reset">↺ RESET TO TOP</button></div>
+    </div>
     <div class="ppage" data-pg="5">
       <div class="plabel">Venue / scenario setups <span class="pf-hint">— loads the whole rig: look, presets, mapping, playlist, outputs</span></div>
       <div class="pgrid c2" id="pf-shows"><span class="hint">loading…</span></div>
@@ -1186,6 +1269,7 @@ const S = {
     resolume: {enabled: false, ok: false, detail: 'OSC out'}, led: {enabled: false, ok: false, detail: 'pixel output'},
   },
   outputs: {resolume: {}, led: {strips: []}, thumbs: {}, link: {}, ndi: {renderers: {}}},
+  cue: {pos: -1, count: 0}, cues: [], mods: [],
 };
 const SOURCE_META = {
   web:   {label: 'Web UI',       sub: 'this page · phone / laptop'},
@@ -1281,7 +1365,7 @@ function connect(url) {
     Object.assign(S, {base: m.base, out: m.out, auto: m.auto, bpm: m.bpm, beat_t: m.beat_t, bar_beat: m.bar_beat, tempo_source: m.tempo_source,
       clock_speed: m.clock_speed, auto_depth: m.auto_depth, auto_rate: m.auto_rate, fleet: m.fleet, log: m.log, decks: m.decks || {}, last_cc: m.last_cc, prodj: m.prodj, audio: m.audio,
       auto_enabled: m.auto_enabled !== false, sources: m.sources || S.sources, audio_devices: m.audio_devices || [], audio_device: m.audio_device, prodj_follow: m.prodj_follow || 0, prodj_dev: m.prodj_dev, pm: m.pm || S.pm, outputs: m.outputs || S.outputs,
-      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video, osc_in_map: m.osc_in_map || {}, osc_last: m.osc_last || null});
+      audio_wave: m.audio_wave || [], audio_bands: m.audio_bands || [], audio_levels: m.audio_levels || null, video: m.video || S.video, osc_in_map: m.osc_in_map || {}, osc_last: m.osc_last || null, cue: m.cue || S.cue, cues: m.cues || S.cues, mods: m.mods || S.mods});
     S.t = m.t; S.tRecv = performance.now();
     noteBpm(m.bpm);
     S.presets = {}; (m.presets || []).forEach(n => S.presets[n] = true);
@@ -1347,8 +1431,9 @@ function renderControls() {
   $('pill-fleet').textContent = fl.length + (fl.length === 1 ? ' projector' : ' projectors');
   const nclips = (S.video && S.video.count != null) ? S.video.count : null;
   $('fleet').innerHTML = fl.length ? fl.map(([n, h]) => { const mm = h.media == null ? '—' : h.media < 0 ? '<span title="renderer built without libmpv — sudo apt install libmpv-dev, rebuild">no mpv</span>' : (nclips != null && h.media !== nclips ? `<span style="color:var(--warn)" title="master has ${nclips}, this Pi has ${h.media} — fractal-media-sync catching up?">${h.media}/${nclips}</span>` : `${h.media}`);
-    return `<tr><td>${n}</td><td>${h.ip}</td><td>${h.fps.toFixed(0)}</td><td>${h.res}</td><td>${h.tile}</td><td>${h.lost}</td><td>${mm}</td><td>${h.age}s</td></tr>`; }).join('')
-    : `<tr><td colspan="8" style="color:var(--muted)">${S.live ? 'no renderers heard yet — start ./fractal on a Pi on this LAN' : 'demo mode — no fleet'}</td></tr>`;
+    const vmis = h.version && h.version !== ($('pill-ver').textContent || '').replace('v', ''); return `<tr><td>${n}</td><td>${h.ip}</td><td ${vmis ? 'style="color:var(--warn)" title="not the master\'s version — update it"' : ''}>${h.version || '—'}</td><td>${h.fps.toFixed(0)}</td><td>${h.res}</td><td>${h.tile}</td><td>${h.lost}</td><td>${mm}</td><td>${h.age}s</td><td style="white-space:nowrap"><a class="btn small" href="http://${h.ip}:8082/" target="_blank" rel="noopener" title="status page">status</a> <button class="btn small" data-rig="${esc(n)}" data-act="update">update</button> <button class="btn small" data-rig="${esc(n)}" data-act="restart">restart</button> <button class="btn small" data-rig="${esc(n)}" data-act="reboot">reboot</button></td></tr>`; }).join('')
+    : `<tr><td colspan="10" style="color:var(--muted)">${S.live ? 'no renderers heard yet — start ./fractal on a Pi on this LAN' : 'demo mode — no fleet'}</td></tr>`;
+  $('fleet').querySelectorAll('[data-rig]').forEach(b => b.onclick = () => rigAct(b.dataset.rig, b.dataset.act, b));
   $('last-cc').textContent = S.last_cc == null ? '—' : 'CC ' + S.last_cc;
   renderSources();
   renderPm();
@@ -1357,6 +1442,8 @@ function renderControls() {
   if (!$('status').hidden) renderStatus();
   if (!$('outputs').hidden) renderOutputs();
   renderResolume();
+  renderCues();
+  renderMods();
   renderPerf();
 }
 let srcBuilt = '';
@@ -1647,7 +1734,7 @@ $('auto-none').onclick = () => { const a = {}; PARAMS.forEach(p => a[p.key] = fa
 $('reset').onclick = () => { const s = {}; PARAMS.forEach(p => s[p.key] = p.def_); send({set: s}); };
 $('learn').onclick = () => send({midi_learn: $('learn-param').value});
 for (const k of ['clock_speed', 'auto_depth', 'auto_rate']) $(k).oninput = () => send({[k]: +$(k).value});
-document.addEventListener('keydown', e => { if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return; if (e.code === 'Space') { e.preventDefault(); send({tap: 1}); } if (e.key === '1') send({beat1: 1}); if (e.key === 'Escape' && perfOn) perfEnter(false); if (e.key.toLowerCase() === 'p' && !e.metaKey && !e.ctrlKey) perfEnter(!perfOn); });
+document.addEventListener('keydown', e => { if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return; if (e.code === 'Space') { e.preventDefault(); send({tap: 1}); } if (e.key === '1') send({beat1: 1}); if (e.key === 'Escape' && perfOn) perfEnter(false); if (e.key.toLowerCase() === 'p' && !e.metaKey && !e.ctrlKey) perfEnter(!perfOn); if (e.key.toLowerCase() === 'g' && !e.metaKey && !e.ctrlKey && (perfOn || !$('cues').hidden)) send({cue: {go: true}}); if (e.key.toLowerCase() === 'b' && !e.metaKey && !e.ctrlKey && (perfOn || !$('cues').hidden)) send({cue: {back: 1}}); });
 
 // ------------------------------------------------------------ WebGL2 preview — the real shader
 const canvas = $('preview');
@@ -2051,6 +2138,117 @@ $('lm-lead').onclick = () => send({source: {name: 'link', enabled: !!(S.sources.
 let thumbImgs = {};
 
 
+
+
+// ------------------------------------------------------------ rig maintenance (update / restart / reboot)
+async function rigAct(name, act, btn) {
+  const label = {update: 'pull the latest from GitHub and reinstall', restart: 'restart the renderer', reboot: 'REBOOT'}[act] || act;
+  if (!confirm(`${name}: ${label}?`)) return;
+  if (btn) { btn.disabled = true; btn.textContent = act + '…'; }
+  try { const j = await (await fetch(`/api/rig/${encodeURIComponent(name)}/${act}`, {method: 'POST'})).json(); logLocal(`${name}: ${j.msg || (j.ok ? 'ok' : 'failed')}`); if (!j.ok) alert(j.msg); }
+  catch (e) { alert('request failed: ' + e.message); }
+  if (btn) setTimeout(() => { btn.disabled = false; btn.textContent = act; }, 4000);
+}
+$('rig-update-master').onclick = () => rigAct('self', 'update');
+$('rig-restart-master').onclick = () => rigAct('self', 'restart');
+$('rig-restart-renderer').onclick = () => rigAct('self', 'restart-renderer');
+$('rig-update-all').onclick = async () => {
+  const names = Object.keys(S.fleet || {}); if (!confirm(`Update the master and ${names.length} renderer${names.length === 1 ? '' : 's'} (${names.join(', ')}) from GitHub?\nProjectors go dark for a couple of minutes while they rebuild.`)) return;
+  for (const n of names) { try { const j = await (await fetch(`/api/rig/${encodeURIComponent(n)}/update`, {method: 'POST'})).json(); logLocal(`${n}: ${j.msg}`); } catch (e) { logLocal(`${n}: failed`); } }
+  await fetch('/api/rig/self/update', {method: 'POST'}); logLocal('master: updating…');
+};
+$('rig-log').onclick = async () => { const o = $('rig-log-out'); o.style.display = o.style.display === 'none' ? 'block' : 'none'; if (o.style.display === 'block') { o.textContent = 'loading…'; try { o.textContent = await (await fetch('/api/rig/self/update.log')).text(); } catch (e) { o.textContent = 'no log'; } o.scrollTop = o.scrollHeight; } };
+
+// ------------------------------------------------------------ cues + modulation
+let cueEdit = null;   // id of the cue open in the editor
+const cueSummary = c => { const a = c.actions || {}; const parts = [];
+  if (a.show) parts.push('show ' + a.show); if (a.preset) parts.push('preset ' + a.preset); if (a.scene != null) parts.push(MODE_NAMES[a.scene] || ('scene ' + a.scene));
+  if (a.params && Object.keys(a.params).length) parts.push(Object.keys(a.params).length + ' params'); if (a.pm) parts.push('pm ' + (a.pm.random ? 'random' : a.pm.next ? 'next' : a.pm.name || a.pm.index)); if (a.video) parts.push('video ' + (a.video.live ? 'LIVE' : a.video.play != null ? a.video.play : a.video.next ? 'next' : 'restart'));
+  if (a.live_mix != null) parts.push('feed ' + Math.round(a.live_mix * 100) + '%'); if (a.blackout) parts.push('BLACKOUT'); else if (a.brightness != null) parts.push('bright ' + a.brightness); if (a.auto) parts.push('auto ' + a.auto);
+  const t = []; if (c.fade_bars) t.push('fade ' + c.fade_bars + ' bars'); if (c.follow_bars) t.push('→ ' + c.follow_bars + ' bars'); return (parts.join(' · ') || 'no actions') + (t.length ? '  [' + t.join(', ') + ']' : ''); };
+function renderCues(force) {
+  const cs = S.cues || [], st = S.cue || {}, pos = st.pos == null ? -1 : st.pos;
+  const sig = JSON.stringify([cs, pos, cueEdit]);
+  $('cue-pill').textContent = cs.length ? (pos >= 0 ? `cue ${pos + 1}/${cs.length}` + (st.follow_in != null ? ` · next in ${st.follow_in}s` : '') : `${cs.length} cues · at top`) : 'empty';
+  $('cue-go-sub').textContent = cs.length ? (pos + 1 < cs.length ? `next: ${cs[pos + 1].name}` : `wraps to: ${cs[0].name}`) : 'add cues first';
+  if ($('pf-cue-sub')) { $('pf-cue-sub').textContent = $('cue-go-sub').textContent + (st.follow_in != null ? ` · auto in ${st.follow_in}s` : ''); }
+  if (!$('cues').hidden || force) {
+    if ($('cue-list').dataset.sig !== sig) { $('cue-list').dataset.sig = sig;
+      $('cue-list').innerHTML = cs.map((c, i) => `<div class="cue ${i === pos ? 'live' : ''} ${i === pos + 1 || (pos + 1 >= cs.length && i === 0 && cs.length > 1) ? 'next' : ''}" data-i="${i}"><div class="n">${i + 1}</div><div class="sw" style="background:${esc(c.colour || 'var(--line)')}"></div><div><div class="nm">${esc(c.name)}</div><div class="sum">${esc(cueSummary(c))}</div></div><div class="acts"><button class="btn small" data-up="${c.id}">▲</button><button class="btn small" data-down="${c.id}">▼</button><button class="btn small" data-edit="${c.id}">edit</button><button class="btn small" data-del="${c.id}">✕</button></div></div>`).join('') || '<span class="hint">no cues yet — set a look up, then "Capture current look as cue"; or add an empty cue and choose actions</span>';
+      $('cue-list').querySelectorAll('.cue').forEach(el => el.onclick = e => { if (e.target.closest('button')) return; send({cue: {jump: +el.dataset.i}}); });
+      $('cue-list').querySelectorAll('[data-up]').forEach(b => b.onclick = () => send({cue: {id: +b.dataset.up, move: -1}}));
+      $('cue-list').querySelectorAll('[data-down]').forEach(b => b.onclick = () => send({cue: {id: +b.dataset.down, move: 1}}));
+      $('cue-list').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('Delete this cue?')) { if (cueEdit === +b.dataset.del) cueEdit = null; send({cue: {delete: +b.dataset.del}}); } });
+      $('cue-list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { cueEdit = cueEdit === +b.dataset.edit ? null : +b.dataset.edit; renderCueEditor(); renderCues(true); });
+    }
+  }
+  // perform tiles
+  if (perfOn && $('pf-cues')) { const psig = JSON.stringify([cs.map(c => [c.name, c.colour]), pos]); if ($('pf-cues').dataset.sig !== psig) { $('pf-cues').dataset.sig = psig;
+    $('pf-cues').innerHTML = cs.map((c, i) => `<button class="pbtn pf-show ${i === pos ? 'active' : ''}" data-j="${i}" style="border-left:6px solid ${esc(c.colour || 'var(--line)')}">${i + 1} · ${esc(c.name)}<small>${esc(cueSummary(c)).slice(0, 60)}</small></button>`).join('') || '<span class="hint">no cues — build the stack on the Cues tab</span>';
+    $('pf-cues').querySelectorAll('[data-j]').forEach(b => b.onclick = () => send({cue: {jump: +b.dataset.j}})); } }
+}
+function renderCueEditor() {
+  const c = (S.cues || []).find(x => x.id === cueEdit); const ed = $('cue-editor'); ed.hidden = !c; if (!c) return;
+  const a = c.actions || {}; const presets = Object.keys(S.presets || {}); const clips = (S.media.clips || []).map(x => x.name); const shows = (SHOWS.list || []).map(x => x.name);
+  const opt = (list, cur, none) => `<option value="">${none}</option>` + list.map(n => `<option value="${esc(n)}" ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  ed.innerHTML = `
+    <label>Name<input id="ce-name" value="${esc(c.name)}"></label>
+    <label>Colour<input id="ce-colour" type="color" value="${esc(c.colour || '#4bb9d3')}"></label>
+    <label>Fade (bars)<input id="ce-fade" type="number" min="0" max="64" step="0.5" value="${c.fade_bars || 0}"></label>
+    <label>Auto-follow after (bars, 0 = manual)<input id="ce-follow" type="number" min="0" max="512" step="1" value="${c.follow_bars || 0}"></label>
+    <label>Scene<select id="ce-scene"><option value="">keep</option>${MODE_NAMES.map((n, i) => `<option value="${i}" ${a.scene === i ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <label>Preset (look)<select id="ce-preset">${opt(presets, a.preset, 'none')}</select></label>
+    <label>Show (whole rig)<select id="ce-show">${opt(shows, a.show, 'none')}</select></label>
+    <label>projectM<select id="ce-pm"><option value="">keep</option><option value="random" ${a.pm && a.pm.random ? 'selected' : ''}>random preset</option><option value="next" ${a.pm && a.pm.next ? 'selected' : ''}>next preset</option>${(S.pm_presets || []).slice(0, 400).map(n => `<option value="name:${esc(n)}" ${a.pm && a.pm.name === n ? 'selected' : ''}>${esc(shortName(n))}</option>`).join('')}</select></label>
+    <label>Video<select id="ce-video"><option value="">keep</option><option value="live" ${a.video && a.video.live ? 'selected' : ''}>LIVE feed</option><option value="next" ${a.video && a.video.next ? 'selected' : ''}>next clip</option><option value="restart" ${a.video && a.video.restart ? 'selected' : ''}>restart clip</option>${clips.map(n => `<option value="play:${esc(n)}" ${a.video && a.video.play === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+    <label>Feed mix (blank = keep)<input id="ce-mix" type="number" min="0" max="1" step="0.05" value="${a.live_mix != null ? a.live_mix : ''}"></label>
+    <label>Brightness (blank = keep)<input id="ce-bright" type="number" min="0" max="2" step="0.05" value="${a.brightness != null ? a.brightness : ''}"></label>
+    <label>Blackout<select id="ce-black"><option value="">no</option><option value="1" ${a.blackout ? 'selected' : ''}>yes — fade to black</option></select></label>
+    <label>Auto-drift<select id="ce-auto"><option value="">keep</option><option value="on" ${a.auto === 'on' ? 'selected' : ''}>on</option><option value="off" ${a.auto === 'off' ? 'selected' : ''}>off</option></select></label>
+    <label>Parameters in this cue: <b>${Object.keys(a.params || {}).length}</b><span class="row" style="gap:6px"><button class="btn small" id="ce-params-cap">replace with current look</button><button class="btn small" id="ce-params-clear">clear</button></span></label>
+    <label>Notes<input id="ce-notes" value="${esc(c.notes || '')}"></label>
+    <div class="row" style="gap:6px;align-items:flex-end"><button class="btn primary" id="ce-save">Save cue</button><button class="btn small" id="ce-fire">Fire now</button><button class="btn small" id="ce-close">Close</button></div>`;
+  let params = Object.assign({}, a.params || {});
+  const build = () => { const acts = {params}; const sc = $('ce-scene').value; if (sc !== '') acts.scene = +sc; if ($('ce-preset').value) acts.preset = $('ce-preset').value; if ($('ce-show').value) acts.show = $('ce-show').value;
+    const pm = $('ce-pm').value; if (pm === 'random') acts.pm = {random: 1}; else if (pm === 'next') acts.pm = {next: 1}; else if (pm.startsWith('name:')) acts.pm = {name: pm.slice(5)};
+    const v = $('ce-video').value; if (v === 'live') acts.video = {live: 1}; else if (v === 'next') acts.video = {next: 1}; else if (v === 'restart') acts.video = {restart: 1}; else if (v.startsWith('play:')) acts.video = {play: v.slice(5)};
+    if ($('ce-mix').value !== '') acts.live_mix = +$('ce-mix').value; if ($('ce-bright').value !== '') acts.brightness = +$('ce-bright').value; if ($('ce-black').value) acts.blackout = true; if ($('ce-auto').value) acts.auto = $('ce-auto').value;
+    return {name: $('ce-name').value.trim() || 'cue', colour: $('ce-colour').value, fade_bars: +$('ce-fade').value || 0, follow_bars: +$('ce-follow').value || 0, notes: $('ce-notes').value, actions: acts}; };
+  $('ce-params-cap').onclick = () => { params = {}; PARAMS.forEach(p => { if (!['mode', 'video_t0', 'out_res'].includes(p.key)) params[p.key] = S.base[p.key]; }); $('ce-params-cap').textContent = `captured ${Object.keys(params).length} — save`; };
+  $('ce-params-clear').onclick = () => { params = {}; $('ce-params-cap').textContent = 'cleared — save'; };
+  $('ce-save').onclick = () => { send({cue: {id: c.id, update: build()}}); logLocal('cue saved: ' + $('ce-name').value); };
+  $('ce-fire').onclick = () => { const i = (S.cues || []).findIndex(x => x.id === c.id); if (i >= 0) send({cue: {jump: i}}); };
+  $('ce-close').onclick = () => { cueEdit = null; renderCueEditor(); renderCues(true); };
+}
+$('cue-go').onclick = () => send({cue: {go: true}}); $('cue-back').onclick = () => send({cue: {back: 1}}); $('cue-stopfollow').onclick = () => send({cue: {stop_follow: 1}});
+$('cue-capture').onclick = () => { const n = prompt('Cue name', 'Cue ' + ((S.cues || []).length + 1)); if (n) send({cue: {capture: n}}); };
+$('cue-add').onclick = () => send({cue: {add: {name: 'Cue ' + ((S.cues || []).length + 1), fade_bars: 1, actions: {}}}});
+$('cue-reset').onclick = () => send({cue: {reset: 1}});
+$('cue-clear').onclick = () => { if (confirm('Delete every cue?')) { cueEdit = null; send({cue: {clear: 1}}); } };
+$('pf-cue-go').onclick = () => send({cue: {go: true}}); $('pf-cue-back').onclick = () => send({cue: {back: 1}}); $('pf-cue-stop').onclick = () => send({cue: {stop_follow: 1}});
+$('pf-cue-capture').onclick = () => { const n = prompt('Cue name', 'Cue ' + ((S.cues || []).length + 1)); if (n) send({cue: {capture: n}}); };
+$('pf-cue-reset').onclick = () => send({cue: {reset: 1}});
+// modulation editor
+const MOD_SOURCES = ['energy', 'bass', 'beat'].concat(Array.from({length: 16}, (_, i) => 'band' + i));
+let modDraft = null;
+function modsList() { return modDraft || S.mods || []; }
+function renderMods(force) {
+  if ($('inputs').hidden && !force) return;
+  const list = modsList(); const sig = JSON.stringify(list);
+  if ($('mod-list').dataset.sig !== sig) { $('mod-list').dataset.sig = sig;
+    $('mod-list').innerHTML = list.length ? '<div class="modrow" style="color:var(--muted);border-bottom:1px solid var(--line)"><span>parameter</span><span>source</span><span>amount</span><span>attack s</span><span>release s</span><span>on</span><span>level</span><span></span></div>' + list.map((m, i) => `<div class="modrow" data-i="${i}">
+      <select data-k="key">${PARAMS.filter(p => p.kind === 'f' && !['video_t0'].includes(p.key)).map(p => `<option value="${p.key}" ${p.key === m.key ? 'selected' : ''}>${p.label}</option>`).join('')}</select>
+      <select data-k="src">${MOD_SOURCES.map(sn => `<option value="${sn}" ${sn === m.src ? 'selected' : ''}>${sn === 'beat' ? 'beat pulse' : sn.startsWith('band') ? 'band ' + (+sn.slice(4) + 1) + (['40 Hz', '', '', '100', '', '', '250', '', '', '1 k', '', '', '4 k', '', '', '16 k'][+sn.slice(4)] ? ' · ' + ['40 Hz', '', '', '100', '', '', '250', '', '', '1 k', '', '', '4 k', '', '', '16 k'][+sn.slice(4)] : '') : sn}</option>`).join('')}</select>
+      <span class="row" style="gap:6px"><input type="range" data-k="amount" min="-1" max="1" step="0.01" value="${m.amount}" style="flex:1;accent-color:var(--accent2)"><span class="val" style="font-family:var(--mono);min-width:40px">${(+m.amount).toFixed(2)}</span></span>
+      <input type="number" data-k="attack" min="0.001" max="2" step="0.01" value="${m.attack}"><input type="number" data-k="release" min="0.001" max="5" step="0.05" value="${m.release}">
+      <input type="checkbox" data-k="enabled" ${m.enabled !== false ? 'checked' : ''}><div class="lvl"><i></i></div><button class="btn small" data-del="${i}">✕</button></div>`).join('') : '<span class="hint">nothing modulated yet</span>';
+    $('mod-list').querySelectorAll('[data-k]').forEach(el => el.oninput = () => { const i = +el.closest('.modrow').dataset.i; modDraft = JSON.parse(JSON.stringify(modsList())); const k = el.dataset.k; modDraft[i][k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' || el.type === 'range') ? +el.value : el.value; if (k === 'amount') el.nextElementSibling.textContent = (+el.value).toFixed(2); clearTimeout(renderMods.t); renderMods.t = setTimeout(() => { send({mods: modDraft}); modDraft = null; }, 250); });
+    $('mod-list').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const l = JSON.parse(JSON.stringify(modsList())); l.splice(+b.dataset.del, 1); modDraft = null; send({mods: l}); });
+  }
+  const lv = (S.cue && S.cue.mods) || []; $('mod-list').querySelectorAll('.modrow[data-i] .lvl i').forEach((el, i) => el.style.width = Math.round((lv[i] || 0) * 100) + '%');
+}
+$('mod-add').onclick = () => send({mods: modsList().concat([{key: 'zoom', src: 'bass', amount: 0.05, attack: 0.02, release: 0.3, enabled: true}])});
+
 // ------------------------------------------------------------ Resolume tab (two-way) + feed mix
 let RGRID = {layers: 4, columns: 8, names: {}}, rpadLit = null;
 const rsend = (addr, ...args) => send({resolume: {send: {addr, args}}});
@@ -2118,7 +2316,8 @@ function renderShows() {
         <button class="btn small primary" data-load="${esc(sh.name)}">LOAD</button>
         <button class="btn small" data-update="${esc(sh.name)}" title="re-capture the rig as it is now into this show">Update</button>
         <button class="btn small" data-rename="${esc(sh.name)}">Rename</button>
-        <a class="btn small" href="/api/shows/${encodeURIComponent(sh.name)}?download=1">Download</a>
+        <a class="btn small" href="/api/shows/${encodeURIComponent(sh.name)}?download=1" title="settings only (small file)">Download</a>
+        <a class="btn small" href="/api/shows/${encodeURIComponent(sh.name)}?bundle=1" title="settings + every clip it uses, as a zip — move a venue to another master">+ media</a>
         <button class="btn small" data-del="${esc(sh.name)}" style="margin-left:auto">✕</button>
       </div>
     </div>`).join('');
@@ -2137,6 +2336,12 @@ $('show-save').onclick = async () => {
 };
 $('show-import').onchange = async () => {
   const f = $('show-import').files[0]; if (!f) return;
+  if (/\.zip$/i.test(f.name)) {   // bundle with media
+    const name = prompt('Import bundle as', f.name.replace(/\.fractalshow\.zip$|\.zip$/i, '')); if (!name) { $('show-import').value = ''; return; }
+    const fd = new FormData(); fd.append('file', f); logLocal('importing bundle ' + f.name + '…');
+    try { const r = await (await fetch('/api/shows-import?name=' + encodeURIComponent(name), {method: 'POST', body: fd})).json(); if (!r.ok) alert('import failed'); else logLocal(`bundle imported: ${r.name} (+${r.added.length} clips)`); showsFetch(); fetchMedia(true); } catch (e) { alert('import failed: ' + e.message); }
+    $('show-import').value = ''; return;
+  }
   try { const d = JSON.parse(await f.text()); const name = prompt('Import as', d.name || f.name.replace(/\.fractalshow\.json$|\.json$/, '')); if (!name) return;
     const r = await (await fetch(`/api/shows/${encodeURIComponent(name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({import: d})})).json(); if (!r.ok) alert('import failed'); showsFetch(); }
   catch (e) { alert('not a show file: ' + e.message); }
@@ -2165,7 +2370,7 @@ $('ndi-scan').onclick = ndiScan;
 
 // ------------------------------------------------------------ projection mapping editor (Outputs)
 const MP = {list: [], name: null, m: null, saved: null, sel: null, adding: null, drag: null, img: new Image(), imgName: null, imgT: 0, timer: null, pushT: null};
-const MP_ID = {quad: [0, 0, 1, 0, 1, 1, 0, 1], masks: [], feather: 0, edge: [0, 0, 0, 0], bright: 1, gamma: 1, test: 0};
+const MP_ID = {quad: [0, 0, 1, 0, 1, 1, 0, 1], masks: [], feather: 0, edge: [0, 0, 0, 0], bright: 1, gamma: 1, test: 0, gain: [1, 1, 1]};
 const mapClone = m => JSON.parse(JSON.stringify(m || MP_ID));
 function mapFetch() { if (!S.live) { mapRenderList(); return; } fetch('/api/mapping').then(r => r.json()).then(j => { MP.list = j.renderers || []; mapRenderList(); }).catch(() => {}); }
 function mapRenderList() {
@@ -2191,6 +2396,7 @@ function mapSliders() {
   const set = (id, v, f) => { $(id).value = v; $(id + '-v').textContent = f ? f(v) : (+v).toFixed(2); };
   set('map-feather', m.feather, v => (+v).toFixed(3)); set('map-bright', m.bright); set('map-gamma', m.gamma);
   for (let i = 0; i < 4; i++) set('map-edge' + i, m.edge[i]);
+  if (!m.gain) m.gain = [1, 1, 1]; for (let i = 0; i < 3; i++) set('map-gain' + i, m.gain[i], v => (+v).toFixed(3));
 }
 function mapChanged(push) { mapRenderList(); if (push !== false && $('map-live').checked && S.live) { clearTimeout(MP.pushT); MP.pushT = setTimeout(() => mapPut(false), 150); } }
 function mapPut(explicit) {
@@ -2216,6 +2422,7 @@ function mapDraw() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   if (!MP.m) { ctx.fillStyle = '#666'; ctx.font = '14px DM Sans, sans-serif'; ctx.fillText(S.live ? 'no projectors heard yet' : 'demo mode — connect to a master to map a projector', 16, 28); return; }
   const m = MP.m, Hf = mapH(m.quad), img = MP.img.complete && MP.img.naturalWidth ? MP.img : null;
+  if (MP.photo) { const ph = MP.photo, sc = Math.max(W / ph.naturalWidth, H / ph.naturalHeight), pw = ph.naturalWidth * sc, phh = ph.naturalHeight * sc; ctx.drawImage(ph, (W - pw) / 2, (H - phh) / 2, pw, phh); ctx.globalAlpha = +$('map-photo-alpha').value; }
   // warped picture as an affine mesh (N×N cells, 2 triangles each)
   const N = 12;
   if (img) {
@@ -2232,7 +2439,8 @@ function mapDraw() {
       const s00 = [u0 * iw, v0 * ih], s10 = [u1 * iw, v0 * ih], s11 = [u1 * iw, v1 * ih], s01 = [u0 * iw, v1 * ih];
       tri([s00, s10, s11], [P(u0 - e, v0 - e), P(u1 + e, v0 - e), P(u1 + e, v1 + e)]); tri([s00, s11, s01], [P(u0 - e, v0 - e), P(u1 + e, v1 + e), P(u0 - e, v1 + e)]);
     }
-  } else { ctx.fillStyle = '#1a1c22'; ctx.beginPath(); const c = [0, 1, 2, 3].map(k => Hf([0, 1, 1, 0][k], [0, 0, 1, 1][k])); ctx.moveTo(c[0][0] * W, c[0][1] * H); c.slice(1).forEach(p => ctx.lineTo(p[0] * W, p[1] * H)); ctx.closePath(); ctx.fill(); }
+  } else { ctx.fillStyle = MP.photo ? 'rgba(75,185,211,0.35)' : '#1a1c22'; ctx.beginPath(); const c = [0, 1, 2, 3].map(k => Hf([0, 1, 1, 0][k], [0, 0, 1, 1][k])); ctx.moveTo(c[0][0] * W, c[0][1] * H); c.slice(1).forEach(p => ctx.lineTo(p[0] * W, p[1] * H)); ctx.closePath(); ctx.fill(); }
+  ctx.globalAlpha = 1;
   // edge blend bands (source space) as gradients along the warped edges — approximate with lines in source space
   if (m.edge.some(v => v > 0)) { ctx.strokeStyle = 'rgba(255,200,80,0.7)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
     const line = (ua, va, ub, vb) => { const a = Hf(ua, va), b = Hf(ub, vb); ctx.beginPath(); ctx.moveTo(a[0] * W, a[1] * H); ctx.lineTo(b[0] * W, b[1] * H); ctx.stroke(); };
@@ -2359,6 +2567,11 @@ function mapFinishMask() {
   const bind = (id, fn, fmt) => { $(id).oninput = () => { if (!MP.m) return; fn(+$(id).value); $(id + '-v').textContent = fmt ? fmt(+$(id).value) : (+$(id).value).toFixed(2); mapChanged(); }; $(id).onpointerdown = () => { if (MP.m) mapSnapshot(); }; };
   bind('map-feather', v => MP.m.feather = v, v => v.toFixed(3)); bind('map-bright', v => MP.m.bright = v); bind('map-gamma', v => MP.m.gamma = v);
   for (let i = 0; i < 4; i++) bind('map-edge' + i, v => MP.m.edge[i] = v);
+  for (let i = 0; i < 3; i++) bind('map-gain' + i, v => { if (!MP.m.gain) MP.m.gain = [1, 1, 1]; MP.m.gain[i] = v; }, v => v.toFixed(3));
+  $('map-align-all').onclick = () => { const on = !$('map-align-all').classList.contains('active'); $('map-align-all').classList.toggle('active', on); send({mapping: {test_all: on}}); setTimeout(mapFetch, 600); };
+  $('map-photo').onchange = () => { const f = $('map-photo').files[0]; if (!f) return; const im = new Image(); im.onload = () => { MP.photo = im; $('map-photo-wrap').style.display = 'flex'; mapDraw(); }; im.src = URL.createObjectURL(f); $('map-photo').value = ''; };
+  $('map-photo-alpha').oninput = mapDraw;
+  $('map-photo-clear').onclick = () => { MP.photo = null; $('map-photo-wrap').style.display = 'none'; mapDraw(); };
   // live thumbnail of the selected renderer as the picture being warped; applied-state refresh
   MP.timer = setInterval(() => { if ($('outputs').hidden) return;
     const has = S.live && MP.name && S.outputs && S.outputs.thumbs && S.outputs.thumbs[MP.name];
@@ -2510,7 +2723,7 @@ const pfCurPage = () => $('pf-pages').querySelector('.ppage.on');
 $('pf-up').onclick = () => { const p = pfCurPage(); if (p) p.scrollBy({top: -p.clientHeight * 0.8, behavior: 'smooth'}); };
 $('pf-down').onclick = () => { const p = pfCurPage(); if (p) p.scrollBy({top: p.clientHeight * 0.8, behavior: 'smooth'}); };
 $('pf-black-rail').onclick = () => $('pf-blackout').click();
-try { const pp = +localStorage.getItem('frx.perfpage'); if (pp >= 0 && pp <= 5) pfPage(pp); } catch (e) {}
+try { const pp = +localStorage.getItem('frx.perfpage'); if (pp >= 0 && pp <= 6) pfPage(pp); } catch (e) {}
 // presets: save / update from Perform
 let pfLastPreset = null;
 $('pf-preset-save').onclick = () => { const n = prompt('Name for this look'); if (n && n.trim()) { send({preset: {save: n.trim()}}); pfLastPreset = n.trim(); } };
@@ -2589,13 +2802,14 @@ $('pill-fleet').onclick = () => $('nav').querySelector('[data-view=status]').cli
 $('nav').querySelectorAll('button').forEach(b => b.onclick = () => {
   $('nav').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
   const v = b.dataset.view;
-  document.querySelector('main').hidden = v !== 'control'; for (const id of ['shows', 'inputs', 'media', 'outputs', 'resolume', 'leds', 'status', 'info']) $(id).hidden = v !== id;
+  document.querySelector('main').hidden = v !== 'control'; for (const id of ['cues', 'shows', 'inputs', 'media', 'outputs', 'resolume', 'leds', 'status', 'info']) $(id).hidden = v !== id;
   if (v === 'status') renderStatus();
   if (v === 'media') { fetchMedia(true); }
   if (v === 'outputs') { renderOutputs(true); mapFetch(); if (S.live) ndiScan(); }
   if (v === 'leds') { renderOutputs(true); renderStrips(true); drawLed(); }
   if (v === 'resolume') { renderOutputs(true); renderResolume(true); }
   if (v === 'shows') showsFetch();
+  if (v === 'cues') renderCues(true);
   try { localStorage.setItem('frx.view', b.dataset.view); } catch (e) {}
   if (!info) window.scrollTo(0, 0);
 });

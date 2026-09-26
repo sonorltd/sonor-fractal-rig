@@ -1,6 +1,6 @@
-# STUDIO - Fractal Rig (v0.7.0)
+# STUDIO - Fractal Rig (v0.8.0)
 
-> Current version: 0.7.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
+> Current version: 0.8.0 · Repo: `sonor-fractal-rig` · Pages: https://sonorltd.github.io/sonor-fractal-rig/
 > Type: side-project (STUDIO class, like STUDIO - Hub). Not a customer-facing Sonor product.
 
 Multi-Raspberry-Pi fractal projection rig: one master broadcasting a 164-byte UDP multicast
@@ -121,6 +121,17 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   state (own clock, last params, clips loop locally); v0.7.0 adds a LIVE-feed stall fallback (`vb_frame_age()` >
   FEED_STALL 3 s → last shader scene, feed mix suspended) so a dead master never leaves a black/frozen projector.
   Packet 164 bytes / 31 params.
+- 2026-09-26 v0.8.0 — **Cue stack + fades + modulation** (`master/cues.py ShowLayer`, wired into `Engine.tick`: fades before
+  drift, mods after; `engine.show`): cues in `master/cues.json` (actions: preset/show/scene/params/pm/video/live_mix/
+  blackout/brightness/auto; fade_bars → seconds at current BPM (120 fallback), follow_bars auto-GO), WS `cue`/`mods`,
+  OSC `/frx/go|back|cue`, MIDI 27/26, keys G/B; mods {key, src ∈ energy|bass|beat|band0..15, amount (fraction of
+  range), attack, release} with per-mod envelope, persisted in config.local `mods`; both captured in shows (`cues`
+  part). **Rig maintenance**: `setup/rig-update` (reads role/args from the units, git pull, reinstall), sudoers.d rule
+  written by install.sh, status service POST `/update|/restart|/reboot` + `/update.log`, master `/api/rig/self/<act>`
+  and `/api/rig/<name>/<act>` proxy; Rig tab buttons + version column. Mapping: `gain r g b` (mapping.c/warp.frag/
+  mapping.py; identity check includes it), `test_all` (Align all), photo overlay (browser-only). Shows bundle
+  `?bundle=1` zip (show.json + referenced clips) and `POST /api/shows-import`. `out_res` default 1 + forced at boot
+  (`out_res_boot`). Test rig `sonor-rig update` now skips unreachable private repos instead of dying.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

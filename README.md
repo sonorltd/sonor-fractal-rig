@@ -132,6 +132,11 @@ file or test bars → ffmpeg → multicast MPEG-TS → every Pi within ~0.5 s.
 output mapped onto rig parameters with a learn button. **Shows** tab: whole-rig setups per venue (look, presets,
 mapping for every projector, playlist, outputs, resolution) — save, load (whole or by part), update, export/import.
 
+**Cues** (v0.8): a cue stack for the set — each cue changes scene / preset / show / video / feed mix / params, fades
+over N bars, can auto-follow; GO/BACK on screen, MIDI, OSC. **Audio → parameters**: any parameter follows a band,
+the bass, energy or the beat pulse. **Update from the page**: Rig tab pulls GitHub and reinstalls the master and every
+Pi, restarts or reboots any of them.
+
 **If the master drops out** every projector carries on by itself: same clock, last parameters, clips keep looping,
 projectM keeps running; a LIVE feed (which only the master can send) falls back to the last shader scene after 3 s
 and comes back automatically. Nothing goes black.

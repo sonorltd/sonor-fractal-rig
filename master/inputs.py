@@ -147,6 +147,10 @@ async def midi_task(engine, cfg):
                         engine.video_restart("midi")
                     elif msg.note == 28:
                         engine.video_play(255, "midi")
+                    elif msg.note == 27:
+                        engine.show.go(None, "midi")
+                    elif msg.note == 26:
+                        engine.show.back()
         except Exception as ex:
             engine.event(f"MIDI error: {ex} — reconnecting")
             engine.source("midi", ok=False, detail="reconnecting")
@@ -194,6 +198,12 @@ async def osc_start(engine, cfg):
             engine.video_restart("osc")
         elif key == "video_live":
             engine.video_play(255, "osc")
+        elif key == "go":                 # /frx/go [n] — next cue, or cue n (1-based)
+            engine.show.go(None if not isinstance(args[0], (int, float)) or args[0] <= 0 else int(args[0]) - 1, "osc")
+        elif key == "back":
+            engine.show.back()
+        elif key == "cue":
+            engine.show.go(int(args[0]) - 1, "osc")
         elif key == "bpm":
             engine.set_bpm(args[0])
         elif key == "preset":
