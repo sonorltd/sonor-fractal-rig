@@ -167,6 +167,14 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   inline matrix builder, Perform **LEDS** page (output, brightness, test, per-zone mute, saved configs). Rig tab:
   Projectors table carries health dot / loss % / temp / heartbeat jitter (engine `hb_worst`, `loss_rate`,
   `fps_min` from HB timing), a Health & network tile strip, Sources moved under Projectors, one Log card.
+- 2026-09-26 v0.8.0 (cont. 7) — Info tab reorganised: cards carry `data-group` (Overview · Build & install · Inputs ·
+  Picture · Performing & saving · Operations) and `js/info.js` renders group headings in the side menu; new
+  `#i-projectors` card (RS-232 / PJLink / HDMI ports) with an **SVG wiring diagram** (`.wiring` styles) — projector
+  content lives there only, topology links to it; prose says Milkdrop (libprojectM only in code refs); Rig-tab
+  wording, 31-param protocol, 8 Perform pages, tested table with the v0.8 amber rows, real hostnames/paths in Pi
+  setup. Sources panel: a source the master does not know (older build) shows a warning and a disabled toggle;
+  toggles are 52×30 on coarse pointers. Inputs monitor (Control) shows the X Air: level-history trace in place of the
+  waveform when the desk is the audio source, RTA in the spectrum, an X AIR activity chip (4 chips now).
 - 2026-09-26 v0.8.0 (cont. 6) — **X Air source** (`inputs.XAir`): Behringer XR12/16/18 meters (`/meters/1`, 40 × int16
   1/256 dB, main L/R at 36–37) + RTA (`/meters/4`, 100 bins) over OSC udp/10024, listen-only, broadcast `/xinfo`
   discovery; drives energy/bass/16 bands when no USB audio stream, else display only. WS `{source:{name:'xair',

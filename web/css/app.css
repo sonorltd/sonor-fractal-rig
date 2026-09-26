@@ -405,3 +405,13 @@ h3.subhead { margin: 16px 0 6px; font-size: 12px; letter-spacing: .08em; text-tr
 #led-stats, #res-stats, #map-status { font-variant-numeric: tabular-nums; }
 #map-status { min-width: 7em; justify-content: center; }
 #video-bar-fill { transition: none; }
+/* wiring diagrams (Info → Projector control) */
+#info .wiring { width: 100%; height: auto; display: block; margin: 8px 0 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+#info .wiring text { font-family: var(--font); font-size: 12px; fill: var(--text); } #info .wiring .small { font-size: 10.5px; fill: var(--muted); } #info .wiring .mono { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+#info .wiring .node { fill: var(--panel2); stroke: var(--line); stroke-width: 1.2; rx: 10; }
+#info .wiring .w { fill: none; stroke-width: 2.5; stroke-linejoin: round; } #info .wiring .w.vcc { stroke: var(--warn); } #info .wiring .w.gnd { stroke: var(--muted); } #info .wiring .w.tx { stroke: var(--accent2); } #info .wiring .w.rx { stroke: var(--pink); }
+#info-nav .im-group { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 10px 0 2px 10px; }
+#info-nav .im-group:first-child { margin-top: 0; }
+/* touch: bigger toggles and source-row controls (kiosk / tablet) */
+@media (pointer: coarse) { .toggle { width: 52px; height: 30px; } .toggle::after { width: 24px; height: 24px; } .toggle.on::after { left: 25px; } .src .ctl { gap: 10px; } .src .ctl .btn.small, .src select { min-height: 34px; } }
+.toggle:disabled { opacity: .35; cursor: not-allowed; }

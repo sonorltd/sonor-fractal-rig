@@ -63,7 +63,7 @@ function drawInputMonitor(now, t) {
   const decks = Object.entries(S.decks || {}).sort(), aud = S.sources.audio || {}, lk = S.sources.link || {};
   const showLink = !!(lk.enabled && lk.ok), lanes = decks.length + (showLink ? 1 : 0);
   const narrow = (c.clientWidth || 300) < 600, ah = narrow ? 56 : 74, audH = narrow ? ah * 2 + 8 : ah;
-  const chipH = narrow ? 3 * 24 + 2 * 6 : 24;
+  const chipH = narrow ? 4 * 24 + 3 * 6 : 24;   // MIDI · OSC · Pro DJ Link · X Air
   const H = 10 + 34 + 10 + lanes * 22 + (lanes ? 6 : 0) + audH + 10 + chipH + 8;
   const {g, w} = fitCanvas(c, H), mono = getComputedStyle(document.body).getPropertyValue('--mono'), P = 10;
   g.clearRect(0, 0, w, H);
@@ -89,8 +89,13 @@ function drawInputMonitor(now, t) {
   }
   if (lanes) y += 6;
   // ---- audio: waveform | spectrum | meters
-  const live = S.live && aud.enabled && aud.ok && S.audio_wave && S.audio_wave.length > 8;
-  const a = live ? {wave: S.audio_wave, bands: S.audio_bands || [], energy: (S.audio_levels || {}).energy || 0, bass: (S.audio_levels || {}).bass || 0} : synthAudio(t);
+  const xr = S.sources.xair || {};
+  const liveUsb = S.live && aud.enabled && aud.ok && S.audio_wave && S.audio_wave.length > 8;
+  const liveX = S.live && !liveUsb && xr.enabled && xr.ok;                       // the X Air desk is feeding energy / bass / bands over OSC
+  const live = liveUsb || liveX;
+  if (liveX) { const lv = (S.audio_levels || {}).energy || 0; _pk.hist = (_pk.hist || []); _pk.hist.push(lv); if (_pk.hist.length > 96) _pk.hist.shift(); }   // no PCM from the desk: draw its level history as the "waveform"
+  const a = liveUsb ? {wave: S.audio_wave, bands: S.audio_bands || [], energy: (S.audio_levels || {}).energy || 0, bass: (S.audio_levels || {}).bass || 0}
+        : liveX ? {wave: (_pk.hist || []).map(v => v * 0.9), bands: S.audio_bands || [], energy: (S.audio_levels || {}).energy || 0, bass: (S.audio_levels || {}).bass || 0} : synthAudio(t);
   // layout: wide = wave | spectrum | meters on one row; narrow (phone) = wave on top, spectrum + meters below
   const wx = P, ww = narrow ? w - 2 * P : Math.floor((w - 2 * P) * 0.5) - 8, wy = y;
   const sy = narrow ? y + ah + 8 : y, sx = narrow ? P : wx + ww + 12, sw = w - P - sx - 40, mx = w - P - 30;
@@ -98,8 +103,8 @@ function drawInputMonitor(now, t) {
   const dim = live ? 1 : 0.55;
   // waveform
   g.strokeStyle = live ? CSSV.ok : CSSV.muted; g.lineWidth = 1.5; g.globalAlpha = dim; g.beginPath();
-  a.wave.forEach((v, i) => { const x = wx + 4 + (ww - 8) * i / (a.wave.length - 1), yy = wy + ah / 2 - v * (ah / 2 - 6); i ? g.lineTo(x, yy) : g.moveTo(x, yy); });
-  g.stroke(); g.globalAlpha = 1;
+  if (liveX) { a.wave.forEach((v, i) => { const x = wx + 4 + (ww - 8) * i / Math.max(1, a.wave.length - 1), yy = wy + ah - 6 - v * (ah - 24); i ? g.lineTo(x, yy) : g.moveTo(x, yy); }); g.stroke(); g.lineTo(wx + 4 + (ww - 8), wy + ah - 6); g.lineTo(wx + 4, wy + ah - 6); g.closePath(); g.fillStyle = CSSV.ok; g.globalAlpha = 0.15; g.fill(); g.globalAlpha = 1; }
+  else { a.wave.forEach((v, i) => { const x = wx + 4 + (ww - 8) * i / (a.wave.length - 1), yy = wy + ah / 2 - v * (ah / 2 - 6); i ? g.lineTo(x, yy) : g.moveTo(x, yy); }); g.stroke(); g.globalAlpha = 1; }
   g.strokeStyle = '#1c1f2b'; g.lineWidth = 1; g.beginPath(); g.moveTo(wx + 4, wy + ah / 2 + 0.5); g.lineTo(wx + ww - 4, wy + ah / 2 + 0.5); g.stroke();
   // spectrum with peak hold
   const nb = Math.max(1, a.bands.length), bw = (sw - 8) / nb;
@@ -118,7 +123,9 @@ function drawInputMonitor(now, t) {
     g.fillStyle = CSSV.muted; g.font = '10px ' + mono; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(lab, x + 6, sy + ah - 6);
   });
   g.font = '10px ' + mono; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = CSSV.muted;
-  const wlab = live ? 'AUDIO IN · ' + (S.audio_device != null ? 'device ' + S.audio_device : 'live') : (S.live ? 'AUDIO IN OFF · synthetic stand-in (enable in Sources)' : 'DEMO · synthetic beat-locked signal');
+  const wlab = liveUsb ? 'AUDIO IN · ' + (S.audio_device != null ? 'device ' + S.audio_device : 'live') + (xr.enabled && xr.ok ? ' · X AIR also linked' : '')
+    : liveX ? `X AIR · ${xr.model || 'mixer'} ${xr.mixer || ''} · ${(xr.detail || '').includes('· aux ·') ? 'aux' : (xr.detail || '').match(/· ch (\d+) ·/) ? 'ch ' + (xr.detail || '').match(/· ch (\d+) ·/)[1] : 'main L/R'} · level history${xr.rta ? ' + RTA' : ' (no RTA yet)'}`
+    : (S.live ? 'AUDIO IN OFF · synthetic stand-in (enable Audio in or X Air mixer in Sources)' : 'DEMO · synthetic beat-locked signal');
   g.fillText(ww < 300 ? wlab.split(' (')[0].replace('synthetic beat-locked signal', 'synthetic') : wlab, wx + 6, wy + 4);
   g.textAlign = 'right'; g.fillText(sw < 200 ? 'SPECTRUM' : 'SPECTRUM 40 Hz – 16 kHz', sx + sw - 6, sy + 4);
   y += audH + 10;
@@ -130,8 +137,9 @@ function drawInputMonitor(now, t) {
     ['MIDI', md.enabled ? (md.last || (md.ok ? md.detail : 'no controller')) : 'off', md.seen ? nowS - md.seen : 99, md.ok],
     ['OSC', os.enabled ? (os.last || 'listening') : 'off', os.seen ? nowS - os.seen : 99, os.ok],
     ['PRO DJ LINK', (S.sources.prodj || {}).enabled ? ((pj.packets || 0) ? `${_pk.pj.rate} pkt/s · ${pj.beats || 0} beats` : 'no packets') : 'off', pj.last_seen ? nowS - pj.last_seen : 99, (S.sources.prodj || {}).ok],
+    ['X AIR', xr.enabled ? (xr.ok ? `${xr.model || 'mixer'} ${xr.mixer || ''} @ ${xr.host || '?'}${xr.rta ? ' · meters + RTA' : ' · meters'}` : (xr.detail || 'looking…').slice(0, 40)) : 'off', xr.ok ? 0 : 99, xr.ok],
   ];
-  const cwid = narrow ? w - 2 * P : (w - 2 * P - 12) / 3;
+  const cwid = narrow ? w - 2 * P : (w - 2 * P - 6 * (chips.length - 1)) / chips.length;
   chips.forEach(([lab, txt, age, ok], i) => {
     const x = narrow ? P : P + i * (cwid + 6), cy = narrow ? y + i * 30 : y, pulse = clamp(1 - age / 1.5, 0, 1);
     g.fillStyle = '#0d0f15'; g.beginPath(); g.roundRect(x, cy, cwid, 24, 6); g.fill();

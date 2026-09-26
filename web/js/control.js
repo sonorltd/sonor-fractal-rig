@@ -87,7 +87,7 @@ function renderSources() {
       if (n === 'xair' && S.live) extra = `<select id="xair-ch" title="which meter drives energy"><option value="lr">main L/R</option><option value="aux">aux in</option>${Array.from({length: 16}, (_, i) => `<option value="${i + 1}">ch ${i + 1}</option>`).join('')}</select><button class="btn small" id="xair-host" title="mixer IP (blank = find it by broadcast)">IP</button>`;
       if (n === 'link' && S.live) extra = `<select id="link-mode"><option value="follow">follow</option><option value="lead">lead</option></select>`;
       if (n === 'prodj' && S.live) extra = `<select id="prodj-follow"><option value="0">follow: auto</option><option value="1">deck 1</option><option value="2">deck 2</option><option value="3">deck 3</option><option value="4">deck 4</option></select>`;
-      const toggle = n === 'web' ? '' : `<button class="toggle" data-src="${n}" title="enable / disable"></button>`;
+      const toggle = n === 'web' ? '' : `<button class="toggle" data-src="${n}" title="enable / disable" ${S.live && !S.sources[n] ? 'disabled' : ''}></button>`;
       return `<div class="src" data-src="${n}"><i class="dot"></i><div class="name">${meta.label}<small>${meta.sub}</small></div><div class="detail"></div><div class="ctl">${extra}${toggle}</div></div>`;
     }).join('');
     $('sources').querySelectorAll('.toggle').forEach(b => b.onclick = () => {
@@ -109,6 +109,7 @@ function renderSources() {
     row.querySelector('.dot').className = 'dot ' + cls;
     let d = esc(st.detail || '');
     if (n === 'web') d = S.live ? `<b>${esc(st.detail || 'connected')}</b>` : '<b>demo mode</b> — simulating locally';
+    if (S.live && !S.sources[n] && n !== 'web') d = '<span class="warn">master is an older build — update it from the Rig tab</span>';   // the page knows a source the master does not
     if (n === 'midi' && st.last) d += ` · <span class="last">${esc(st.last)}</span>`;
     if (n === 'osc' && st.last && st.seen && Date.now() / 1000 - st.seen < 10) d += ` · <span class="last">${esc(st.last)}</span>`;
     if (!S.live && n !== 'web' && n !== 'auto') d = st.enabled ? 'enabled — needs a master to link' : 'disabled';

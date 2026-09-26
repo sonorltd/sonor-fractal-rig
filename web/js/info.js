@@ -12,7 +12,7 @@
     c.classList.toggle('closed', closed.has(c.id));
     h.onclick = () => { c.classList.toggle('closed'); if (c.classList.contains('closed')) closed.add(c.id); else closed.delete(c.id); remember(); };
   });
-  $('info-nav').innerHTML = cards.map(c => `<a href="#${c.id}" data-t="${c.id}">${esc(c.querySelector('h3').textContent.replace(/\s+/g, ' ').trim())}</a>`).join('');
+  let lastG = null; $('info-nav').innerHTML = cards.map(c => { const g = c.dataset.group || ''; const head = g && g !== lastG ? `<div class="im-group">${esc(g)}</div>` : ''; lastG = g; return head + `<a href="#${c.id}" data-t="${c.id}">${esc(c.querySelector('h3').textContent.replace(/\s+/g, ' ').trim())}</a>`; }).join('');
   $('info-nav').querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); const c = $(a.dataset.t); c.classList.remove('closed'); closed.delete(c.id); remember(); c.scrollIntoView({behavior: 'smooth', block: 'start'}); history.replaceState(null, '', '#' + c.id); });
   const setAll = open => { cards.forEach(c => { c.classList.toggle('closed', !open); if (open) closed.delete(c.id); else closed.add(c.id); }); remember(); };
   $('info-expand').onclick = () => setAll(true); $('info-collapse').onclick = () => setAll(false);

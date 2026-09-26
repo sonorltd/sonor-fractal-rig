@@ -565,118 +565,39 @@
 <section id="info" hidden>
   <aside id="info-menu"><div class="im-tools"><input class="text" id="info-search" placeholder="search the manual…" autocomplete="off"><div class="row" style="gap:4px"><button class="btn small" id="info-expand">expand all</button><button class="btn small" id="info-collapse">collapse all</button></div></div><nav id="info-nav"></nav></aside>
   <div id="info-body">
-  <div class="card" id="i-intro">
+  <div class="card" id="i-intro" data-group="Overview">
     <h3>Fractal Rig — how it all fits together</h3>
     <p>One Raspberry Pi is the <b>master</b>. Every other Pi is a <b>renderer</b> driving a projector over HDMI (the master can render too, or run headless and feed its picture out over NDI). The master broadcasts <em>the whole state</em> — animation clock, beat grid and all 31 parameters — in one 164-byte UDP multicast packet, 60 times a second. Every renderer draws the same GPU shader (or the same Milkdrop preset, or the same video frame) from the same numbers, so N projectors move as one. There are no sessions and no handshakes: power a Pi on and it is in sync within one packet; if the master vanishes the renderers keep drawing the last state until it is back.</p>
     <p>Around that core: <b>sources</b> feed tempo and control in (Pro DJ Link, Ableton Link, audio, MIDI, OSC, autonomous drift); <b>outputs</b> feed the picture out (projectors, NDI to Resolume, LED pixels via DDP / Art-Net / sACN, OSC to Resolume); and everything you save — looks, palettes, cue lists, shows, LED configurations, mapping presets — is written to the master first and mirrored to Supabase when there is internet. This manual is the long version; the menu on the left jumps to a section, sections collapse, and the search box filters them.</p>
   </div>
 
-  <div class="card" id="i-sources">
-    <h3>Sources — what drives the picture</h3>
-    <p>All sources feed one engine on the master. Human inputs (this page, MIDI, OSC, presets) set a <em>base</em> value per parameter — last write wins. Auto-drift adds a slow offset on top of anything with the pink toggle. Audio, when running, owns <code>energy</code> and <code>bass</code> outright. Tempo has a priority order: <b>Pro DJ Link</b> if a beat has been seen in the last 5 s, else <b>tap / typed BPM</b>, else the <b>audio onset</b> guess. The Sources panel on the Control tab shows a live dot for each: green = linked and delivering, amber = enabled but waiting for a device/packets, grey = switched off.</p>
-
-    <h4>Web UI (this page)</h4>
-    <p>Served by the master at <code>http://&lt;master-ip&gt;:8080/</code>; works on a phone. Every parameter has a slider and an auto-drift toggle; presets save the sliders <em>and</em> which ones are drifting. <kbd>Space</kbd> = tap tempo, <kbd>1</kbd> = set beat 1 (re-align the bar to the music without changing BPM — the pulse and bar-swing follow instantly on every projector). When no master is reachable (e.g. the GitHub Pages copy) the page runs a local simulation of the engine — "demo mode" — with the identical shader in the preview.</p>
-
-    <h4>Pro DJ Link (XDJ-RX2 / CDJ / DJM)</h4>
-    <p>Every Pioneer player with a LINK port broadcasts a small packet on <b>every beat</b> (UDP 50001): deck number, track BPM, pitch fader position and beat-in-bar 1–4. The master only <em>listens</em> — it never joins as a virtual CDJ, never claims a player number, and nothing appears on the decks. It records the animation-clock time of each beat plus the effective BPM (track BPM × pitch); the shader derives beat phase from those, so <code>beat_pulse</code> and <code>bar_swing</code> land exactly on the grid and stay locked between packets. Follow mode "auto" hands over to whichever deck beat most recently (natural during a mix); or pin deck 1/2. Needs: one Ethernet cable from the LINK port to the rig's switch — see <a href="#i-network">Network</a>.</p>
-
-    <h4>Audio in</h4>
-    <p>Optional. Any class-compliant USB audio input on the master (USB interface, the XDJ's USB audio, or a mic pointed at the room). ~40× a second the master computes overall loudness and a 30–150 Hz bass band, auto-gained so they sit mid-range whatever the volume, and writes them to <code>energy</code> (brightness / saturation lift) and <code>bass</code> (warmth + punch). A crude onset detector supplies beats <em>only</em> when Pro DJ Link is not locked — expect it to wander on breakdowns. Pick the input device in the Sources panel; needs <code>libportaudio2</code> + <code>sounddevice numpy</code> (installer adds them on the master).</p>
-
-    <h4>X Air mixer (Behringer XR12 / XR16 / XR18)</h4>
-      <p>The PA desk as a source over the network. Enable it in the Sources panel, pick which meter drives things (main L/R, the aux, or one channel) and leave the IP blank — the master finds the desk with a broadcast <code>/xinfo</code>, or type its address (the plan puts the XR16 at 192.168.22.70). The rig subscribes to the desk's channel meters and its RTA over OSC on udp/10024 and maps them to <code>energy</code>, <code>bass</code> and the 16 bands the modulation and the Inputs monitor use — the same auto-gain as the USB path, so it sits mid-range at any level. It is <b>listen-only</b>: nothing is ever written to the mixer. If a USB audio input is also running, that stays in charge of energy / bass (and it is the only path that gives Milkdrop real PCM); the X Air then just shows in the monitor. No beat detection from this source — tempo still comes from Pro DJ Link, Link, tap or the USB audio onset.</p>
-      <h4>MIDI</h4>
-    <p>Any class-compliant controller on the master's USB. CC → parameter via <code>midi_map</code> in <code>config.json</code>; defaults: CC1 zoom, CC2 rotation, CC3 hue, CC4 hue spread, CC5 warp, CC6 glow, CC7 brightness, CC8 contrast, CC9/10 Julia re/im, CC11 beat pulse, CC12 kaleidoscope. Notes 36+ recall presets in order, note 35 = tap, note 34 = set beat 1, notes 33 / 32 = next / previous projectM preset. "Map last CC →" on the Control tab learns a knob for this session (copy into config to keep). Reconnects automatically. Tip: the XDJ-RX2 is itself a USB MIDI controller when not in rekordbox mode.</p>
-
-    <h4>OSC</h4>
-    <p>UDP 9000. <code>/frx/&lt;param&gt; f</code> (e.g. <code>/frx/hue 0.5</code>), <code>/frx/tap</code>, <code>/frx/beat1</code>, <code>/frx/bpm f</code>, <code>/frx/preset s|i</code>, <code>/frx/auto_&lt;param&gt; 0|1</code>, <code>/frx/pm_next</code> · <code>/frx/pm_prev</code> · <code>/frx/pm_random</code>. TouchOSC, Lemur, Ableton (Max for Live / OSC plugins), Resolume, QLab and Beat Link Trigger all speak this — it is the bolt-on route for anything not built in.</p>
-
-    <h4>Ableton Link</h4>
-    <p>A tempo source <em>and</em> an output: follow a Link session (Resolume / Ableton / Traktor) or lead it with the CDJ grid. See the Resolume section.</p>
-
-    <h4>Autonomous</h4>
-    <p>Parameters with the pink toggle wander on smooth noise around wherever you left their slider. "Auto depth" is how far, "Auto rate" how fast; zoom drifts deliberately shallower. The Sources toggle pauses all drift at once without losing which params were selected. With nothing else plugged in the rig runs itself indefinitely.</p>
-
-    <h4 id="i-monitor">Inputs monitor — seeing what the master hears</h4>
-    <p>The card under Tempo on the Control tab is a live scope of every input, drawn at display rate from the same clock the Pis use, so what you see is what the projectors are pulsing to:</p>
-    <ul>
-      <li><b>Lock badge</b> — green <em>LOCKED</em> when tempo comes from Pro DJ Link (with the deck it is following) or Ableton Link (with peer count); amber <em>FREE-RUNNING</em> for tap / typed BPM or audio-onset estimates; grey when there is no tempo. Next to it: <em>bar · beat</em> position in the grid and the <em>±</em> BPM spread over the last 8 s — a locked source sits at ±0.00, a tap will read ±0.5–2 until it settles, a wandering onset detector shows red.</li>
-      <li><b>Beat grid</b> — 4 bars × 4 beats. The white playhead moves with the master clock; the current cell flashes and fades within the beat; bar-1 cells are outlined. Bar alignment is whatever the last downbeat set (Pro DJ Link beat 1, Link phase, or SET BEAT 1); the four-bar phrase position is relative to that, so if a phrase feels off by a bar it is the DJ's grid, not the rig.</li>
-      <li><b>Deck lanes</b> — one row per Pro DJ Link deck heard: BPM (track × pitch), its beat 1–4 boxes lit from the deck's own packets, "live" or the age of its last beat, and which deck the master is following. Two decks with different beat boxes lit is normal mid-mix; the rig follows the most recent beat (or the pinned deck).</li>
-      <li><b>Link lane</b> — when Ableton Link has peers: session tempo, peer count, follow / lead, and a bar-phase bar.</li>
-      <li><b>Waveform + spectrum</b> — with <b>Audio in</b> enabled: ~96-sample oscilloscope of the input, 16 log-spaced bands 40 Hz–16 kHz with peak-hold ticks, and <em>E</em>nergy / <em>B</em>ass meters (exactly the values written to the <code>energy</code> and <code>bass</code> params). The master streams these to the page at 15 Hz. Audio off, or the Pages demo, shows a dimmed synthetic beat-locked signal so the layout is visible — labelled as such.</li>
-      <li><b>Activity chips</b> — MIDI (last CC / note, pulses on each message), OSC (last address + value), Pro DJ Link (packets per second and beats counted). A chip that never pulses while you turn a knob is the fastest "is it even arriving" check before opening the Status tab.</li>
-    </ul>
-    <p>Perform mode carries a slim copy of the beat grid under TAP / SET BEAT 1, so the bar can be checked at arm's length.</p>
-  </div>
-
-  <div class="card" id="i-scenes">
-    <h3>Scenes &amp; controls</h3>
-    <table><tbody>
-      <tr><td>0 Mandelbrot</td><td>The classic set. Zoom into the boundary (Seahorse valley preset); <code>iterations</code> = detail, <code>glow</code> = orbit-trap light inside the set.</td></tr>
-      <tr><td>1 Julia</td><td>Julia set for seed <code>julia_x/y</code>. Put <em>those</em> on auto-drift for endlessly morphing shapes.</td></tr>
-      <tr><td>2 Burning Ship</td><td>Abs-value variant — ship / flame structures. Rotation ≈ π shows it upright.</td></tr>
-      <tr><td>3 Tricorn</td><td>Conjugate variant — three-fold symmetry, pairs well with <code>kaleido</code>.</td></tr>
-      <tr><td>4 Plasma</td><td>Classic demoscene plasma. <code>warp</code> adds noise turbulence, <code>iterations</code> = banding, <code>hue_spread</code> = colour cycles.</td></tr>
-      <tr><td>5 Tunnel</td><td>Winamp/AVS-style infinite tunnel. <code>iterations</code> = spoke count, <code>warp</code> = twist, <code>beat_pulse</code> lunges forward on the kick.</td></tr>
-      <tr><td>6 Starfield</td><td>Hyperspace warp. <code>warp</code> = streak length, <code>iterations</code> = star layers, beat pulse = speed burst.</td></tr>
-      <tr><td>7 Waves</td><td>Oscilloscope wave stack — the Milkdrop feel. <code>energy</code>/<code>bass</code> (live from audio) set amplitude and ripple; <code>iterations</code> = number of traces.</td></tr>
-      <tr><td>8 Milkdrop</td><td>libprojectM on every Pi, same preset index in the packet — see the Milkdrop section.</td></tr>
-      <tr><td>9 Video</td><td>A clip from the library or the LIVE feed (HDMI capture / NDI), frame-locked to the master clock — see Video.</td></tr>
-      <tr><td>10 Menger</td><td>Raymarched Menger-sponge tunnel — the one real 3D scene. <code>iterations</code> = march steps (detail vs Pi 4 frame rate: 200 is safe at half scale), <code>warp</code> = roll, <code>glow</code> = fog lift, <code>zoom</code> = field of view.</td></tr>
-      <tr><td>11 Voronoi</td><td>Living stained glass — cells that breathe with the tempo. <code>iterations</code> = cell density, <code>warp</code> = how far the seeds wander, <code>glow</code> = lead-line brightness.</td></tr>
-      <tr><td>12 Turing</td><td>Reaction-diffusion look (coral, zebra, ink) from domain-warped noise. <code>warp</code> = how twisted, <code>glow</code> = vein brightness and stripe count, <code>iterations</code> = scale.</td></tr>
-      <tr><td>13 Scope</td><td>Oscilloscope harmonics — glowing Lissajous-style curves. <code>iterations</code> = harmonics (2–12), <code>warp</code> = phase drift, <code>glow</code> = line weight, beat pulse kicks the curves.</td></tr>
-      <tr><td>14 Mandala</td><td>Polar petals and rings, breathing with the bar. <code>iterations</code> = petal count, <code>warp</code> = wobble, <code>glow</code> = line softness + core glow.</td></tr>
-      <tr><td>15 Truchet</td><td>Quarter-circle tiles with travelling dashes; tiles re-roll slowly, dashes flow at tempo. <code>iterations</code> = tile density, <code>glow</code> = line weight.</td></tr>
-      <tr><td>8 projectM</td><td><b>Real Milkdrop presets</b> via libprojectM 4 on each Pi. Pick presets in the projectM card; <code>pm_mix</code> blends in our post-pass (kaleido / zoom / rotate / hue) on top. See the projectM section below.</td></tr>
-    </tbody></table>
-    <p>Scenes 0–7 are one shader, so <code>kaleido</code>, <code>rotation</code>, <code>zoom</code>, the palette controls, <code>beat_pulse</code> and <code>bar_swing</code> work on every scene, and switching scenes is one integer in the packet — all projectors flip on the same frame. Adding a scene is a function in <code>renderer/shaders/fractal.frag</code> and a name in the mode list.</p>
-    <h4>Scene 8 — Milkdrop (projectM engine)</h4>
-    <p>Each Pi runs <a href="https://github.com/projectM-visualizer/projectm" target="_blank" rel="noopener">libprojectM 4</a> (built for GLES by <code>setup/install-projectm.sh</code>) and renders the real <code>.milk</code> preset files — the original Winamp Milkdrop pack (~550) and optionally Cream of the Crop (~10,000). The <b>master</b> owns preset selection: the current preset's index in the sorted list rides in the packet as <code>pm_preset</code>, so every Pi loads the same file on the same frame, with a <code>pm_blend</code>-second crossfade. Prev / next / random / search / auto-cycle every N bars live in the projectM card; OSC <code>/frx/pm_next|pm_prev|pm_random</code>; MIDI notes 33 / 32.</p>
-    <p><b>Audio:</b> projectM needs a waveform. When the master's audio input is running it multicasts the PCM to the Pis (udp/5007, ~700 kbit/s) so every preset reacts to the room. Without it, each Pi synthesises an identical beat-locked kick + hat from the shared clock and BPM — presets still pump on the beat, and because the signal is derived from the same numbers it is the same on every Pi.</p>
-    <p><b>Honesty about sync:</b> Milkdrop presets use their own frame timing and random numbers, so two Pis on the same preset with the same audio look <em>alike</em> — same preset, same colours, same beat reaction — but are not pixel-identical, and they drift apart over minutes until the next preset change re-aligns them. That is fine for "same vibe on every projector" and for the family-of-variations layout; it is wrong for a seamless tiled wall (you'll see the seams move). Use scenes 0–7 for tiled walls. <code>pm_mix</code> runs projectM's frame through our post-pass so kaleidoscope, rotation, zoom, hue shift and beat pulse still apply.</p>
-    <p><b>Browser preview:</b> the Live preview runs <a href="https://github.com/jberg/butterchurn" target="_blank" rel="noopener">Butterchurn</a> (Milkdrop 2 in WebGL, vendored so it works on the gig LAN with no internet) fed the same beat-locked synthetic audio the Pis use. Where the browser pack contains the same-named preset as the Pis (most of the original Milkdrop pack) you see the real preset; otherwise the closest name, labelled as such. It's a simulation of what the wall is doing, not a pixel copy.</p>
-    <p><b>Install (every Pi + master, ~15 min each):</b> <code>sudo bash setup/install-projectm.sh</code> (add <code>--cream</code> for the big pack). The preset <em>count</em> must be identical on all Pis and the master — the Renderers table flags any Pi whose count differs, because preset numbers would then point at different files. Pi 5 renders most presets at 1080p/0.6 scale comfortably; Pi 4 is happier at scale 0.5.</p>
-    <h4>Cheat-sheet</h4>
-    <table><tbody>
-      <tr><td>zoom</td><td>log2 magnification (each +1 doubles). Float precision runs out around 22–24 on fractals.</td></tr>
-      <tr><td>center_x / y</td><td>Pan. Also pans the non-fractal scenes.</td></tr>
-      <tr><td>kaleido</td><td>0 = off; 2–16 mirror segments. Applied before everything else, so it works on all scenes.</td></tr>
-      <tr><td>hue / hue_spread / hue_speed</td><td>Base colour, how many colour cycles across the gradient, automatic colour cycling rate (negative = reverse).</td></tr>
-      <tr><td>contrast / brightness</td><td>Gamma-style contrast (keeps blacks black — projectors love black) and output gain.</td></tr>
-      <tr><td>beat_pulse / bar_swing</td><td>Kick per beat (zoom + brightness) and a slow sway per 4-beat bar. Need a tempo source.</td></tr>
-      <tr><td>Clock speed</td><td>Rate of the master's animation clock. 0 freezes motion everywhere; 2 doubles it.</td></tr>
-    </tbody></table>
-  </div>
-
-  <div class="card" id="i-pi">
-    <h3>Pi setup</h3>
+  <div class="card" id="i-pi" data-group="Build & install">
+    <h3>Pi setup &amp; install</h3>
     <h4>Shopping list</h4>
     <ul>
       <li><b>Raspberry Pi 5</b> (best) or Pi 4, one per projector. Pi 5 does 1080p ≈ 60 fps at the default render scale 0.6 with 150–300 iterations; Pi 4 use scale 0.5 / ~120 iterations. Pi Zero 2 W works at scale 0.35 for simpler scenes.</li>
-      <li><b>RAM:</b> the 2 GB Pi 5 is fine for a renderer and for the master (renderer ≈ 60 MB, master ≈ 80 MB, projectM adds ~150 MB, and the projectM build script drops to 2 jobs on 2 GB boards). Go 4 GB only if the <em>same</em> Pi will also run the Chromium touchscreen kiosk. <b>Storage:</b> a 32 GB card is enough, 64 GB is comfortable (OS ≈ 5 GB, projectM source + build ≈ 1 GB, Cream-of-the-Crop presets ≈ 100 MB); use an A2-rated card or an NVMe HAT on the master for faster boots.</li>
+      <li><b>RAM:</b> the 2 GB Pi 5 is fine for a renderer and for the master (renderer ≈ 60 MB, master ≈ 80 MB, Milkdrop adds ~150 MB, and the Milkdrop build script drops to 2 jobs on 2 GB boards). Go 4 GB only if the <em>same</em> Pi will also run the Chromium touchscreen kiosk. <b>Storage:</b> a 32 GB card is enough, 64 GB is comfortable (OS ≈ 5 GB, Milkdrop source + build ≈ 1 GB, Cream-of-the-Crop presets ≈ 100 MB); use an A2-rated card or an NVMe HAT on the master for faster boots.</li>
       <li>Official PSU per Pi (27 W for Pi 5, 15 W for Pi 4) — under-powered Pis throttle the GPU. micro-HDMI → HDMI cable per projector; carry a spare, and consider a short micro-HDMI → full-size HDMI adapter lead left permanently in the Pi so the fragile socket is never plugged and unplugged in the field.</li>
-      <li><b>HDMI port choice from the web page</b> (Rig → Projectors → the HDMI menu): <em>HDMI 1</em>, <em>HDMI 2</em>, <em>both · mirror</em> or <em>both · dual tiles</em>. Mirror renders the scene once and blits it to both ports (almost free), so a damaged socket is a menu change; dual makes one Pi 5 drive two projectors as two side-by-side tiles of the wall (one render at double width — costs about the same GPU as one projector at the next scale up; mapping is shared by both outputs for now). The choice is remembered on the Pi (<code>/var/lib/fractal-rig/state.out</code>) and the renderer restarts in ~2 s. Renderers report <code>out:mode/displays</code> in the heartbeat, so the table shows a warning if you asked for two outputs and only one screen is connected.</li>
+      <li><b>HDMI port</b> (1 / 2 / mirror / dual) is chosen from the Rig tab, not by re-plugging — see <a href="#i-projectors">Projector control</a>.</li>
       <li>A cheap <b>gigabit switch</b> and patch leads. Wired beats Wi-Fi: multicast on Wi-Fi jitters 20–50 ms and gets dropped under load; wired is &lt;1 ms.</li>
       <li>Master extras: a small router/DHCP if the XDJ is on the same switch, a MIDI controller and/or USB audio input if you want them.</li>
       <li>microSD 16 GB+ (or NVMe on Pi 5) with <b>Raspberry Pi OS Bookworm Lite</b> (64-bit). Lite is preferred: the renderer draws straight to HDMI via KMSDRM with no desktop in the way.</li>
     </ul>
     <h4>Flash &amp; first boot</h4>
     <ol>
-      <li>Raspberry Pi Imager → OS Lite 64-bit → gear icon: set hostname (<code>fractal-master</code>, <code>fractal-2</code>, …), enable SSH, set user/password, skip Wi-Fi (or set it for first-time convenience).</li>
-      <li>Boot on the wired LAN, <code>ssh user@fractal-2.local</code>.</li>
+      <li>Raspberry Pi Imager → OS Lite 64-bit → gear icon: set hostname (the studio rig uses <code>sonorpi</code> for the master and <code>fractal1</code>, <code>fractal2</code>… for renderers), enable SSH, set user/password, skip Wi-Fi (or set it for first-time convenience).</li>
+      <li>Boot on the wired LAN, <code>ssh sonorpi@fractal1.local</code>.</li>
     </ol>
     <h4>Install</h4>
 <pre>sudo apt install -y git
-git clone https://github.com/sonorltd/sonor-fractal-rig.git ~/fractal-rig
-cd ~/fractal-rig
+git clone https://github.com/sonorltd/sonor-fractal-rig.git ~/sonor-fractal-rig
+cd ~/sonor-fractal-rig
 
-# projector Pis
-sudo bash setup/install.sh slave
-# the master (also renders → projector #1)
-sudo bash setup/install.sh master</pre>
+# a projector Pi (Pi 5: no --scale; Pi 4: --scale 0.5) — add --gpio-serial for header RS-232
+sudo bash setup/install.sh slave --name fractal1
+# the master: headless renderer published over NDI (kiosk desktop keeps the HDMI), or drop --headless to project from it too
+sudo bash setup/install.sh master --ndi --headless</pre>
+    <p>From the Mac, everything is one line through ssh, e.g. <code>ssh -t sonorpi@fractal1.local 'cd ~/sonor-fractal-rig &amp;&amp; git pull &amp;&amp; sudo bash setup/install.sh slave --scale 0.5 --name fractal1'</code>. The studio master keeps its clone at <code>~/sonor/fractal-rig</code> (next to the test rig); the path does not matter as long as you re-run the installer from it — the sudoers rule and the update button follow the repo you installed from. Re-running the installer is the update: it pulls nothing itself, so <code>git pull</code> first (or press <b>Update everything from GitHub</b> on the Rig tab).</p>
     <p>The installer builds the renderer, creates a Python venv for the master, installs systemd units (<code>fractal-renderer</code>, <code>fractal-master</code>) that start at boot, adds the user to the video/render groups and disables console blanking. Re-run it after <code>git pull</code>. Logs: <code>journalctl -fu fractal-renderer</code> (fps, packets, master status) and <code>journalctl -fu fractal-master</code> (inputs, the web UI URL).</p>
     <h4>Projector settings that matter</h4>
     <ul>
@@ -686,8 +607,8 @@ sudo bash setup/install.sh master</pre>
     </ul>
   </div>
 
-  <div class="card" id="i-layouts">
-    <h3>Layouts</h3>
+  <div class="card" id="i-layouts" data-group="Build & install">
+    <h3>Layouts — tiles, families, HDMI outputs</h3>
     <p>Renderer arguments go on the install line (or <code>sudo systemctl edit fractal-renderer</code>). Mix freely per Pi.</p>
     <table><tbody>
       <tr><td>(nothing)</td><td><b>Same image everywhere.</b> Simplest, most forgiving. Default.</td></tr>
@@ -695,12 +616,13 @@ sudo bash setup/install.sh master</pre>
       <tr><td>--view 0.7 1.57 0.15</td><td><b>Family of variations.</b> Same fractal and motion but this projector is +0.7 log2 zoom, rotated 90° and hue-shifted 0.15 — five related-but-different pictures around a room.</td></tr>
       <tr><td>--scale 0.5</td><td>Internal render scale (0.2–1). Lower = faster. 0.5–0.6 on a projector is visually free.</td></tr>
       <tr><td>--name stage-left</td><td>Name shown in the Projectors table (default: hostname).</td></tr>
+      <tr><td>--outputs mirror</td><td>Which micro-HDMI port(s): <code>1</code>, <code>2</code>, <code>mirror</code> (same picture on both), <code>dual</code> (two side-by-side tiles from one Pi 5). Normally left on <code>auto</code> and set from Rig → Projectors → HDMI — see <a href="#i-projectors">Projector control</a>.</td></tr>
     </tbody></table>
     <p>Example 5-Pi plan: master + 2 + 3 + 4 as a 2×2 tiled wall behind the booth, Pi 5 on the side wall with <code>--view -0.5 3.14 0.3</code>. Everything still kicks on the same beat because the beat lives in the packet, not the Pi.</p>
   </div>
 
-  <div class="card" id="i-network">
-    <h3>Network &amp; Pro DJ Link</h3>
+  <div class="card" id="i-network" data-group="Build & install">
+    <h3>Network basics &amp; Pro DJ Link</h3>
     <ul>
       <li>All Pis on one wired gigabit switch, one subnet. Multicast group <code>239.255.42.1:5005</code>, TTL 1 — never leaves the LAN. Renderers heartbeat back to the master on UDP 5006 once a second; the Rig tab turns those into the loss / jitter / temperature columns.</li>
       <li><b>IGMP snooping</b>: either <em>off</em> on this VLAN, or <em>on with a querier</em> (the switch itself). Snooping with no querier is the classic failure — the picture runs for a couple of minutes, then multicast is pruned and every projector freezes on the last frame. Unmanaged switches flood multicast and simply work at this rate.</li>
@@ -711,7 +633,7 @@ sudo bash setup/install.sh master</pre>
     </ul>
   </div>
 
-  <div class="card" id="i-topology">
+  <div class="card" id="i-topology" data-group="Build & install">
     <h3>Field network — topology for the whole rig (Ruijie / Reyee)</h3>
     <p>Two tiers. The <b>Pi switch</b> lives in the flight case with the Pis: a <b>Reyee RG-NBS3100-8GT2SFP-P</b> (8 × gigabit PoE+, 2 × SFP) powers the Pi 5s and carries the sync multicast. One uplink (Cat6, or fibre on the SFP if the case is far from the desk) goes to the <b>core</b> — a Reyee <b>RG-NBS3200-24GT4XS-P</b> (or a second NBS3100 for a small rig) — or straight into the <b>Reyee EG gateway</b> (RG-EG105G-P / EG210G-P: DHCP, VLAN, WAN). Everything else hangs off the core: Pioneer LINK, the Ableton and Resolume laptops, pixel controllers, the DMX node, the RAP access point for the tablet. Three kinds of traffic share the wire: the <span class="tl sync">sync multicast</span> wants zero loss and low jitter, <span class="tl video">video</span> (NDI, ~100 Mb/s per 1080p stream) wants bandwidth, <span class="tl light">lighting</span> (DDP / Art-Net / sACN at 40 fps) wants no bursts dropped. Gigabit carries all of it; the failures come from Wi-Fi, from snooping with no querier, and from a chain of unmanaged switches.</p>
     <svg class="topo" viewBox="0 0 1000 790" role="img" aria-label="Fractal Rig field network — bus layout, Ruijie two-tier, 192.168.22.0/24">
@@ -827,23 +749,7 @@ sudo bash setup/install.sh master</pre>
       <li><b>Wi-Fi carries the tablet, nothing else.</b> One rig SSID on the RAP. Never a Pi, the Resolume laptop or a pixel controller on Wi-Fi — WLED nodes want a wire or their own 2.4 GHz AP kept away from the crowd.</li>
       <li><b>Lighting</b>: DDP and Art-Net are unicast from the master to each controller, so they cost bandwidth on that port only; sACN multicast rides the same querier as the sync. 170 RGB pixels per Art-Net universe, consecutive universes for long runs. The Sonor ArtNet Node (Nano + ENC28J60) is 10 Mb/s half-duplex — its own core port, never a hub.</li>
       <li><b>Video</b>: NDI Resolume ⇄ master crosses the uplink at ~100 Mb/s per 1080p stream — fine on gigabit, it is the one thing that would hurt on a 100 Mb/s port or Wi-Fi. An HDMI capture card into a Pi's USB 3 is the zero-network alternative for the feed in.</li>
-      <li><b>Projector control is per Pi, over RS-232</b> — no network dependency, works before the projector has a picture. Each Pi's status service answers <code>GET/POST :8082/projector</code>; the master polls power (and source when on) every 15 s and shows it in the Projectors table, with ⏻ / input per projector and <em>Projectors ON / OFF</em> for the whole rig (also on the Perform SHOW page). ViewSonic V52HD: 19200 8N1, hex protocol (<code>06 14 00 04 00 34 11 00 00 5D</code> = on); enable RS-232 control / standby power in the projector's menu so it listens while off. Other brands: pick <b>PJLink</b> in the ⚙ dialog and give it the projector's IP (that one <em>is</em> on the network — put it on the core, .60–.69).</li>
-      <li><b>Wiring the Pi to the projector's RS-232.</b> Two ways, both end up as <code>/dev/serial0</code> or <code>/dev/ttyUSB0</code> and the software finds either automatically:
-        <table>
-          <tr><td>USB lead</td><td>A USB→RS-232 adapter (FTDI FT232 or Prolific PL2303, ~£10) into any Pi USB port, DB9 into the projector. Zero configuration — plug in and press ⏻.</td></tr>
-          <tr><td>GPIO header</td><td>Use a <b>MAX3232 board</b> (3.3 V TTL ⇄ RS-232 level shifter, the little red modules with a DB9). RS-232 is ±12 V — <b>never</b> wire the projector straight to the GPIO pins.</td></tr>
-        </table>
-        <p style="margin:6px 0 4px"><b>GPIO wiring</b> (40-pin header, pin 1 is nearest the SD-card corner, odd pins on the inside row):</p>
-        <table>
-          <tr><td>Pin 1 · 3V3</td><td>→ MAX3232 <code>VCC</code> (3.3 V; do not use 5 V on pin 2/4 unless the board says 5 V-tolerant)</td></tr>
-          <tr><td>Pin 6 · GND</td><td>→ MAX3232 <code>GND</code></td></tr>
-          <tr><td>Pin 8 · GPIO14 TXD</td><td>→ MAX3232 <code>TXD</code> / <code>T1IN</code> (the TTL <em>input</em> of the board)</td></tr>
-          <tr><td>Pin 10 · GPIO15 RXD</td><td>← MAX3232 <code>RXD</code> / <code>R1OUT</code> (the TTL <em>output</em> of the board)</td></tr>
-          <tr><td>MAX3232 DB9</td><td>pin 2 RXD · pin 3 TXD · pin 5 GND → projector RS-232. Projector control ports are almost always DTE (they <em>transmit</em> on pin 3), so you usually need a <b>crossed (null-modem) cable</b> or a null-modem adapter; if <code>status</code> gets no reply, swap 2 ↔ 3. Only three wires are used — no handshaking.</td></tr>
-        </table>
-        <p style="margin:6px 0 4px">Install with the flag so the Pi frees the header UART and points the projector service at it (one reboot): <code>sudo bash setup/install.sh slave --scale 0.5 --name fractal1 --gpio-serial</code>. It sets <code>enable_uart=1</code>, <code>dtparam=uart0=on</code> (Pi 5) / <code>dtoverlay=disable-bt</code> (Pi 4 — Bluetooth is not used), removes the serial login console and writes <code>/var/lib/fractal-rig/projector.json</code> with <code>port: /dev/serial0</code>. Test from the Pi: <code>python3 setup/projector.py status</code> → <code>power on · HDMI 1</code>. In the projector menu turn on <em>RS-232 control</em> / <em>standby power</em> (ViewSonic: Advanced → Standby Settings) so it listens while off — otherwise power-on over serial cannot work.</p>
-      </li>
-      <li><b>Audio and the X Air.</b> The Pioneer mixer's master out feeds the <b>Behringer X Air XR16</b>, which runs the PA. Two things come from it: an <b>aux out → the master Pi's USB audio interface</b> (the analog "audio in" source: energy, bass, onset beats, and the PCM the Milkdrop presets react to), and — with no extra cable — the <b>X Air mixer</b> source on the Inputs tab, which subscribes to the desk's meters and RTA over OSC (udp/10024, listen-only, nothing is written to the desk) and drives energy / bass / the 16 bands from the main L/R or any channel you pick. Use the USB path when you want Milkdrop to hear the music; the OSC path is the fallback, or the whole answer on a night with no interface. Give the XR16 a DHCP reservation (.70) so the X Air app and the rig both find it every time; set the aux to post-fader, pre-limiter, around −18 dBFS.</li>
+      <li><b>Projectors</b> are not on the network: each Pi drives its own over HDMI and controls it over RS-232 (or PJLink for LAN-controlled models). Wiring, protocol and the HDMI-port menu are in <a href="#i-projectors">Projector control</a>.</li>
       <li><b>Pioneer</b>: the master only listens. If the decks are on <code>169.254.x.x</code> and you cannot give them DHCP, add a link-local alias to the master (command in the Network section).</li>
       <li><b>Spares</b>: a second NBS3100, a spare Pi imaged as a renderer, a spare USB→RS-232 lead, a 4G router and a bag of Cat6 patch leads with boots. Everything else is software.</li>
     </ul>
@@ -851,82 +757,187 @@ sudo bash setup/install.sh master</pre>
     <table><tr><td>.1</td><td>Reyee EG gateway / DHCP / WAN</td></tr><tr><td>.2–.5</td><td>core switch .2 · Pi switch .3 · AP .4</td></tr><tr><td>.10</td><td>master Pi (<code>sonorpi</code>)</td></tr><tr><td>.11–.19</td><td>renderer Pis (<code>fractal1</code>…)</td></tr><tr><td>.20–.29</td><td>WLED / pixel controllers</td></tr><tr><td>.30–.39</td><td>Art-Net / sACN → DMX nodes</td></tr><tr><td>.40–.49</td><td>Resolume / media laptops</td></tr><tr><td>.50–.59</td><td>Ableton / Link machines</td></tr><tr><td>.60–.69</td><td>Pioneer gear and any PJLink projectors (reservations by MAC)</td></tr><tr><td>.70</td><td>Behringer X Air XR16 (reservation; the X Air app finds it, so does the rig's broadcast)</td></tr><tr><td>.100–.199</td><td>DHCP pool: phones, tablets, guests</td></tr></table>
   </div>
 
-  <div class="card" id="i-protocol">
-    <h3>Sync protocol (short version)</h3>
-    <p>Packet: magic <code>FRX1</code>, version, param count, sequence, flags, <code>t</code> (master clock, f64), <code>beat_t</code> (clock time of the last beat, f64), <code>bpm</code>, <code>bar_beat</code>, then 20 floats in the order of <code>master/params.py</code>. Renderers store <code>(t, arrival)</code> and render at <code>t + (now − arrival)</code> — re-anchored 60× a second, so there is no drift to correct. Continuous params are smoothed (τ 60 ms) identically on every Pi; discrete ones (scene, iterations, kaleido) snap. Beats are never sent as a phase — the shader computes <code>fract((t − beat_t)·bpm/60)</code> itself, so it can't wrap mid-interpolation. Lose the master for 3 s and a Pi freewheels on its own clock, then re-locks silently. HDMI outputs are not genlocked, so adjacent projectors can be up to one frame (16 ms) apart — invisible at normal speeds. Full detail in <code>PROTOCOL.md</code>.</p>
+  <div class="card" id="i-projectors" data-group="Build & install">
+    <h3>Projector control — RS-232 / PJLink, power, input, HDMI ports</h3>
+    <p>Every Pi looks after its own projector: the picture over HDMI, and <b>power / input / status over RS-232</b> from that same Pi, so nothing depends on the network being up or the projector having an IP. The master talks to each Pi's status service (<code>:8082/projector</code>), polls power every 15 s (and the current source when on) and shows it in <b>Rig → Projectors</b>: a dot, the source, ⏻, an input menu and ⚙ for protocol / port. <b>Projectors ON / OFF</b> in the Rig update row and <b>⏻ PROJECTORS</b> on the Perform SHOW page do the whole rig. Reference unit: <b>ViewSonic V52HD</b>.</p>
+    <h4>Two ways to wire it</h4>
+    <table>
+      <tr><td>USB lead</td><td>A USB→RS-232 adapter (FTDI FT232 or Prolific PL2303, ~£10) into any Pi USB port, DB9 into the projector. Zero configuration — the software finds <code>/dev/ttyUSB0</code> (or <code>/dev/serial/by-id/…</code>) by itself. Best when the Pi is easy to reach.</td></tr>
+      <tr><td>GPIO header</td><td>A <b>MAX3232 board</b> (the small red module with a DB9: 3.3 V TTL ⇄ ±12 V RS-232) on the 40-pin header. Tidier in a permanent build and frees the USB ports. RS-232 is ±12 V — <b>never</b> wire the projector straight to a GPIO pin. Install with <code>--gpio-serial</code> (below).</td></tr>
+    </table>
+    <svg class="wiring" viewBox="0 0 1000 400" role="img" aria-label="Raspberry Pi GPIO to MAX3232 to projector RS-232 wiring">
+      <!-- Pi header (first 5 pin pairs) -->
+      <rect class="node" x="40" y="40" width="300" height="320"/>
+      <text x="190" y="66" text-anchor="middle" font-weight="600">Raspberry Pi 40-pin header</text>
+      <text class="small" x="190" y="84" text-anchor="middle">pin 1 = square pad, nearest the SD-card corner</text>
+      <g transform="translate(120 110)">
+        <rect x="-8" y="-12" width="126" height="216" rx="6" fill="none" stroke="var(--line2)"/>
+        <!-- odd pins (inner row) left, even pins right; 5 rows -->
+        <g class="pin"><rect x="0" y="0" width="14" height="14" fill="var(--warn)"/><text class="small" x="-16" y="12" text-anchor="end">1 · 3V3</text><circle cx="96" cy="7" r="7" fill="var(--panel3)" stroke="var(--line2)"/><text class="small" x="118" y="12">2 · 5V</text></g>
+        <g class="pin" transform="translate(0 40)"><circle cx="7" cy="7" r="7" fill="var(--panel3)" stroke="var(--line2)"/><text class="small" x="-16" y="12" text-anchor="end">3</text><circle cx="96" cy="7" r="7" fill="var(--panel3)" stroke="var(--line2)"/><text class="small" x="118" y="12">4 · 5V</text></g>
+        <g class="pin" transform="translate(0 80)"><circle cx="7" cy="7" r="7" fill="var(--panel3)" stroke="var(--line2)"/><text class="small" x="-16" y="12" text-anchor="end">5</text><circle cx="96" cy="7" r="7" fill="var(--muted)"/><text class="small" x="118" y="12">6 · GND</text></g>
+        <g class="pin" transform="translate(0 120)"><circle cx="7" cy="7" r="7" fill="var(--panel3)" stroke="var(--line2)"/><text class="small" x="-16" y="12" text-anchor="end">7</text><circle cx="96" cy="7" r="7" fill="var(--accent2)"/><text class="small" x="118" y="12">8 · GPIO14 TXD</text></g>
+        <g class="pin" transform="translate(0 160)"><circle cx="7" cy="7" r="7" fill="var(--panel3)" stroke="var(--line2)"/><text class="small" x="-16" y="12" text-anchor="end">9 · GND</text><circle cx="96" cy="7" r="7" fill="var(--pink)"/><text class="small" x="118" y="12">10 · GPIO15 RXD</text></g>
+      </g>
+      <text class="small" x="190" y="345" text-anchor="middle">rows continue to pin 39 / 40 — only these four are used</text>
+      <!-- MAX3232 board -->
+      <rect class="node" x="400" y="90" width="230" height="220"/>
+      <text x="515" y="116" text-anchor="middle" font-weight="600">MAX3232 board (TTL ⇄ RS-232)</text>
+      <text class="small" x="515" y="134" text-anchor="middle">4-pin TTL side · DB9 on the other</text>
+      <g transform="translate(420 160)">
+        <rect x="0" y="0" width="14" height="14" fill="var(--warn)"/><text class="small" x="22" y="12">VCC · 3.3 V</text>
+        <rect x="0" y="34" width="14" height="14" fill="var(--muted)"/><text class="small" x="22" y="46">GND</text>
+        <rect x="0" y="68" width="14" height="14" fill="var(--accent2)"/><text class="small" x="22" y="80">TXD (T1IN) · TTL in from the Pi</text>
+        <rect x="0" y="102" width="14" height="14" fill="var(--pink)"/><text class="small" x="22" y="114">RXD (R1OUT) · TTL out to the Pi</text>
+      </g>
+      <text class="mono" x="515" y="298" text-anchor="middle">DB9: pin 2 RXD · pin 3 TXD · pin 5 GND</text>
+      <!-- wires Pi → board -->
+      <path class="w vcc" d="M340 117 H360 V167 H420"/>
+      <path class="w gnd" d="M340 197 H370 V201 H420"/>
+      <path class="w tx" d="M340 237 H380 V235 H420"/>
+      <path class="w rx" d="M340 277 H390 V269 H420"/>
+      <!-- projector -->
+      <rect class="node" x="760" y="90" width="200" height="220"/>
+      <text x="860" y="116" text-anchor="middle" font-weight="600">Projector RS-232 in</text>
+      <text class="small" x="860" y="134" text-anchor="middle">ViewSonic V52HD · DB9 (DTE)</text>
+      <text class="small" x="860" y="176" text-anchor="middle">pin 2 · RXD ← board pin 3 TXD</text>
+      <text class="small" x="860" y="200" text-anchor="middle">pin 3 · TXD → board pin 2 RXD</text>
+      <text class="small" x="860" y="224" text-anchor="middle">pin 5 · GND — GND</text>
+      <text class="mono" x="860" y="262" text-anchor="middle">19200 8N1 · no handshake</text>
+      <text class="small" x="860" y="290" text-anchor="middle">menu: RS-232 control ON · standby power ON</text>
+      <!-- crossed cable -->
+      <path class="w tx" d="M630 176 C700 176 700 200 760 200"/>
+      <path class="w rx" d="M630 200 C700 200 700 176 760 176"/>
+      <path class="w gnd" d="M630 224 H760"/>
+      <text class="small" x="695" y="245" text-anchor="middle">crossed (null-modem)</text>
+      <text class="small" x="695" y="262" text-anchor="middle">TX ↔ RX, GND straight</text>
+      <text class="small" x="695" y="279" text-anchor="middle">no reply? swap 2 ↔ 3</text>
+      <!-- legend -->
+      <g transform="translate(40 380)"><rect x="0" y="-10" width="12" height="12" fill="var(--warn)"/><text class="small" x="18" y="0">3.3 V</text><rect x="70" y="-10" width="12" height="12" fill="var(--muted)"/><text class="small" x="88" y="0">GND</text><rect x="140" y="-10" width="12" height="12" fill="var(--accent2)"/><text class="small" x="158" y="0">Pi → projector (TX)</text><rect x="300" y="-10" width="12" height="12" fill="var(--pink)"/><text class="small" x="318" y="0">projector → Pi (RX)</text></g>
+    </svg>
+    <p class="hint">Only three wires carry data. Most MAX3232 modules run from 3.3 V; a board marked 5 V-only takes VCC from pin 2 instead (its TTL side is still safe for the Pi at 3.3 V logic — check the marking). Keep the lead short and away from the LED data lines.</p>
+    <h4>Enable the header UART (one reboot)</h4>
+    <pre>sudo bash setup/install.sh slave --name fractal1 --gpio-serial     # renderer Pi
+sudo bash setup/install.sh master --ndi --headless --gpio-serial   # master Pi</pre>
+    <p>The flag sets <code>enable_uart=1</code> and <code>dtparam=uart0=on</code> (Pi 5) / <code>dtoverlay=disable-bt</code> (Pi 4 — Bluetooth is not used), removes the serial login console from <code>cmdline.txt</code>, adds the user to <code>dialout</code> and writes <code>/var/lib/fractal-rig/projector.json</code> with <code>"port": "/dev/serial0"</code>. Without the flag the software still looks for a USB lead first, then the header UART. Test from the Pi (or from the Mac with <code>ssh -t sonorpi@fractal1.local '…'</code>):</p>
+    <pre>python3 setup/projector.py status     # → {"ok": true, "msg": "power on · HDMI 1", ...}
+python3 setup/projector.py on | off | hdmi1 | hdmi2 | blank | unblank</pre>
+    <h4>ViewSonic protocol (what goes down the wire)</h4>
+    <table>
+      <tr><td>Power on</td><td><code>06 14 00 04 00 34 11 00 00 5D</code></td></tr>
+      <tr><td>Power off</td><td><code>06 14 00 04 00 34 11 01 00 5E</code></td></tr>
+      <tr><td>Power status (read)</td><td><code>07 14 00 05 00 34 00 00 11 00 5E</code> → <code>05 14 00 03 00 00 00 <b>01</b> 18</code> on / <code>… <b>00</b> 17</code> off</td></tr>
+      <tr><td>Source HDMI 1 / HDMI 2</td><td><code>06 14 00 04 00 34 13 01 03 63</code> / <code>06 14 00 04 00 34 13 01 07 67</code>; source read <code>07 14 00 05 00 34 00 00 13 01 61</code> (value 03 = HDMI 1, 07 = HDMI 2)</td></tr>
+      <tr><td>Ack</td><td><code>03 14 00 00 00 14</code> after every write. 19200 baud, 8 data, no parity, 1 stop, no flow control. The last byte is a checksum (low byte of the sum of bytes 1…n−1).</td></tr>
+      <tr><td>Other codes</td><td>Rig → Projectors → ⚙ has protocol / port; <code>projector.py</code> accepts <code>raw</code> with any hex string from the projector's own RS-232 sheet if a model differs (blank / freeze codes vary by family).</td></tr>
+    </table>
+    <h4>PJLink (other brands, over the LAN)</h4>
+    <p>Epson, NEC, Panasonic, Optoma, BenQ and ViewSonic's LAN models speak <b>PJLink</b> class 1 on TCP 4352. Pick it in the ⚙ dialog and give the projector's IP (plan: .60–.69, DHCP reservation). Same commands: on / off / status / input 31–32 / blank. No password support yet — leave PJLink security off in the projector.</p>
+    <h4>HDMI ports: 1, 2, mirror, dual</h4>
+    <p>Micro-HDMI sockets are the weak point, so the port is a menu, not a cable swap: Rig → Projectors → <b>HDMI</b> = <em>HDMI 1</em>, <em>HDMI 2</em>, <em>both · mirror</em> (one render, two outputs — nearly free) or <em>both · dual tiles</em> (one Pi 5 drives two projectors as two side-by-side tiles of the wall; one render at double width, mapping shared by both outputs for now). The Pi remembers it in <code>/var/lib/fractal-rig/state.out</code>, the renderer restarts in ~2 s, and the table flags <em>1 disp</em> if you asked for two ports with one screen connected. Renderer flag: <code>--outputs 1|2|mirror|dual</code>. Practical tip: leave a short micro-HDMI → full-size adapter lead permanently in each Pi so the fragile socket is never plugged in the field.</p>
   </div>
 
-  <div class="card" id="i-perform">
-    <h3>Perform mode &amp; touchscreen console</h3>
-    <p><b>▶ PERFORM</b> (header button, key <kbd>P</kbd>, or open <code>?perf=1</code>) replaces the whole page with big touch controls in four swipeable pages — <b>Show</b> (TAP, SET BEAT 1, engine, scenes, blackout / freeze / auto), <b>Presets</b> (shader presets, projectM prev / random / next / hold, your ★ favourites as tiles), <b>Feel</b> (brightness, contrast, glow, beat pulse, bar swing, warp, speed, auto depth, zoom / kaleidoscope / detail steppers) and <b>Colour</b> (hue swatches and sliders). Swipe or tap the page names; <b>✕ EXIT</b> (or <kbd>Esc</kbd>) returns to the full GUI with every micro-control. The mode is remembered per browser.</p>
-    <h4>Raspberry Pi touchscreen</h4>
-    <p>Yes — the official 7" Touch Display (800×480), Touch Display 2 (720×1280) or any HDMI touch monitor works as a dedicated console: it is just Chromium showing this page. <code>sudo bash setup/install-kiosk.sh http://fractal-master.local:8080/?perf=1</code> on a Pi does the whole thing — on Pi OS Lite it installs <b>cage</b> (one-window Wayland kiosk) + Chromium and boots straight into Perform mode; on Pi OS Desktop it adds an autostart entry instead. Touch works out of the box under Wayland.</p>
+  <div class="card" id="i-outres" data-group="Build & install">
+    <h3>Output resolution (top bar: Auto / 1080p / 4K)</h3>
+    <p>A global choice broadcast to every renderer. <b>1080p is the default at every boot</b> (config <code>out_res_boot</code> to change). <b>Auto</b> = whatever mode the screen came up in (a 4K TV on a Pi 4 means a 4K framebuffer, and the Pi 4 struggles — that was the "laggy / steppy" Pi 4). <b>1080p</b> forces 1920×1080 ≤ 60 Hz on every projector, which is what you want on a Pi 4 and on most projectors anyway; <b>4K</b> forces 3840×2160 where the screen offers it (a Pi 5 can drive it; the internal render scale still applies). Under KMSDRM a mode can only be chosen when the renderer starts, so a change makes each renderer remember the request, exit, and come straight back in the new mode — about 3 seconds of black per projector, so don't do it mid-set. A screen that doesn't have the mode keeps its current one (no restart loop). To pin one Pi regardless of the selector, give its renderer <code>--out-res 1080</code> (or <code>4k</code> / <code>auto</code>) in the install arguments.</p>
+  </div>
+
+  <div class="card" id="i-sources" data-group="Inputs">
+    <h3>Sources — what drives the picture</h3>
+    <p>All sources feed one engine on the master. Human inputs (this page, MIDI, OSC, presets) set a <em>base</em> value per parameter — last write wins. Auto-drift adds a slow offset on top of anything with the pink toggle. Audio, when running, owns <code>energy</code> and <code>bass</code> outright. Tempo has a priority order: <b>Pro DJ Link</b> if a beat has been seen in the last 5 s, else <b>tap / typed BPM</b>, else the <b>audio onset</b> guess. The Sources panel on the Control tab shows a live dot for each: green = linked and delivering, amber = enabled but waiting for a device/packets, grey = switched off.</p>
+
+    <h4>Web UI (this page)</h4>
+    <p>Served by the master at <code>http://&lt;master-ip&gt;:8080/</code>; works on a phone. Every parameter has a slider and an auto-drift toggle; presets save the sliders <em>and</em> which ones are drifting. <kbd>Space</kbd> = tap tempo, <kbd>1</kbd> = set beat 1 (re-align the bar to the music without changing BPM — the pulse and bar-swing follow instantly on every projector). When no master is reachable (e.g. the GitHub Pages copy) the page runs a local simulation of the engine — "demo mode" — with the identical shader in the preview.</p>
+
+    <h4>Pro DJ Link (XDJ-RX2 / CDJ / DJM)</h4>
+    <p>Every Pioneer player with a LINK port broadcasts a small packet on <b>every beat</b> (UDP 50001): deck number, track BPM, pitch fader position and beat-in-bar 1–4. The master only <em>listens</em> — it never joins as a virtual CDJ, never claims a player number, and nothing appears on the decks. It records the animation-clock time of each beat plus the effective BPM (track BPM × pitch); the shader derives beat phase from those, so <code>beat_pulse</code> and <code>bar_swing</code> land exactly on the grid and stay locked between packets. Follow mode "auto" hands over to whichever deck beat most recently (natural during a mix); or pin deck 1/2. Needs: one Ethernet cable from the LINK port to the rig's switch — see <a href="#i-network">Network</a>.</p>
+
+    <h4>Audio in</h4>
+    <p>Optional. Any class-compliant USB audio input on the master (USB interface, the XDJ's USB audio, or a mic pointed at the room). ~40× a second the master computes overall loudness and a 30–150 Hz bass band, auto-gained so they sit mid-range whatever the volume, and writes them to <code>energy</code> (brightness / saturation lift) and <code>bass</code> (warmth + punch). A crude onset detector supplies beats <em>only</em> when Pro DJ Link is not locked — expect it to wander on breakdowns. Pick the input device in the Sources panel; needs <code>libportaudio2</code> + <code>sounddevice numpy</code> (installer adds them on the master).</p>
+
+    <h4>X Air mixer (Behringer XR12 / XR16 / XR18)</h4>
+      <p>The PA desk as a source over the network. Enable it in the Sources panel, pick which meter drives things (main L/R, the aux, or one channel) and leave the IP blank — the master finds the desk with a broadcast <code>/xinfo</code>, or type its address (the plan puts the XR16 at 192.168.22.70). The rig subscribes to the desk's channel meters and its RTA over OSC on udp/10024 and maps them to <code>energy</code>, <code>bass</code> and the 16 bands the modulation and the Inputs monitor use — the same auto-gain as the USB path, so it sits mid-range at any level. It is <b>listen-only</b>: nothing is ever written to the mixer. If a USB audio input is also running, that stays in charge of energy / bass (and it is the only path that gives Milkdrop real PCM); the X Air then just shows in the monitor. No beat detection from this source — tempo still comes from Pro DJ Link, Link, tap or the USB audio onset.</p>
+      <h4>MIDI</h4>
+    <p>Any class-compliant controller on the master's USB. CC → parameter via <code>midi_map</code> in <code>config.json</code>; defaults: CC1 zoom, CC2 rotation, CC3 hue, CC4 hue spread, CC5 warp, CC6 glow, CC7 brightness, CC8 contrast, CC9/10 Julia re/im, CC11 beat pulse, CC12 kaleidoscope. Notes 36+ recall presets in order, note 35 = tap, note 34 = set beat 1, notes 33 / 32 = next / previous Milkdrop preset. "Map last CC →" on the Control tab learns a knob for this session (copy into config to keep). Reconnects automatically. Tip: the XDJ-RX2 is itself a USB MIDI controller when not in rekordbox mode.</p>
+
+    <h4>OSC</h4>
+    <p>UDP 9000. <code>/frx/&lt;param&gt; f</code> (e.g. <code>/frx/hue 0.5</code>), <code>/frx/tap</code>, <code>/frx/beat1</code>, <code>/frx/bpm f</code>, <code>/frx/preset s|i</code>, <code>/frx/auto_&lt;param&gt; 0|1</code>, <code>/frx/pm_next</code> · <code>/frx/pm_prev</code> · <code>/frx/pm_random</code>. TouchOSC, Lemur, Ableton (Max for Live / OSC plugins), Resolume, QLab and Beat Link Trigger all speak this — it is the bolt-on route for anything not built in.</p>
+
+    <h4>Ableton Link</h4>
+    <p>A tempo source <em>and</em> an output: follow a Link session (Resolume / Ableton / Traktor) or lead it with the CDJ grid. See the Resolume section.</p>
+
+    <h4>Autonomous</h4>
+    <p>Parameters with the pink toggle wander on smooth noise around wherever you left their slider. "Auto depth" is how far, "Auto rate" how fast; zoom drifts deliberately shallower. The Sources toggle pauses all drift at once without losing which params were selected. With nothing else plugged in the rig runs itself indefinitely.</p>
+
+    <h4 id="i-monitor">Inputs monitor — seeing what the master hears</h4>
+    <p>The card under Tempo on the Control tab is a live scope of every input, drawn at display rate from the same clock the Pis use, so what you see is what the projectors are pulsing to:</p>
     <ul>
-      <li><b>Best:</b> a separate console Pi (Pi 4 2 GB is plenty) with the touchscreen, on the same switch. The master keeps running headless with KMSDRM on its projector.</li>
-      <li><b>Same Pi as a projector:</b> KMSDRM can't share the GPU with a compositor, so use Pi OS Desktop on that Pi, remove <code>SDL_VIDEODRIVER=KMSDRM</code> from <code>fractal-renderer.service</code> and add <code>--display 1</code> so the renderer goes fullscreen on the HDMI output while the kiosk owns the touchscreen.</li>
-      <li>Any phone or tablet does the same job with no install — the layout is fully mobile-adaptive.</li>
+      <li><b>Lock badge</b> — green <em>LOCKED</em> when tempo comes from Pro DJ Link (with the deck it is following) or Ableton Link (with peer count); amber <em>FREE-RUNNING</em> for tap / typed BPM or audio-onset estimates; grey when there is no tempo. Next to it: <em>bar · beat</em> position in the grid and the <em>±</em> BPM spread over the last 8 s — a locked source sits at ±0.00, a tap will read ±0.5–2 until it settles, a wandering onset detector shows red.</li>
+      <li><b>Beat grid</b> — 4 bars × 4 beats. The white playhead moves with the master clock; the current cell flashes and fades within the beat; bar-1 cells are outlined. Bar alignment is whatever the last downbeat set (Pro DJ Link beat 1, Link phase, or SET BEAT 1); the four-bar phrase position is relative to that, so if a phrase feels off by a bar it is the DJ's grid, not the rig.</li>
+      <li><b>Deck lanes</b> — one row per Pro DJ Link deck heard: BPM (track × pitch), its beat 1–4 boxes lit from the deck's own packets, "live" or the age of its last beat, and which deck the master is following. Two decks with different beat boxes lit is normal mid-mix; the rig follows the most recent beat (or the pinned deck).</li>
+      <li><b>Link lane</b> — when Ableton Link has peers: session tempo, peer count, follow / lead, and a bar-phase bar.</li>
+      <li><b>Waveform + spectrum</b> — with <b>Audio in</b> enabled: ~96-sample oscilloscope of the input, 16 log-spaced bands 40 Hz–16 kHz with peak-hold ticks, and <em>E</em>nergy / <em>B</em>ass meters (exactly the values written to the <code>energy</code> and <code>bass</code> params). The master streams these to the page at 15 Hz. Audio off, or the Pages demo, shows a dimmed synthetic beat-locked signal so the layout is visible — labelled as such.</li>
+      <li><b>Activity chips</b> — MIDI (last CC / note, pulses on each message), OSC (last address + value), Pro DJ Link (packets per second and beats counted). A chip that never pulses while you turn a knob is the fastest "is it even arriving" check before opening the Rig tab.</li>
     </ul>
+    <p>Perform mode carries a slim copy of the beat grid under TAP / SET BEAT 1, so the bar can be checked at arm's length.</p>
   </div>
 
-  <div class="card" id="i-resolume">
-    <h3>Resolume &amp; Ableton Link</h3>
-    <p>Everything lives in the <b>Outputs</b> tab. Three separate integrations, use any combination:</p>
-    <h4>1 · Getting the rig's picture into Resolume</h4>
-    <p><b>HDMI capture card</b> (Cam Link 4K, Magewell USB Capture, ~£90–£300) on any Pi's HDMI — zero software, ~2 frames latency, never crashes. The rig appears in Resolume as a live source you can layer, mask, effect and pixel-map. This is the recommended route. Alternatively <b>NDI</b> over the network — see the NDI section.</p>
-    <h4>2 · Tempo &amp; bar lock — Ableton Link</h4>
-    <p>Enable Link in Resolume (Preferences → Tempo → <i>Ableton Link</i>); the rig shows it as a peer. <b>Follow</b>: the rig takes tempo and bar phase from the Link session (Resolume, Ableton, Traktor, anything on the LAN can be the leader). <b>Lead</b>: the rig pushes its own tempo — from the XDJ's Pro DJ Link grid or tap — into the session and forces bar 1 on SET BEAT 1, so Resolume's beat-synced effects follow the CDJs through us. Tempo priority on the master when several sources are live: Pro DJ Link, then Link (follow), then tap / typed BPM, then audio onset. Needs <code>aalink</code> in the master venv (<code>install.sh master</code> adds it).</p>
-    <h4>3 · OSC to Resolume — tempo, resync, scenes, parameters</h4>
-    <p>In Resolume: Preferences → OSC → enable <i>OSC Input</i>, note the port (7000 default) and the PC's IP; enter both in the Outputs tab and switch on. The rig then sends the tempo whenever it changes (<code>/composition/tempocontroller/tempo</code>, normalised over Resolume's 20–500 BPM range), a <code>resync</code> on every SET BEAT 1, optionally <code>/composition/columns/N/connect</code> when a scene is selected (Scene → column map), and any rig parameter you map to a Resolume address (values 0–1, max 20/s). Find any Resolume parameter's OSC address in its Shortcuts → OSC panel. The reverse works too: Resolume's OSC <i>Output</i> can drive <code>/frx/&lt;param&gt;</code> on udp/9000, so a Resolume dashboard fader can move the rig.</p>
-    <h4>4 · Resolume driving the LEDs instead</h4>
-    <p>If you have <b>Arena</b>, its Advanced Output already pixel-maps Art-Net from any layer — with the rig's video in Resolume via capture card, Resolume can drive the strips and you can skip the LED section. Avenue can't, hence ours.</p>
+  <div class="card" id="i-scenes" data-group="Picture">
+    <h3>Scenes &amp; engines</h3>
+    <table><tbody>
+      <tr><td>0 Mandelbrot</td><td>The classic set. Zoom into the boundary (Seahorse valley preset); <code>iterations</code> = detail, <code>glow</code> = orbit-trap light inside the set.</td></tr>
+      <tr><td>1 Julia</td><td>Julia set for seed <code>julia_x/y</code>. Put <em>those</em> on auto-drift for endlessly morphing shapes.</td></tr>
+      <tr><td>2 Burning Ship</td><td>Abs-value variant — ship / flame structures. Rotation ≈ π shows it upright.</td></tr>
+      <tr><td>3 Tricorn</td><td>Conjugate variant — three-fold symmetry, pairs well with <code>kaleido</code>.</td></tr>
+      <tr><td>4 Plasma</td><td>Classic demoscene plasma. <code>warp</code> adds noise turbulence, <code>iterations</code> = banding, <code>hue_spread</code> = colour cycles.</td></tr>
+      <tr><td>5 Tunnel</td><td>Winamp/AVS-style infinite tunnel. <code>iterations</code> = spoke count, <code>warp</code> = twist, <code>beat_pulse</code> lunges forward on the kick.</td></tr>
+      <tr><td>6 Starfield</td><td>Hyperspace warp. <code>warp</code> = streak length, <code>iterations</code> = star layers, beat pulse = speed burst.</td></tr>
+      <tr><td>7 Waves</td><td>Oscilloscope wave stack — the Milkdrop feel. <code>energy</code>/<code>bass</code> (live from audio) set amplitude and ripple; <code>iterations</code> = number of traces.</td></tr>
+      <tr><td>8 Milkdrop</td><td>libprojectM on every Pi, same preset index in the packet — see the Milkdrop section.</td></tr>
+      <tr><td>9 Video</td><td>A clip from the library or the LIVE feed (HDMI capture / NDI), frame-locked to the master clock — see Video.</td></tr>
+      <tr><td>10 Menger</td><td>Raymarched Menger-sponge tunnel — the one real 3D scene. <code>iterations</code> = march steps (detail vs Pi 4 frame rate: 200 is safe at half scale), <code>warp</code> = roll, <code>glow</code> = fog lift, <code>zoom</code> = field of view.</td></tr>
+      <tr><td>11 Voronoi</td><td>Living stained glass — cells that breathe with the tempo. <code>iterations</code> = cell density, <code>warp</code> = how far the seeds wander, <code>glow</code> = lead-line brightness.</td></tr>
+      <tr><td>12 Turing</td><td>Reaction-diffusion look (coral, zebra, ink) from domain-warped noise. <code>warp</code> = how twisted, <code>glow</code> = vein brightness and stripe count, <code>iterations</code> = scale.</td></tr>
+      <tr><td>13 Scope</td><td>Oscilloscope harmonics — glowing Lissajous-style curves. <code>iterations</code> = harmonics (2–12), <code>warp</code> = phase drift, <code>glow</code> = line weight, beat pulse kicks the curves.</td></tr>
+      <tr><td>14 Mandala</td><td>Polar petals and rings, breathing with the bar. <code>iterations</code> = petal count, <code>warp</code> = wobble, <code>glow</code> = line softness + core glow.</td></tr>
+      <tr><td>15 Truchet</td><td>Quarter-circle tiles with travelling dashes; tiles re-roll slowly, dashes flow at tempo. <code>iterations</code> = tile density, <code>glow</code> = line weight.</td></tr>
+      <tr><td>8 Milkdrop</td><td><b>Real Milkdrop presets</b> via libprojectM 4 on each Pi. Pick presets in the Milkdrop card; <code>pm_mix</code> blends in our post-pass (kaleido / zoom / rotate / hue) on top. See the Milkdrop section below.</td></tr>
+    </tbody></table>
+    <p>Scenes 0–7 are one shader, so <code>kaleido</code>, <code>rotation</code>, <code>zoom</code>, the palette controls, <code>beat_pulse</code> and <code>bar_swing</code> work on every scene, and switching scenes is one integer in the packet — all projectors flip on the same frame. Adding a scene is a function in <code>renderer/shaders/fractal.frag</code> and a name in the mode list.</p>
+    <h4>Scene 8 — Milkdrop (Milkdrop engine)</h4>
+    <p>Each Pi runs <a href="https://github.com/projectM-visualizer/projectm" target="_blank" rel="noopener">libprojectM 4</a> (built for GLES by <code>setup/install-projectm.sh</code>) and renders the real <code>.milk</code> preset files — the original Winamp Milkdrop pack (~550) and optionally Cream of the Crop (~10,000). The <b>master</b> owns preset selection: the current preset's index in the sorted list rides in the packet as <code>pm_preset</code>, so every Pi loads the same file on the same frame, with a <code>pm_blend</code>-second crossfade. Prev / next / random / search / auto-cycle every N bars live in the Milkdrop card; OSC <code>/frx/pm_next|pm_prev|pm_random</code>; MIDI notes 33 / 32.</p>
+    <p><b>Audio:</b> Milkdrop needs a waveform. When the master's audio input is running it multicasts the PCM to the Pis (udp/5007, ~700 kbit/s) so every preset reacts to the room. Without it, each Pi synthesises an identical beat-locked kick + hat from the shared clock and BPM — presets still pump on the beat, and because the signal is derived from the same numbers it is the same on every Pi.</p>
+    <p><b>Honesty about sync:</b> Milkdrop presets use their own frame timing and random numbers, so two Pis on the same preset with the same audio look <em>alike</em> — same preset, same colours, same beat reaction — but are not pixel-identical, and they drift apart over minutes until the next preset change re-aligns them. That is fine for "same vibe on every projector" and for the family-of-variations layout; it is wrong for a seamless tiled wall (you'll see the seams move). Use scenes 0–7 for tiled walls. <code>pm_mix</code> runs Milkdrop's frame through our post-pass so kaleidoscope, rotation, zoom, hue shift and beat pulse still apply.</p>
+    <p><b>Browser preview:</b> the Live preview runs <a href="https://github.com/jberg/butterchurn" target="_blank" rel="noopener">Butterchurn</a> (Milkdrop 2 in WebGL, vendored so it works on the gig LAN with no internet) fed the same beat-locked synthetic audio the Pis use. Where the browser pack contains the same-named preset as the Pis (most of the original Milkdrop pack) you see the real preset; otherwise the closest name, labelled as such. It's a simulation of what the wall is doing, not a pixel copy.</p>
+    <p><b>Install (every Pi + master, ~15 min each):</b> <code>sudo bash setup/install-projectm.sh</code> (add <code>--cream</code> for the big pack). The preset <em>count</em> must be identical on all Pis and the master — the Renderers table flags any Pi whose count differs, because preset numbers would then point at different files. Pi 5 renders most presets at 1080p/0.6 scale comfortably; Pi 4 is happier at scale 0.5.</p>
+    <h4>Cheat-sheet</h4>
+    <table><tbody>
+      <tr><td>zoom</td><td>log2 magnification (each +1 doubles). Float precision runs out around 22–24 on fractals.</td></tr>
+      <tr><td>center_x / y</td><td>Pan. Also pans the non-fractal scenes.</td></tr>
+      <tr><td>kaleido</td><td>0 = off; 2–16 mirror segments. Applied before everything else, so it works on all scenes.</td></tr>
+      <tr><td>hue / hue_spread / hue_speed</td><td>Base colour, how many colour cycles across the gradient, automatic colour cycling rate (negative = reverse).</td></tr>
+      <tr><td>contrast / brightness</td><td>Gamma-style contrast (keeps blacks black — projectors love black) and output gain.</td></tr>
+      <tr><td>beat_pulse / bar_swing</td><td>Kick per beat (zoom + brightness) and a slow sway per 4-beat bar. Need a tempo source.</td></tr>
+      <tr><td>Clock speed</td><td>Rate of the master's animation clock. 0 freezes motion everywhere; 2 doubles it.</td></tr>
+    </tbody></table>
   </div>
 
-  <div class="card" id="i-ndi">
-    <h3>NDI video</h3>
-    <p>NDI publishes a Pi's picture as a network video source for Resolume, OBS, vMix, TouchDesigner… The NDI SDK is a free licence-click download, so it can't ship in the repo: download <i>NDI SDK for Linux</i> from ndi.video, then on the Pi <code>sudo bash setup/install-ndi.sh ~/Install_NDI_SDK_v6_Linux.tar.gz</code> (installs headers + libndi, rebuilds the renderer with NDI), and add <code>--ndi</code> to that renderer's arguments (<code>sudo systemctl edit fractal-renderer</code>). The source appears as <b>"Fractal Rig (pi-name)"</b>. Frames are sent at the render scale (1080p × 0.6 = 1152×648) at up to <code>--ndi-fps</code> (30 default) — a Pi 5 is comfortable there; ~40 Mbit/s on the LAN. The Outputs tab shows per-Pi NDI state (off / publishing / receiver connected). Use a wired switch; NDI over Wi-Fi is not a good evening.</p>
-  </div>
-
-  <div class="card" id="i-cloud">
-    <h3>Saving &amp; the cloud (Supabase)</h3>
-    <p>Every save in the app lands on the master Pi first — shows (<code>master/shows/</code>), the preset bank and palettes, the live cue stack and saved cue lists, LED configurations (<code>master/led_configs/</code>), mapping presets, each projector's mapping and <code>config.local.json</code> — so the rig works exactly the same with no internet at a venue. Whenever the Pi <em>can</em> reach Supabase (table <code>studio_fractal_docs</code> in the Sonor project) it pushes queued changes and pulls anything newer, last write wins; deletes propagate too. Shows, LED configurations, mapping presets and cue lists are shared between rigs, so a setup made on the studio bench is in the "☁ from cloud…" menu on any other master; presets, cues, mappings and config are kept per rig name. The top-bar pill shows the state: green = in sync, amber = offline with changes queued (they go up when you're back on Wi-Fi), grey = not configured or paused. "Sync now" and "Pull everything" sit in the Rig tab's update row; the URL and key are baked into <code>master/config.json</code>, so there is nothing to type. Every save uses the same dialog (name + notes, with an overwrite warning) and every saved thing shows as the same card with ★ favourite, LOAD, Update, Download and ✕. Files still export and import as before (.fractalshow.json / .zip, .fractalleds.json) for moving things by hand or keeping a copy.</p>
-  </div>
-
-  <div class="card" id="i-cues">
-    <h3>Cues, fades and audio modulation</h3>
-    <p><b>Cues</b> are the sequencing layer: a stack of steps for the set. Build one by setting the rig up and pressing <em>Capture current look as cue</em> (every parameter goes in), or add an empty cue and pick actions: scene, a saved preset, a whole show, projectM (random / next / a named preset), video (a clip, LIVE, next), feed mix, brightness or blackout, auto-drift on/off. <b>Fade (bars)</b> glides every continuous parameter over that many bars at the current tempo (discrete ones like scene switch at the start); <b>Auto-follow</b> fires the next cue after N bars, so a whole intro can run itself. GO / BACK live on the Cues tab and the Perform CUES page, keys <b>G</b> / <b>B</b>, MIDI notes 27 / 26, OSC <code>/frx/go</code>, <code>/frx/back</code>, <code>/frx/cue n</code>. The stack is saved with a show, and can be saved on its own as a <b>cue list</b> (Cues tab → Saved cue lists, or SAVE CURRENT CUE LIST in Perform) to load onto any rig. <b>Audio → parameters</b> (Inputs tab) makes any parameter follow the music: pick a source (one of the 16 analyser bands, bass, overall energy, or the beat pulse that works from any tempo source), an amount (a fraction of the parameter's range — small numbers) and attack / release times; the level bars show each envelope live. Modulation sits on top of your sliders and auto-drift and never touches the Pis — they still just receive numbers.</p>
-  </div>
-
-  <div class="card" id="i-rigops">
-    <h3>Updating and restarting from the web page</h3>
-    <p>Rig tab → <b>Update everything from GitHub</b> pulls the repo and re-runs the installer on the master and every renderer that is online (each Pi's <code>fractal-media-sync</code> status service on port 8082 accepts <code>/update</code>, <code>/restart</code>, <code>/reboot</code> from the master; <code>setup/rig-update</code> reads the role and renderer arguments back from the systemd units so nothing has to be typed). Per-Pi buttons do the same for one machine, and <b>status</b> opens that Pi's page (log, temperature, clips, mapping, update log). Expect 1–3 minutes of dark projectors while they rebuild; the <b>ver</b> column in the Projectors table goes amber for any Pi not on the master's version.</p>
-  </div>
-
-  <div class="card" id="i-resolume2">
-    <h3>Resolume tab (two-way)</h3>
-    <p><b>Picture out:</b> the master renderer runs <code>--ndi</code> (headless on the rig, <code>--headless --ndi</code>) and appears in Resolume's Sources → NDI Servers. <b>Picture back:</b> Resolume's NDI screen (Output → Advanced → + Screen → NDI) is picked up on Outputs → NDI → <b>Use as LIVE</b> and multicast to every projector. <b>Feed mix</b> (<code>live_mix</code>, blend <code>live_blend</code>: crossfade / add / multiply / screen / difference) fades each projector between its own picture and that feed — works on every scene except while a video clip plays (one decoder per Pi). <b>Control out:</b> the clip pad (layers × columns, labels are yours), column launch, layer opacity / bypass / solo, composition master, tap and resync all send OSC to Resolume's OSC input (Preferences → OSC, default port 7000, set the host on the Connection card). <b>Control in:</b> turn on Resolume's OSC <em>output</em> aimed at the master, port 9000; move a knob, choose a rig parameter, press Map — Resolume's 0–1 values drive it. Mappings, pad size and labels are saved with a show.</p>
-  </div>
-
-  <div class="card" id="i-video">
+  <div class="card" id="i-video" data-group="Picture">
     <h3>Video &amp; HDMI capture (scene 9)</h3>
-    <p><b>How it stays in sync without streaming.</b> Every Pi keeps an identical copy of the clip library (<code>fractal-media-sync</code> pulls it from the master over HTTP and keeps it current). The master never sends frames — it broadcasts <em>clip number, the master-clock time it started, speed and loop</em> in the same 60 Hz packet as everything else. Each renderer decodes its local file with libmpv (hardware H.264 on a Pi 4, software on a Pi 5 — both fine at 1080p) and nudges playback by up to ±8 % or seeks when it drifts more than 0.35 s from <code>(t − t0) × speed</code>. Result: every projector shows the same frame, and the video goes through the same post-pass as projectM, so kaleidoscope / tiling / zoom / hue still apply via <code>Shader mix</code>.</p>
+    <p><b>How it stays in sync without streaming.</b> Every Pi keeps an identical copy of the clip library (<code>fractal-media-sync</code> pulls it from the master over HTTP and keeps it current). The master never sends frames — it broadcasts <em>clip number, the master-clock time it started, speed and loop</em> in the same 60 Hz packet as everything else. Each renderer decodes its local file with libmpv (hardware H.264 on a Pi 4, software on a Pi 5 — both fine at 1080p) and nudges playback by up to ±8 % or seeks when it drifts more than 0.35 s from <code>(t − t0) × speed</code>. Result: every projector shows the same frame, and the video goes through the same post-pass as Milkdrop, so kaleidoscope / tiling / zoom / hue still apply via <code>Shader mix</code>.</p>
     <p><b>Uploading.</b> Media tab → drop anything (mp4, mov, mkv, avi, webm, m4v, mpg, ts, gif…). The master converts to ≤1080p H.264 (yuv420p, 2-second keyframes, no audio, fast-start) so a Pi 4 can decode it; files that are already Pi-friendly are only remuxed. The library is byte-sorted by file name and that order <em>is</em> the clip index every Pi uses — the Projectors table shows a <b>media</b> column so you can see a Pi that hasn't caught up (<code>3/4</code>). Names are limited to letters, digits, <code>- _ .</code>.</p>
-    <p><b>Triggers.</b> Engine card → VIDEO, or the clip tiles on the Perform Show page; playlist with auto-advance at clip end / every N bars / off, and <b>bar sync</b> restarts the clip on beat 1. OSC: <code>/frx/video &lt;index|name&gt;</code>, <code>/frx/video_next</code>, <code>/frx/video_prev</code>, <code>/frx/video_restart</code>, <code>/frx/video_live</code>. MIDI notes: 31 next · 30 prev · 29 restart · 28 LIVE (35 tap, 34 beat 1, 33/32 projectM stay as before).</p>
+    <p><b>Triggers.</b> Engine card → VIDEO, or the clip tiles on the Perform Show page; playlist with auto-advance at clip end / every N bars / off, and <b>bar sync</b> restarts the clip on beat 1. OSC: <code>/frx/video &lt;index|name&gt;</code>, <code>/frx/video_next</code>, <code>/frx/video_prev</code>, <code>/frx/video_restart</code>, <code>/frx/video_live</code>. MIDI notes: 31 next · 30 prev · 29 restart · 28 LIVE (35 tap, 34 beat 1, 33/32 Milkdrop stay as before).</p>
     <p><b>LIVE (clip 255) and HDMI capture.</b> The one case that <em>is</em> a stream: the master runs ffmpeg and multicasts MPEG-TS on <code>udp://239.255.42.2:5010</code>; every Pi tunes to it with mpv's low-latency profile (about 0.3–0.6 s behind, identical on all projectors). Sources: <b>NDI</b> — Resolume Arena/Avenue (Output → NDI), OBS, vMix or any NDI sender on the wired LAN, no capture card: the master needs the NDI SDK once (<code>sudo bash setup/install-ndi.sh &lt;SDK.tar.gz&gt;</code>, which also builds the <code>ndi-recv</code> helper), then pick the source by name; "low bandwidth" takes NDI's proxy stream (~640 px) for a fraction of the CPU. Full 1080p NDI is ~100–150 Mbit/s and the Pi 5 has to decode it and re-encode H.264, so 1080p30 is the comfortable ceiling; <b>HDMI</b> — a USB 3 UVC capture dongle (the £15 "HDMI to USB" sticks work; they appear as <code>/dev/videoN</code>, MJPEG 1080p30) plugged into the master; <b>V4L2</b> — any camera; <b>File</b> — loop a clip from the library through the stream; <b>Test</b> — colour bars. Pick the device in the LIVE source card on the Media tab, START, then LIVE on the Video card. Live needs the wired switch just like the sync packets — a Wi-Fi hop drops too many multicast packets for video.</p>
     <p><b>Files on the Pis.</b> <code>/var/lib/fractal-rig/media/*.mp4</code> (synced), <code>/var/lib/fractal-rig/state</code> (the renderer's note of the master's IP, read by the sync helper). On the master the library is <code>master/media/</code> (gitignored). <code>journalctl -fu fractal-media-sync</code> shows the pulls; each Pi also has a status page on <b>port 8082</b> with the renderer log, temperature/throttling, clip list and a link back here.</p>
   </div>
 
-  <div class="card" id="i-mapping">
+  <div class="card" id="i-mapping" data-group="Picture">
     <h3>Projection mapping (Outputs → Projection mapping)</h3>
     <p>Per projector, edited here and applied on the Pi within a couple of seconds: <b>keystone</b> (drag the four corners onto the surface — turn on <b>Test pattern</b> and the projector shows a grid with the same red / green / blue / yellow corners), <b>masks</b> (polygons drawn in output space that are blacked out with an adjustable feather — a doorway, a speaker stack, the ceiling), <b>soft-edge blend</b> widths per side for overlapping projectors (gamma-shaped ramps so the overlap doesn't look brighter), <b>brightness</b> and <b>gamma</b> to match two different projectors. Arrow keys nudge the selected point by one projector pixel, Shift for ten. <b>Copy from…</b> clones another projector's setup as a starting point.</p>
     <p>Under the hood: the master stores <code>master/mapping/&lt;name&gt;.json</code> and serves it as a small text file (<code>/api/mapping/&lt;name&gt;.txt</code>); <code>fractal-media-sync</code> writes it to <code>/var/lib/fractal-rig/mapping.txt</code> on that Pi; the renderer re-reads it when it changes and, when it's not identity, runs one extra full-resolution pass (inverse homography + mask texture + blend) instead of the plain upscale blit — about 1 ms on a Pi 5, free enough to leave on. The heartbeat reports a hash of the applied file, which is what the status pill ("applied on projector") checks. An identity mapping deletes the file so the Pi goes back to the zero-cost path.</p>
   </div>
 
-  <div class="card" id="i-outres">
-    <h3>Output resolution (top bar: Auto / 1080p / 4K)</h3>
-    <p>A global choice broadcast to every renderer. <b>1080p is the default at every boot</b> (config <code>out_res_boot</code> to change). <b>Auto</b> = whatever mode the screen came up in (a 4K TV on a Pi 4 means a 4K framebuffer, and the Pi 4 struggles — that was the "laggy / steppy" Pi 4). <b>1080p</b> forces 1920×1080 ≤ 60 Hz on every projector, which is what you want on a Pi 4 and on most projectors anyway; <b>4K</b> forces 3840×2160 where the screen offers it (a Pi 5 can drive it; the internal render scale still applies). Under KMSDRM a mode can only be chosen when the renderer starts, so a change makes each renderer remember the request, exit, and come straight back in the new mode — about 3 seconds of black per projector, so don't do it mid-set. A screen that doesn't have the mode keeps its current one (no restart loop). To pin one Pi regardless of the selector, give its renderer <code>--out-res 1080</code> (or <code>4k</code> / <code>auto</code>) in the install arguments.</p>
-  </div>
-
-  <div class="card" id="i-led">
+  <div class="card" id="i-led" data-group="Picture">
     <h3>LED pixel strips</h3>
     <p>An LED strip is treated as a very thin, very low-resolution projector: a straight line of sample points on the <em>same canvas</em> the projectors show. Each renderer streams an 80×45 thumbnail of its frame to the master 20× a second; the master samples the strip positions, applies gamma and brightness, and sends the pixel data to your controllers at the LED frame rate (40 fps default). Because the sample comes from the same packet-driven frame, the LEDs kick on the exact same beat as the projectors. All of it is configured in <b>Outputs → LED pixel strips</b>.</p>
     <h4>Controllers</h4>
@@ -946,17 +957,66 @@ sudo bash setup/install.sh master</pre>
     </ul>
   </div>
 
-  <div class="card" id="i-status">
-    <h3>Status &amp; debugging tab</h3>
-    <p>The <b>Status</b> tab is the rig's own instrument panel, refreshed live. The line at the top flags problems automatically: master tick rate low or a tick gap over 50 ms, master Pi throttled / under-voltage, CPU over 75 °C (master or any Pi), a renderer under 45 fps, packet loss, a heartbeat older than 3 s, no renderers heard, Pro DJ Link enabled but not locked, UI round-trip over 100 ms. Cards below:</p>
+  <div class="card" id="i-ndi" data-group="Picture">
+    <h3>NDI video</h3>
+    <p>NDI publishes a Pi's picture as a network video source for Resolume, OBS, vMix, TouchDesigner… The NDI SDK is a free licence-click download, so it can't ship in the repo: download <i>NDI SDK for Linux</i> from ndi.video, then on the Pi <code>sudo bash setup/install-ndi.sh ~/Install_NDI_SDK_v6_Linux.tar.gz</code> (installs headers + libndi, rebuilds the renderer with NDI), and add <code>--ndi</code> to that renderer's arguments (<code>sudo systemctl edit fractal-renderer</code>). The source appears as <b>"Fractal Rig (pi-name)"</b>. Frames are sent at the render scale (1080p × 0.6 = 1152×648) at up to <code>--ndi-fps</code> (30 default) — a Pi 5 is comfortable there; ~40 Mbit/s on the LAN. The Outputs tab shows per-Pi NDI state (off / publishing / receiver connected). Use a wired switch; NDI over Wi-Fi is not a good evening.</p>
+  </div>
+
+  <div class="card" id="i-resolume" data-group="Picture">
+    <h3>Resolume &amp; Ableton Link</h3>
+    <p>Everything lives in the <b>Outputs</b> tab. Three separate integrations, use any combination:</p>
+    <h4>1 · Getting the rig's picture into Resolume</h4>
+    <p><b>HDMI capture card</b> (Cam Link 4K, Magewell USB Capture, ~£90–£300) on any Pi's HDMI — zero software, ~2 frames latency, never crashes. The rig appears in Resolume as a live source you can layer, mask, effect and pixel-map. This is the recommended route. Alternatively <b>NDI</b> over the network — see the NDI section.</p>
+    <h4>2 · Tempo &amp; bar lock — Ableton Link</h4>
+    <p>Enable Link in Resolume (Preferences → Tempo → <i>Ableton Link</i>); the rig shows it as a peer. <b>Follow</b>: the rig takes tempo and bar phase from the Link session (Resolume, Ableton, Traktor, anything on the LAN can be the leader). <b>Lead</b>: the rig pushes its own tempo — from the XDJ's Pro DJ Link grid or tap — into the session and forces bar 1 on SET BEAT 1, so Resolume's beat-synced effects follow the CDJs through us. Tempo priority on the master when several sources are live: Pro DJ Link, then Link (follow), then tap / typed BPM, then audio onset. Needs <code>aalink</code> in the master venv (<code>install.sh master</code> adds it).</p>
+    <h4>3 · OSC to Resolume — tempo, resync, scenes, parameters</h4>
+    <p>In Resolume: Preferences → OSC → enable <i>OSC Input</i>, note the port (7000 default) and the PC's IP; enter both in the Outputs tab and switch on. The rig then sends the tempo whenever it changes (<code>/composition/tempocontroller/tempo</code>, normalised over Resolume's 20–500 BPM range), a <code>resync</code> on every SET BEAT 1, optionally <code>/composition/columns/N/connect</code> when a scene is selected (Scene → column map), and any rig parameter you map to a Resolume address (values 0–1, max 20/s). Find any Resolume parameter's OSC address in its Shortcuts → OSC panel. The reverse works too: Resolume's OSC <i>Output</i> can drive <code>/frx/&lt;param&gt;</code> on udp/9000, so a Resolume dashboard fader can move the rig.</p>
+    <h4>4 · Resolume driving the LEDs instead</h4>
+    <p>If you have <b>Arena</b>, its Advanced Output already pixel-maps Art-Net from any layer — with the rig's video in Resolume via capture card, Resolume can drive the strips and you can skip the LED section. Avenue can't, hence ours.</p>
+  </div>
+
+  <div class="card" id="i-resolume2" data-group="Picture">
+    <h3>Resolume — two-way (NDI + OSC)</h3>
+    <p><b>Picture out:</b> the master renderer runs <code>--ndi</code> (headless on the rig, <code>--headless --ndi</code>) and appears in Resolume's Sources → NDI Servers. <b>Picture back:</b> Resolume's NDI screen (Output → Advanced → + Screen → NDI) is picked up on Outputs → NDI → <b>Use as LIVE</b> and multicast to every projector. <b>Feed mix</b> (<code>live_mix</code>, blend <code>live_blend</code>: crossfade / add / multiply / screen / difference) fades each projector between its own picture and that feed — works on every scene except while a video clip plays (one decoder per Pi). <b>Control out:</b> the clip pad (layers × columns, labels are yours), column launch, layer opacity / bypass / solo, composition master, tap and resync all send OSC to Resolume's OSC input (Preferences → OSC, default port 7000, set the host on the Connection card). <b>Control in:</b> turn on Resolume's OSC <em>output</em> aimed at the master, port 9000; move a knob, choose a rig parameter, press Map — Resolume's 0–1 values drive it. Mappings, pad size and labels are saved with a show.</p>
+  </div>
+
+  <div class="card" id="i-perform" data-group="Performing & saving">
+    <h3>Perform mode &amp; touchscreen console</h3>
+    <p><b>▶ PERFORM</b> (header button, key <kbd>P</kbd>, or open <code>?perf=1</code>) replaces the whole page with a rail of big-button pages — SHOW, PRESETS, CLIPS, FEEL, COLOUR, CUES, SHOWS, LEDS — — <b>Show</b> (TAP, SET BEAT 1, engine, scenes, blackout / freeze / auto), <b>Presets</b> (shader presets, Milkdrop prev / random / next / hold, your ★ favourites as tiles), <b>Feel</b> (brightness, contrast, glow, beat pulse, bar swing, warp, speed, auto depth, zoom / kaleidoscope / detail steppers) and <b>Colour</b> (hue swatches and sliders). Swipe or tap the page names; <b>✕ EXIT</b> (or <kbd>Esc</kbd>) returns to the full GUI with every micro-control. The mode is remembered per browser.</p>
+    <h4>Raspberry Pi touchscreen</h4>
+    <p>Yes — the official 7" Touch Display (800×480), Touch Display 2 (720×1280) or any HDMI touch monitor works as a dedicated console: it is just Chromium showing this page. <code>sudo bash setup/install-kiosk.sh http://fractal-master.local:8080/?perf=1</code> on a Pi does the whole thing — on Pi OS Lite it installs <b>cage</b> (one-window Wayland kiosk) + Chromium and boots straight into Perform mode; on Pi OS Desktop it adds an autostart entry instead. Touch works out of the box under Wayland.</p>
+    <ul>
+      <li><b>Best:</b> a separate console Pi (Pi 4 2 GB is plenty) with the touchscreen, on the same switch. The master keeps running headless with KMSDRM on its projector.</li>
+      <li><b>Same Pi as a projector:</b> KMSDRM can't share the GPU with a compositor, so use Pi OS Desktop on that Pi, remove <code>SDL_VIDEODRIVER=KMSDRM</code> from <code>fractal-renderer.service</code> and add <code>--display 1</code> so the renderer goes fullscreen on the HDMI output while the kiosk owns the touchscreen.</li>
+      <li>Any phone or tablet does the same job with no install — the layout is fully mobile-adaptive.</li>
+    </ul>
+  </div>
+
+  <div class="card" id="i-cues" data-group="Performing & saving">
+    <h3>Cues, fades and audio modulation</h3>
+    <p><b>Cues</b> are the sequencing layer: a stack of steps for the set. Build one by setting the rig up and pressing <em>Capture current look as cue</em> (every parameter goes in), or add an empty cue and pick actions: scene, a saved preset, a whole show, Milkdrop (random / next / a named preset), video (a clip, LIVE, next), feed mix, brightness or blackout, auto-drift on/off. <b>Fade (bars)</b> glides every continuous parameter over that many bars at the current tempo (discrete ones like scene switch at the start); <b>Auto-follow</b> fires the next cue after N bars, so a whole intro can run itself. GO / BACK live on the Cues tab and the Perform CUES page, keys <b>G</b> / <b>B</b>, MIDI notes 27 / 26, OSC <code>/frx/go</code>, <code>/frx/back</code>, <code>/frx/cue n</code>. The stack is saved with a show, and can be saved on its own as a <b>cue list</b> (Cues tab → Saved cue lists, or SAVE CURRENT CUE LIST in Perform) to load onto any rig. <b>Audio → parameters</b> (Inputs tab) makes any parameter follow the music: pick a source (one of the 16 analyser bands, bass, overall energy, or the beat pulse that works from any tempo source), an amount (a fraction of the parameter's range — small numbers) and attack / release times; the level bars show each envelope live. Modulation sits on top of your sliders and auto-drift and never touches the Pis — they still just receive numbers.</p>
+  </div>
+
+  <div class="card" id="i-cloud" data-group="Performing & saving">
+    <h3>Saving &amp; the cloud (Supabase)</h3>
+    <p>Every save in the app lands on the master Pi first — shows (<code>master/shows/</code>), the preset bank and palettes, the live cue stack and saved cue lists, LED configurations (<code>master/led_configs/</code>), mapping presets, each projector's mapping and <code>config.local.json</code> — so the rig works exactly the same with no internet at a venue. Whenever the Pi <em>can</em> reach Supabase (table <code>studio_fractal_docs</code> in the Sonor project) it pushes queued changes and pulls anything newer, last write wins; deletes propagate too. Shows, LED configurations, mapping presets and cue lists are shared between rigs, so a setup made on the studio bench is in the "☁ from cloud…" menu on any other master; presets, cues, mappings and config are kept per rig name. The top-bar pill shows the state: green = in sync, amber = offline with changes queued (they go up when you're back on Wi-Fi), grey = not configured or paused. "Sync now" and "Pull everything" sit in the Rig tab's update row; the URL and key are baked into <code>master/config.json</code>, so there is nothing to type. Every save uses the same dialog (name + notes, with an overwrite warning) and every saved thing shows as the same card with ★ favourite, LOAD, Update, Download and ✕. Files still export and import as before (.fractalshow.json / .zip, .fractalleds.json) for moving things by hand or keeping a copy.</p>
+  </div>
+
+  <div class="card" id="i-rigops" data-group="Operations">
+    <h3>Updating &amp; restarting from the page</h3>
+    <p>Rig tab → <b>Update everything from GitHub</b> pulls the repo and re-runs the installer on the master and every renderer that is online (each Pi's <code>fractal-media-sync</code> status service on port 8082 accepts <code>/update</code>, <code>/restart</code>, <code>/reboot</code> from the master; <code>setup/rig-update</code> reads the role and renderer arguments back from the systemd units so nothing has to be typed). Per-Pi buttons do the same for one machine, and <b>status</b> opens that Pi's page (log, temperature, clips, mapping, update log). Expect 1–3 minutes of dark projectors while they rebuild; the <b>ver</b> column in the Projectors table goes amber for any Pi not on the master's version.</p>
+  </div>
+
+  <div class="card" id="i-status" data-group="Operations">
+    <h3>Rig tab — health, projectors, diagnostics</h3>
+    <p>The <b>Rig</b> tab is the rig's own instrument panel, refreshed live: the update / restart / projector / cloud buttons at the top, the <b>Projectors</b> table (health dot, HDMI port menu, projector power + source + ⏻ + input, ip, version, fps, res, tile, loss %, temp, heartbeat jitter, media, age, actions), the <b>Health &amp; network</b> tiles (projectors, master tick, multicast loss, LAN jitter, slowest / hottest Pi, projector power, master load, this UI, cloud, LED, tempo, versions), then <b>Sources</b> with raw counters, then the detail cards. The line at the top flags problems automatically: master tick rate low or a tick gap over 50 ms, master Pi throttled / under-voltage, CPU over 75 °C (master or any Pi), a renderer under 45 fps, packet loss, a heartbeat older than 3 s, no renderers heard, Pro DJ Link enabled but not locked, UI round-trip over 100 ms. Cards below:</p>
     <ul>
       <li><b>This browser &amp; link</b> — live/demo, WebSocket URL, round-trip ms (pinged every 2 s), clock skew, snapshot rate, preview fps, WebGL renderer, page errors, and whether this page's version matches the master's.</li>
       <li><b>Master system</b> — Pi model, OS, every IP, uptimes, load, CPU temp, <code>vcgencmd get_throttled</code> decoded into words (under-voltage now / occurred, frequency capped, soft temp limit), memory.</li>
       <li><b>Clock &amp; broadcast</b> — animation clock, measured tick rate vs target, worst tick gap in the last second, packets sent, sequence, multicast group/port/interface, whether the group is actually joined (IGMP), heartbeat port, web clients, current tempo.</li>
       <li><b>Sources — detail</b> — for each source: linked / waiting / off, the live detail line, plus raw counters: Pro DJ Link packets vs beat packets vs non-Pioneer traffic with last type and sender (and a hint that changes depending on which is zero), MIDI ports found and last CC, audio devices and live levels, last OSC message, which params are drifting.</li>
       <li><b>Pro DJ Link decks</b> — each deck heard with BPM, beat and age.</li>
-      <li><b>Renderers — detail</b> — per Pi: fps, resolution, tile, packets, lost, temperature, projectM preset count (flagged if it differs from the master) and current preset, whether it is on the master's PCM stream or synthesising, heartbeat count, age, version (flagged if it differs).</li>
-      <li><b>Milkdrop</b> — preset dir and count, current preset, auto-cycle setting, PCM stream stats, how many renderers have projectM built in.</li>
+      <li><b>Milkdrop</b> — preset dir and count, current preset, auto-cycle setting, PCM stream stats, how many renderers have Milkdrop built in.</li>
       <li><b>Master config (effective)</b>, <b>Log (last 60)</b>, and <b>Copy diagnostics JSON</b> — one tap puts the whole picture on the clipboard to paste into a message.</li>
     </ul>
     <h4>On-Pi self-test</h4>
@@ -964,25 +1024,34 @@ sudo bash setup/install.sh master</pre>
     <p>Pass / warn / fail per line: Pi model, IP, wired link up, throttling and temperature, renderer built, shader/param tables in sync, SDL version (warns below 2.30 on Pi 5), video/render groups, DRM device present, no desktop compositor stealing the display, libprojectM + preset count, service status and last logged fps — then it actually listens: 4 s on the multicast group (rate, loss, master IP, protocol version, BPM) and 4 s on udp/50001 for Pioneer traffic (each deck heard with BPM and beat), and enumerates MIDI and audio devices.</p>
   </div>
 
-  <div class="card" id="i-ready">
+  <div class="card" id="i-protocol" data-group="Operations">
+    <h3>Sync protocol (short version)</h3>
+    <p>Packet: magic <code>FRX1</code>, version, param count, sequence, flags, <code>t</code> (master clock, f64), <code>beat_t</code> (clock time of the last beat, f64), <code>bpm</code>, <code>bar_beat</code>, then 31 floats in the order of <code>master/params.py</code> (164 bytes in all). Renderers store <code>(t, arrival)</code> and render at <code>t + (now − arrival)</code> — re-anchored 60× a second, so there is no drift to correct. Continuous params are smoothed (τ 60 ms) identically on every Pi; discrete ones (scene, iterations, kaleido) snap. Beats are never sent as a phase — the shader computes <code>fract((t − beat_t)·bpm/60)</code> itself, so it can't wrap mid-interpolation. Lose the master for 3 s and a Pi freewheels on its own clock, then re-locks silently. HDMI outputs are not genlocked, so adjacent projectors can be up to one frame (16 ms) apart — invisible at normal speeds. Full detail in <code>PROTOCOL.md</code>.</p>
+  </div>
+
+  <div class="card" id="i-ready" data-group="Operations">
     <h3>What's been tested — and what hasn't</h3>
-    <p>Everything below was exercised in a Linux sandbox with Mesa's software GLES driver, a real master process, the real compiled renderer and a real browser. No physical Pi, projector, XDJ or MIDI controller has been connected yet, so treat the right-hand column as the bench plan for the first evening.</p>
+    <p>Everything below was exercised in a Linux sandbox with Mesa's software GLES driver, a real master process, the real compiled renderer, a real Supabase project and a real browser; the studio bench Pi 5 (<code>sonorpi</code>) and one Pi 4 renderer (<code>fractal1</code>) have run the core loop. The amber rows are the bench plan for the next evening on the wall.</p>
     <table><tbody>
       <tr><td>Master → renderer multicast</td><td><span class="ok">Tested</span> end-to-end: clock lock, smoothing, sequence/loss counting, freewheel. Pure sockets — nothing Pi-specific.</td></tr>
       <tr><td>Heartbeats / fleet table</td><td><span class="ok">Tested</span>.</td></tr>
-      <tr><td>Web UI, WebSocket, Status tab, mobile layout</td><td><span class="ok">Tested</span> live and in demo mode, desktop and 390 px viewport.</td></tr>
+      <tr><td>Web UI, WebSocket, Rig tab, mobile layout</td><td><span class="ok">Tested</span> live and in demo mode, desktop and 390 px viewport.</td></tr>
       <tr><td>OSC</td><td><span class="ok">Tested</span> with a real OSC client.</td></tr>
-      <tr><td>All 8 shader scenes</td><td><span class="ok">Rendered</span> through the real renderer binary.</td></tr>
-      <tr><td>projectM scene</td><td><span class="ok">Tested</span>: libprojectM 4.1.4 built with GLES, real Milkdrop presets rendered through the full pipeline, master-owned preset switching, auto-cycle, post-pass. <span class="warn">Not yet</span> measured on Pi GPU — expect to lower <code>--scale</code> for heavy presets.</td></tr>
+      <tr><td>All 14 shader scenes</td><td><span class="ok">Rendered</span> through the real renderer binary and the browser preview (v0.8 scenes 10–15 checked scene by scene).</td></tr>
+      <tr><td>Milkdrop scene</td><td><span class="ok">Tested</span>: libprojectM 4.1.4 built with GLES, real Milkdrop presets rendered through the full pipeline, master-owned preset switching, auto-cycle, post-pass. <span class="warn">Not yet</span> measured on Pi GPU — expect to lower <code>--scale</code> for heavy presets.</td></tr>
       <tr><td>Pro DJ Link</td><td><span class="warn">Parser tested with a synthetic packet</span> built from Deep Symmetry's documented layout (device 0x21, pitch 0x54, BPM 0x5A, beat 0x5C). A real XDJ-RX2 packet has not been captured — first thing to check with <code>journalctl -fu fractal-master</code> while a deck plays. If the numbers look wrong the parser is 30 lines in <code>master/inputs.py</code>.</td></tr>
       <tr><td>MIDI</td><td><span class="warn">Code path not run</span> — no controller in the sandbox. Standard mido usage; the risk is <code>python-rtmidi</code> needing to compile on the Pi if no wheel matches.</td></tr>
       <tr><td>Audio in / PCM stream</td><td><span class="warn">Code path not run</span> — no sound device in the sandbox. Simple maths; the risk is PortAudio device selection on Pi OS Lite.</td></tr>
+      <tr><td>Video scene / libmpv, NDI, mapping on the Pi</td><td><span class="warn">Built and exercised in the sandbox</span> (mpv decode, warp pass, hash contract, sync helper); frame-locked playback and the NDI round trip with Resolume still need the projector wall.</td></tr>
+      <tr><td>Projector RS-232 / PJLink</td><td><span class="ok">Tested</span> against a pty fake projector speaking the ViewSonic protocol (status, source read, on/off, ack). <span class="warn">RS-232 to a real V52HD</span> not yet — first check: enable RS-232 control + standby power in its menu, then <code>python3 setup/projector.py status</code>.</td></tr>
+      <tr><td>HDMI mirror / dual outputs</td><td><span class="warn">Builds, single output verified</span>; two KMSDRM windows on one GL context and two page-flips per frame need a Pi 5 with two screens — watch the fps column.</td></tr>
+      <tr><td>X Air meters / RTA</td><td><span class="ok">Tested</span> against a fake XR16 speaking the real OSC blob format; a real desk on the same subnet is the remaining check.</td></tr>
       <tr><td>KMSDRM on the Pi</td><td><span class="warn">Not run on a Pi</span>. Same Mesa driver family; Pi 5 wants SDL2 ≥ 2.30 (<code>apt full-upgrade</code>) or run under the desktop compositor instead.</td></tr>
     </tbody></table>
     <p>Suggested bench order: one Pi + monitor (KMSDRM comes up, real fps at <code>--scale 0.6</code>) → second Pi (sync, heartbeats) → XDJ LINK cable (deck appears in Sources) → MIDI / audio interface → <code>install-projectm.sh</code> on all Pis.</p>
   </div>
 
-  <div class="card" id="i-trouble">
+  <div class="card" id="i-trouble" data-group="Operations">
     <h3>Troubleshooting</h3>
     <table><tbody>
       <tr><td>Projectors table empty</td><td>Renderers can't see the master's multicast. Same subnet? IGMP snooping? <code>journalctl -fu fractal-renderer</code> should say "master acquired". Try <code>--iface &lt;pi-ip&gt;</code> on multi-NIC Pis.</td></tr>
@@ -996,12 +1065,12 @@ sudo bash setup/install.sh master</pre>
       <tr><td>Audio never goes green</td><td><code>arecord -l</code> must list the device; add the user to <code>audio</code>; master needs <code>libportaudio2</code>. Pick the device in the Sources panel.</td></tr>
       <tr><td>MIDI never goes green</td><td><code>aconnect -l</code> lists the controller? Set <code>midi_port_contains</code> in config if several ports exist.</td></tr>
       <tr><td>Blank between tiles / seams</td><td>Tiling assumes edge-to-edge, same-resolution projectors. Edge-blend feathering is on the roadmap.</td></tr>
-      <tr><td>projectM preset numbers don't match between Pis</td><td>Preset packs differ. Run <code>install-projectm.sh</code> (same flags) on every Pi and the master; the Renderers table flags any count mismatch.</td></tr>
+      <tr><td>Milkdrop preset numbers don't match between Pis</td><td>Preset packs differ. Run <code>install-projectm.sh</code> (same flags) on every Pi and the master; the Renderers table flags any count mismatch.</td></tr>
       <tr><td>Milkdrop slow on a Pi</td><td>Heavy presets are heavy everywhere. Lower <code>--scale</code> to 0.5, avoid Cream-of-the-Crop's shader-heavy ones, or keep auto-cycle on so a slow preset never lasts long.</td></tr>
     </tbody></table>
   </div>
 
-  <div class="card" id="i-history">
+  <div class="card" id="i-history" data-group="Operations">
     <h3>Version history</h3>
     <table><tbody>
       <tr><td>v0.1.0</td><td>Renderer (C/SDL2/GLES3), master (Python asyncio), 4 fractal scenes, web UI with live WebGL preview and Pages demo mode, passive Pro DJ Link, MIDI/OSC/audio adapters, install script + systemd units, PROTOCOL.md.</td></tr>
@@ -1012,12 +1081,13 @@ sudo bash setup/install.sh master</pre>
       <tr><td>v0.6.1</td><td>Pi 4 renderer fix: SDL now opens the DRM device that actually has a connected HDMI output (Pi 4 exposes the 3D core as <code>card0</code> with no outputs, which made KMSDRM fail on every start). Also tries <code>card0..3</code> as a fallback; <code>SDL_KMSDRM_DEVICE_INDEX</code> still overrides.</td></tr>
       <tr><td>v0.6.0</td><td><b>Inputs monitor</b> on the Control tab: 4-bar beat grid with playhead and lock badge (Pro DJ Link deck / Ableton Link peers / free-running), BPM stability readout, per-deck lanes, Link phase, audio waveform + 16-band spectrum + energy/bass meters streamed from the master, MIDI / OSC / Pro DJ Link activity chips; slim beat grid in Perform mode. Master streams <code>audio_wave</code> / <code>audio_bands</code> / <code>audio_levels</code> and the followed deck in the state snapshot.</td></tr>
       <tr><td>v0.5.0</td><td><b>Outputs</b> tab: live thumbnails from every renderer; Ableton Link (follow / lead); OSC to Resolume (tempo, bar resync, scene → column, parameter map); NDI publishing (<code>install-ndi.sh</code> + <code>--ndi</code>); LED pixel output over DDP / Art-Net / sACN with a strip layout editor, matrix builder, test patterns and live canvas preview. <b>Perform mode</b> — big touch controls in swipeable pages — plus <code>install-kiosk.sh</code> for a Pi touchscreen console and <code>--display</code> on the renderer.</td></tr>
-      <tr><td>v0.4.2</td><td>Engine switch (Shader scenes ⇄ projectM) and the extended projectM panel: big preset name, PREV / RANDOM / NEXT, filterable browse list with ★ favourites, recent chips, hold, auto-cycle; works in the Pages demo too.</td></tr>
-      <tr><td>v0.4.1</td><td>In-browser projectM simulation in the Live preview (Butterchurn — Milkdrop 2 in WebGL, vendored, offline-capable), matched by preset name to what the Pis are showing.</td></tr>
-      <tr><td>v0.4.0</td><td>projectM scene 8: libprojectM 4 built with GLES on each Pi, master-owned preset selection with search / prev / next / random / auto-cycle every N bars, PCM multicast stream with beat-locked synthetic fallback, kaleido/zoom/hue post-pass via <code>pm_mix</code>, <code>install-projectm.sh</code>, heartbeat v3 (preset count / current / audio).</td></tr>
+      <tr><td>v0.4.2</td><td>Engine switch (Shader scenes ⇄ Milkdrop) and the extended Milkdrop panel: big preset name, PREV / RANDOM / NEXT, filterable browse list with ★ favourites, recent chips, hold, auto-cycle; works in the Pages demo too.</td></tr>
+      <tr><td>v0.4.1</td><td>In-browser Milkdrop simulation in the Live preview (Butterchurn — Milkdrop 2 in WebGL, vendored, offline-capable), matched by preset name to what the Pis are showing.</td></tr>
+      <tr><td>v0.4.0</td><td>Milkdrop scene 8: libprojectM 4 built with GLES on each Pi, master-owned preset selection with search / prev / next / random / auto-cycle every N bars, PCM multicast stream with beat-locked synthetic fallback, kaleido/zoom/hue post-pass via <code>pm_mix</code>, <code>install-projectm.sh</code>, heartbeat v3 (preset count / current / audio).</td></tr>
     </tbody></table>
     <p>Source, issues and the Pages demo: <a href="https://github.com/sonorltd/sonor-fractal-rig" target="_blank" rel="noopener">github.com/sonorltd/sonor-fractal-rig</a>.</p>
   </div>
+
   </div>
 </section>
 
