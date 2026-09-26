@@ -1,14 +1,17 @@
-/* Fractal Rig — colour tokens. Every colour in the app is a variable from here; theme it in one place. */
-/* Stage-side control surface: dark by design (this lives on a phone next to a DJ booth,
-   not in the office). Deliberate deviation from Sonor SLATE-FIRST — side-project, non-Sonor UI. */
+/* Fractal Rig — colour tokens. Every colour in the app is a variable from here; theme it in one place.
+   v0.8 "console" theme: neutral charcoal greys with one electric-blue accent (the Resolume Arena feel — flat, low-chroma,
+   the picture is the colour). Engine colours are functional (shader / Milkdrop / video / Resolume) and stay. */
 :root {
-  --bg: #0b0c10; --panel: #13151c; --panel2: #191c25; --line: #262a37;
-  --text: #e8e9ee; --muted: #8b90a3; --accent: #8058a1; --accent2: #4bb9d3;
-  --ok: #78ba57; --warn: #f5d05c; --bad: #ec6061; --pink: #e67eb1;
-  --radius: 10px; --font: 'DM Sans', system-ui, -apple-system, Segoe UI, sans-serif;
+  --bg: #0e0f11; --panel: #16171a; --panel2: #1d1f23; --panel3: #24272c; --line: #2b2e34; --line2: #363a41;
+  --text: #e8eaee; --muted: #8b919c;
+  --accent: #2f8fff;          /* primary: selection, primary buttons, active tabs */
+  --accent2: #45c8ff;         /* lighter blue: live values, highlights, links */
+  --ok: #46d17a; --warn: #f2b33d; --bad: #ff5a5a; --pink: #d46bff;
+  --radius: 8px; --font: 'DM Sans', system-ui, -apple-system, Segoe UI, sans-serif;
   --mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --glow: 0 0 0 1px rgba(47,143,255,.35), 0 0 18px rgba(47,143,255,.18);
 }
-:root { --eng-shader: #4bb9d3; --eng-pm: #c06cf0; --eng-video: #f0a040; --eng-resolume: #ec6061; }
-/* the brand strip under the header — Sonor palette, in order */
-.strip i:nth-child(1) { background: #8058a1; } .strip i:nth-child(2) { background: #4bb9d3; } .strip i:nth-child(3) { background: #78ba57; } .strip i:nth-child(4) { background: #f5d05c; } .strip i:nth-child(5) { background: #e37c59; }
-.strip i:nth-child(6) { background: #ec6061; } .strip i:nth-child(7) { background: #e67eb1; } .strip i:nth-child(8) { background: #ad9978; } .strip i:nth-child(9) { background: #b7b1a7; } .strip i:nth-child(10) { background: #302f2e; }
+:root { --eng-shader: #45c8ff; --eng-pm: #c06cf0; --eng-video: #f0a040; --eng-resolume: #ff5a5a; }
+/* the line under the header — one accent gradient, no brand strip */
+.strip { display: block; height: 2px; background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 35%, rgba(69,200,255,.15) 70%, transparent 100%); }
+.strip i { display: none; }

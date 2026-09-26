@@ -20,7 +20,9 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   10 service colours as a decorative strip only.
 
 ## Brand overrides
-- **Theme: custom dark "stage" palette** (`web/index.html :root`). Deviates from SLATE-FIRST
+- **Theme: "console" palette** (`web/css/theme.css`) — neutral charcoal greys, ONE electric-blue accent (#2f8fff / #45c8ff),
+  amber warn, flat controls: the Resolume Arena feel, so the picture is the colour. Header carries a single accent
+  gradient line, not the Sonor service strip. Engine colours are functional and stay. Previously: custom dark "stage" palette (`web/index.html :root`). Deviates from SLATE-FIRST
   because this is a side-project control surface used next to a DJ booth in the dark, not a
   Sonor staff app. Reason logged 2026-09-08. Inline `:root` is acceptable here (S-4.1 does not
   apply to non-Spine side-projects).

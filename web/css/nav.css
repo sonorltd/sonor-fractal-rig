@@ -1,13 +1,13 @@
 /* Fractal Rig — header, tab bar, and the Perform rail/pages. Change the menu look here; index.html + js/nav.js define what is IN the menus. */
-header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #1a1c20, var(--panel)); position: sticky; top: 0; z-index: 5; }
 .logo { font-weight: 700; letter-spacing: .12em; font-size: 13px; }
-.logo span { color: var(--accent2); }
+.logo span { color: var(--accent2); } .logo { color: #fff; }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-size: 12px; color: var(--muted); font-family: var(--mono); }
 .pf-grid { width: 100%; height: 44px; display: block; border-radius: 10px; background: #08090c; border: 1px solid var(--line); margin: 6px 0 10px; }
-.nav { display: flex; gap: 2px; background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
-.nav button { background: none; border: 0; border-radius: 999px; padding: 4px 10px; color: var(--muted); font-size: 12px; }
+.nav { display: flex; gap: 2px; background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 2px; }
+.nav button { background: none; border: 0; border-radius: 5px; padding: 4px 10px; color: var(--muted); font-size: 12px; }
 #pill-cloud { white-space: nowrap; }
-.nav button.active { background: var(--accent); color: #fff; }
+.nav button.active { background: var(--accent); color: #fff; box-shadow: var(--glow); }
 #perf { position: fixed; inset: 0; background: var(--bg); z-index: 50; display: flex; flex-direction: column; }
 #perf[hidden] { display: none; }
 body.perf { overflow: hidden; }
@@ -22,7 +22,7 @@ body.perf { overflow: hidden; }
 .perf-rail { width: 112px; flex: none; display: flex; flex-direction: column; gap: 6px; padding: 10px 8px; border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; }
 .perf-rail button { min-height: 60px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 600; letter-spacing: .03em; padding: 6px 4px; display: grid; place-items: center; gap: 2px; }
 .perf-rail button small { font-weight: 400; font-size: 10px; color: var(--muted); }
-.perf-rail button.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.25), rgba(128,88,161,.25)); color: #fff; }
+.perf-rail button.active { border-color: var(--accent2); background: linear-gradient(135deg, color-mix(in srgb, var(--accent2) 25%, transparent), color-mix(in srgb, var(--accent) 25%, transparent)); color: #fff; }
 .perf-rail .spacer { flex: 1; }
 .perf-pages { flex: 1; min-height: 0; position: relative; display: flex; }
 .ppage { flex: 1; min-height: 0; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: 14px 16px 110px; display: none; flex-direction: column; gap: 14px; box-sizing: border-box; scrollbar-width: thin; }
@@ -37,7 +37,7 @@ body.perf { overflow: hidden; }
 .pgrid.c2 { grid-template-columns: 1fr 1fr; } .pgrid.c3 { grid-template-columns: repeat(3, 1fr); } .pgrid.c4 { grid-template-columns: repeat(4, 1fr); }
 .pbtn { min-height: 72px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; font-weight: 700; letter-spacing: .03em; display: grid; place-items: center; gap: 2px; padding: 10px; text-align: center; }
 .pbtn small { font-weight: 400; font-size: 11px; color: var(--muted); letter-spacing: 0; }
-.pbtn.active { border-color: var(--accent2); background: linear-gradient(135deg, rgba(75,185,211,.22), rgba(128,88,161,.22)); color: #fff; }
+.pbtn.active { border-color: var(--accent2); background: linear-gradient(135deg, color-mix(in srgb, var(--accent2) 22%, transparent), color-mix(in srgb, var(--accent) 22%, transparent)); color: #fff; }
 .pbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .pbtn.huge { min-height: 120px; font-size: 26px; }
 .pbtn.danger.active { background: rgba(236,96,97,.25); border-color: var(--bad); }
@@ -84,3 +84,4 @@ body.perf { overflow: hidden; }
 /* Perform top bar: readouts reserve their width so EXIT / the tabs never shift */
 .perf-top .bpm { min-width: 6.4ch; font-variant-numeric: tabular-nums; }
 #pf-src { min-width: 9em; } #pf-scene-pill { max-width: 32ch; min-width: 10em; } #pf-scene-pill { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+.pbtn.primary small, .btn.primary small { color: rgba(255,255,255,.78); }
