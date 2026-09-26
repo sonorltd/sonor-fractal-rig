@@ -134,3 +134,7 @@ Add a row to `PARAMS` in `master/params.py`, run `python3 master/gen_params.py`,
 use `P_YOURNAME` in `fractal.frag`, rebuild the renderer, restart the master.
 Bump `PROTOCOL_VERSION` only when you change the header layout — adding params
 is already guarded by the `nparams` field.
+
+
+### Heartbeat token `out:` (v0.8.0)
+`out:<mode>/<displays>` — which HDMI port(s) the renderer drives: `1`, `2`, `mirror` (both, same picture) or `dual` (both, two side-by-side tiles), and how many displays KMSDRM enumerated. Chosen by `--outputs` or the `<state>.out` file the master writes through the Pi's status service (`POST :8082/outputs {mode}`), followed by a renderer restart.

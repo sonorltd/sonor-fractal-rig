@@ -59,6 +59,7 @@ function renderControls() {
   $('fleet').querySelectorAll('[data-rig]').forEach(b => b.onclick = () => rigAct(b.dataset.rig, b.dataset.act, b));
   $('fleet').querySelectorAll('[data-pj]').forEach(b => b.onclick = () => projAct(b.dataset.pj, b.dataset.cmd, b));
   $('fleet').querySelectorAll('select[data-pjin]').forEach(sel => sel.onchange = () => { if (sel.value) projAct(sel.dataset.pjin, sel.value, sel); sel.value = ''; });
+  $('fleet').querySelectorAll('select[data-pjout]').forEach(sel => sel.onchange = () => outputsSet(sel.dataset.pjout, sel.value, sel));
   $('last-cc').textContent = S.last_cc == null ? '—' : 'CC ' + S.last_cc;
   renderSources();
   renderPm();

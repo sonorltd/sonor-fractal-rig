@@ -14,13 +14,14 @@ uniform vec4  u_edge;         // l r t b blend widths in source space
 uniform float u_bright, u_gamma;
 uniform vec3  u_gain;         // per-channel gain for matching projectors
 uniform int   u_test;
+uniform vec2  u_src;          // (x0, width) of the source sub-rect this output shows — (0,1) normally, halves in dual mode
 
 void main() {
     vec2 o = vec2(gl_FragCoord.x / u_res.x, 1.0 - gl_FragCoord.y / u_res.y);   // top-left origin
     vec3 s3 = u_inv * vec3(o, 1.0);
     vec2 s = s3.xy / s3.z;
     if (s3.z <= 0.0 || s.x < 0.0 || s.x > 1.0 || s.y < 0.0 || s.y > 1.0) { fragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
-    vec3 col = texture(u_tex, vec2(s.x, 1.0 - s.y)).rgb;
+    vec3 col = texture(u_tex, vec2(u_src.x + s.x * u_src.y, 1.0 - s.y)).rgb;
     if (u_test == 1) {
         // 10x10 grid + centre cross + coloured corners: red TL, green TR, blue BR, yellow BL
         vec2 g = abs(fract(s * 10.0) - 0.5);

@@ -167,6 +167,13 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   inline matrix builder, Perform **LEDS** page (output, brightness, test, per-zone mute, saved configs). Rig tab:
   Projectors table carries health dot / loss % / temp / heartbeat jitter (engine `hb_worst`, `loss_rate`,
   `fps_min` from HB timing), a Health & network tile strip, Sources moved under Projectors, one Log card.
+- 2026-09-26 v0.8.0 (cont. 5) — **HDMI output select per renderer**: `--outputs 1|2|mirror|dual|auto` (auto = `<state>.out`
+  written by fractal-media-sync `POST /outputs {mode}` + `systemctl restart fractal-renderer`; master proxies
+  `/api/rig/{name}/outputs`). mirror = second SDL window on the SAME GL context, scene rendered once, final pass per
+  window (blit or warp); dual = FBO twice as wide, tile spans 2 columns, `warp.frag u_src` picks each half
+  (mapping shared by both outputs — per-output mapping is a later step). Falls back to one output with a log line
+  when only one display is connected; HB token `out:mode/displays` → Projectors table HDMI menu. Hardware-unverified:
+  SDL_GL_MakeCurrent across two KMSDRM windows on vc4 and two page-flips per frame at 60 Hz — soak on a Pi 5.
 - 2026-09-26 v0.8.0 (cont. 4) — **Projector control, two-way, per Pi**: `setup/projector.py` (stdlib; ViewSonic hex
   RS-232 19200 8N1 or PJLink TCP 4352; termios, no pyserial) — `command(on|off|status|hdmi1|hdmi2|blank|unblank|raw)`,
   status reads power AND source; config `/var/lib/fractal-rig/projector.json`; port auto = USB lead then

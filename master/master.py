@@ -813,7 +813,7 @@ async def web_app(engine, cfg):
         r = engine.fleet.get(name)
         if not r:
             raise web.HTTPNotFound(text="renderer not heard from")
-        if act not in ("update", "restart", "reboot", "update.log", "projector", "projector/config"):
+        if act not in ("update", "restart", "reboot", "update.log", "projector", "projector/config", "outputs"):
             raise web.HTTPNotFound()
         import aiohttp
         url = f"http://{r['ip']}:8082/{act}"
@@ -833,7 +833,9 @@ async def web_app(engine, cfg):
                     j = await resp.json()
         except Exception as ex:
             return web.json_response(dict(ok=False, msg=f"{name}: status service not reachable ({ex}) — is fractal-media-sync running on it?"))
-        if act.startswith("projector"):
+        if act == "outputs":
+            engine.event(f"{name}: HDMI outputs → {body.get('mode')} · {j.get('msg', '')}")
+        elif act.startswith("projector"):
             if isinstance(j.get("cached"), dict): engine.fleet[name]["proj"] = dict(j["cached"], msg=j.get("msg", ""))
             engine.event(f"{name}: projector {body.get('cmd', act)} → {j.get('msg', '')}")
         else:

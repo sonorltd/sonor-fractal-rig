@@ -436,6 +436,7 @@ class Engine:
             media_n = int(kv["media"]) if "media" in kv else None
             map_hash = kv.get("map")
             video = kv.get("video")
+            out = kv.get("out")                          # v0.8: "mode/displays", e.g. mirror/2 — which HDMI port(s) this Pi drives
             prev = self.fleet.get(name, {})
             now = time.time()
             # heartbeat-interval stats — a jittery/late HB on a Pi that is otherwise fine usually means the LAN
@@ -451,7 +452,7 @@ class Engine:
                                     packets=pk_i, lost=lost_i, version=appver, seen=now,
                                     temp=temp, first_seen=prev.get("first_seen", time.time()), hb=prev.get("hb", 0) + 1,
                                     pm_presets=pm_n, pm_current=pm_cur, audio_packets=audio_pk, ndi=ndi,
-                                    media=media_n, map=map_hash, video=video)
+                                    media=media_n, map=map_hash, video=video, out=out)
         except Exception:
             pass
 

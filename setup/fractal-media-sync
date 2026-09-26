@@ -238,6 +238,17 @@ def serve_status():
                 if r.get("power") not in (None, "unknown"): PROJ.update(power=r["power"], source=r.get("source"), at=time.time())
                 if cmd in ("hdmi1", "hdmi2") and r.get("ok"): PROJ.update(source="HDMI 1" if cmd == "hdmi1" else "HDMI 2")
                 return self._json(200, dict(r, cached=PROJ))
+            if self.path == "/outputs":
+                # {"mode": "1"|"2"|"mirror"|"dual"} → <state>.out, then restart the renderer (it reads the file at start-up)
+                mode = str(self._body().get("mode", "1"))
+                if mode not in ("1", "2", "mirror", "dual"): return self._json(400, dict(ok=False, msg="mode must be 1, 2, mirror or dual"))
+                try:
+                    open(STATE + ".out", "w").write(mode + "\n")
+                except OSError as ex:
+                    return self._json(500, dict(ok=False, msg=f"cannot write {STATE}.out: {ex}"))
+                r = subprocess.run(["sudo", "-n", "systemctl", "restart", "fractal-renderer"], capture_output=True, text=True)
+                log(f"outputs → {mode} (renderer restart {'ok' if r.returncode == 0 else r.stderr.strip()})")
+                return self._json(200, dict(ok=r.returncode == 0, msg=f"outputs {mode} — renderer restarting (~2 s black)" if r.returncode == 0 else r.stderr.strip()))
             if self.path == "/projector/config":
                 if not projector: return self._json(503, dict(ok=False, msg="projector module missing"))
                 cfg = projector.load_cfg(); b = self._body()

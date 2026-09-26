@@ -66,11 +66,12 @@ static struct {
     int ndi; char ndi_name[64]; int ndi_fps; int display;
     char media_dir[512]; char live_url[256]; char mapping[512]; char state_file[512]; int no_video;
     int out_res_pin, out_res_pin_set;
+    int out_mode;      /* --outputs: 0 auto(file) 1 HDMI-1 2 HDMI-2 3 mirror 4 dual */
     int headless;      /* --headless: no screen at all (SDL offscreen) — for a master that only publishes NDI / thumbnails */   /* --out-res: 0 auto 1 1080p 2 4K (pinned — ignores the master's out_res) */
 } cfg = { 0, 0, 0, 1, 0.6f, 1, 1, 0, 0, 0, 0, 0, "239.255.42.1", 5005, 5006, "", "", "", 0, "",
           "/usr/local/share/projectM/presets", "/usr/local/share/projectM/textures", 5007, 0,
           5008, 20, 0, 0, "Fractal Rig", 30, 0,
-          "/var/lib/fractal-rig/media", "udp://239.255.42.2:5010", "/var/lib/fractal-rig/mapping.txt", "/var/lib/fractal-rig/state", 0 };
+          "/var/lib/fractal-rig/media", "udp://239.255.42.2:5010", "/var/lib/fractal-rig/mapping.txt", "/var/lib/fractal-rig/state", 0, 0 };
 
 /* ---------------------------------------------------------------- packet */
 #pragma pack(push, 1)
@@ -118,6 +119,9 @@ static void usage(void) {
            "  --state-file FILE   where to note the master's IP for fractal-media-sync\n"
            "  --no-video          disable libmpv video even if built in\n"
            "  --out-res auto|1080|4k  pin this output's mode (default: follow the master's Output selector)\n"
+           "  --outputs 1|2|mirror|dual|auto  which HDMI port(s): 1 or 2, mirror = same picture on both (one render, two blits),\n"
+           "                      dual = this Pi is TWO tiles side by side (left on HDMI-1, right on HDMI-2). auto (default) reads\n"
+           "                      <state>.out, which the master's web page writes — so a damaged micro-HDMI is a click, not a trip\n"
            "  --headless          render with no screen (SDL offscreen, 720p unless --window WxH) — e.g. a master Pi whose\n"
            "                      HDMI is used by something else but should still publish NDI / thumbnails\n"
            "  --thumb-hz N        live thumbnail rate to the master (default 20, 0 = off)\n"
@@ -150,6 +154,7 @@ static void parse_args(int argc, char **argv) {
         else if (!strcmp(a, "--mapping") && i + 1 < argc) snprintf(cfg.mapping, sizeof cfg.mapping, "%s", argv[++i]);
         else if (!strcmp(a, "--state-file") && i + 1 < argc) snprintf(cfg.state_file, sizeof cfg.state_file, "%s", argv[++i]);
         else if (!strcmp(a, "--no-video")) cfg.no_video = 1;
+        else if (!strcmp(a, "--outputs") && i + 1 < argc) { const char *v = argv[++i]; cfg.out_mode = !strcmp(v, "2") ? 2 : !strcmp(v, "mirror") ? 3 : !strcmp(v, "dual") ? 4 : !strcmp(v, "1") ? 1 : 0; }
         else if (!strcmp(a, "--out-res") && i + 1 < argc) { const char *v = argv[++i]; cfg.out_res_pin = (!strcmp(v, "4k") || !strcmp(v, "4K") || !strcmp(v, "2160")) ? 2 : (!strcmp(v, "1080") || !strcmp(v, "1080p")) ? 1 : 0; cfg.out_res_pin_set = 1; }
         else if (!strcmp(a, "--presets")) strncpy(cfg.preset_dir, NEXT(), 511);
         else if (!strcmp(a, "--textures")) strncpy(cfg.texture_dir, NEXT(), 511);
@@ -275,14 +280,17 @@ static float cpu_temp(void) {
     int t = -1000; fscanf(f, "%d", &t); fclose(f); return t / 1000.0f;
 }
 
+static const char *out_mode_name(int m) { return m == 2 ? "2" : m == 3 ? "mirror" : m == 4 ? "dual" : "1"; }
+static int out_mode_eff = 1, out_displays = 1;   /* what we actually run (after fallbacks) — reported in the heartbeat */
+
 static void send_heartbeat(int s, float fps, int w, int h) {
     if (!have_master_addr) return;
     char buf[256];
-    snprintf(buf, sizeof buf, "HB 5 %s %.1f %dx%d %d %d %d %d %u %u %s %.1f %d %d %u ndi:%s media:%d map:%08x video:%s",
+    snprintf(buf, sizeof buf, "HB 5 %s %.1f %dx%d %d %d %d %d %u %u %s %.1f %d %d %u ndi:%s media:%d map:%08x video:%s out:%s/%d",
              cfg.name, fps, w, h, cfg.tile_cols, cfg.tile_rows, cfg.tile_x, cfg.tile_y, pkt_count, pkt_lost, APP_VERSION, cpu_temp(),
              pm_available() ? pm_preset_count() : -1, pm_current(), audio_pkts,
              ndi_available() ? (ndi_connections() > 0 ? "live" : "on") : (cfg.ndi ? "unavailable" : "off"),
-             vb_available() ? vb_count() : -1, map_hash(), vb_available() ? (vb_has_frame() ? "ok" : "idle") : "none");
+             vb_available() ? vb_count() : -1, map_hash(), vb_available() ? (vb_has_frame() ? "ok" : "idle") : "none", out_mode_name(out_mode_eff), out_displays);
     struct sockaddr_in to = master_addr; to.sin_port = htons(cfg.hb_port);
     sendto(s, buf, strlen(buf), 0, (struct sockaddr*)&to, sizeof to);
     /* tell fractal-media-sync where the master is and who we are (it fetches clips + mapping over HTTP) */
@@ -407,6 +415,11 @@ static int sdl_init_video(void) {
 static int res_file_path(char *out, size_t n) { if (!cfg.state_file[0]) return 0; snprintf(out, n, "%s.res", cfg.state_file); return 1; }
 static int read_requested_res(void) { char p[600]; if (!res_file_path(p, sizeof p)) return 0; FILE *f = fopen(p, "r"); if (!f) return 0; int v = 0; fscanf(f, "%d", &v); fclose(f); return v < 0 || v > 2 ? 0 : v; }
 static void write_requested_res(int v) { char p[600]; if (!res_file_path(p, sizeof p)) return; FILE *f = fopen(p, "w"); if (f) { fprintf(f, "%d\n", v); fclose(f); } }
+static int read_requested_outputs(void) {   /* <state>.out: "1" "2" "mirror" "dual" — written by fractal-media-sync on the master's request */
+    char p[600]; if (!cfg.state_file[0]) return 1; snprintf(p, sizeof p, "%s.out", cfg.state_file);
+    FILE *f = fopen(p, "r"); if (!f) return 1; char v[16] = ""; if (fscanf(f, "%15s", v) != 1) v[0] = 0; fclose(f);
+    return !strcmp(v, "2") ? 2 : !strcmp(v, "mirror") ? 3 : !strcmp(v, "dual") ? 4 : 1;
+}
 static int pick_mode(int display, int want, SDL_DisplayMode *out) {   /* 1 = a mode was chosen */
     int tw = want == 2 ? 3840 : 1920, th = want == 2 ? 2160 : 1080;
     int n = SDL_GetNumDisplayModes(display), best = -1; SDL_DisplayMode bm = {0};
@@ -433,9 +446,17 @@ int main(int argc, char **argv) {
     int out_res = cfg.out_res_pin_set ? cfg.out_res_pin : read_requested_res();
     int kms = SDL_GetCurrentVideoDriver() && !strcmp(SDL_GetCurrentVideoDriver(), "KMSDRM");
     SDL_DisplayMode want_mode; int have_mode = 0;
-    if (!cfg.windowed && out_res && kms) have_mode = pick_mode(cfg.display, out_res, &want_mode);
+    /* which HDMI port(s): --outputs, else the file the master writes. KMSDRM enumerates connected connectors as displays. */
+    int out_mode = cfg.out_mode ? cfg.out_mode : read_requested_outputs();
+    out_displays = SDL_GetNumVideoDisplays(); if (out_displays < 1) out_displays = 1;
+    if (cfg.windowed && out_mode != 1) { fprintf(stderr, "[out] --outputs %s ignored in windowed/headless mode\n", out_mode_name(out_mode)); out_mode = 1; }
+    if (out_mode != 1 && out_displays < 2) { fprintf(stderr, "[out] --outputs %s requested but only %d display connected — using it\n", out_mode_name(out_mode), out_displays); out_mode = 1; }
+    int d1 = out_mode == 2 ? 1 : cfg.display, d2 = out_mode >= 3 ? (cfg.display == 0 ? 1 : 0) : -1;
+    if (d1 >= out_displays) d1 = 0;
+    out_mode_eff = out_mode;
+    if (!cfg.windowed && out_res && kms) have_mode = pick_mode(d1, out_res, &want_mode);
     Uint32 flags = SDL_WINDOW_OPENGL | (cfg.windowed ? 0 : have_mode ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_FULLSCREEN_DESKTOP);
-    SDL_Window *win = SDL_CreateWindow("Fractal Rig", SDL_WINDOWPOS_CENTERED_DISPLAY(cfg.display), SDL_WINDOWPOS_CENTERED_DISPLAY(cfg.display),
+    SDL_Window *win = SDL_CreateWindow("Fractal Rig", SDL_WINDOWPOS_CENTERED_DISPLAY(d1), SDL_WINDOWPOS_CENTERED_DISPLAY(d1),
                                        cfg.windowed ? cfg.win_w : have_mode ? want_mode.w : 1920, cfg.windowed ? cfg.win_h : have_mode ? want_mode.h : 1080, flags);
     if (!win) { fprintf(stderr, "window: %s\n", SDL_GetError()); return 1; }
     if (have_mode) { if (SDL_SetWindowDisplayMode(win, &want_mode) != 0) fprintf(stderr, "[out] mode set failed: %s\n", SDL_GetError());
@@ -443,6 +464,19 @@ int main(int argc, char **argv) {
     else if (out_res && !cfg.windowed) fprintf(stderr, "[out] %s requested but %s — using the screen's current mode\n", out_res == 2 ? "4K" : "1080p", kms ? "no such mode on this screen" : "not on KMSDRM (compositor owns the mode)");
     SDL_GLContext ctx = SDL_GL_CreateContext(win);
     if (!ctx) { fprintf(stderr, "GL context: %s\n", SDL_GetError()); return 1; }
+    /* second output (mirror / dual): its own window + EGL surface, the SAME GL context — the scene is rendered once into
+       the FBOs and only the final pass runs per window, so mirror costs one extra blit, dual one wider scene render */
+    SDL_Window *win2 = NULL; int W2 = 0, H2 = 0;
+    if (d2 >= 0) {
+        SDL_DisplayMode m2; int have2 = (!cfg.windowed && out_res && kms) ? pick_mode(d2, out_res, &m2) : 0;
+        win2 = SDL_CreateWindow("Fractal Rig 2", SDL_WINDOWPOS_CENTERED_DISPLAY(d2), SDL_WINDOWPOS_CENTERED_DISPLAY(d2), have2 ? m2.w : 1920, have2 ? m2.h : 1080,
+                                SDL_WINDOW_OPENGL | (have2 ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_FULLSCREEN_DESKTOP));
+        if (win2 && have2) SDL_SetWindowDisplayMode(win2, &m2);
+        if (!win2 || SDL_GL_MakeCurrent(win2, ctx) != 0) { fprintf(stderr, "[out] second output unavailable (%s) — single output\n", SDL_GetError()); if (win2) SDL_DestroyWindow(win2); win2 = NULL; out_mode_eff = 1; }
+        else { SDL_GL_GetDrawableSize(win2, &W2, &H2); SDL_GL_MakeCurrent(win, ctx); fprintf(stderr, "[out] %s: display %d + display %d (%dx%d)\n", out_mode_name(out_mode), d1, d2, W2, H2); }
+    }
+    int dual = win2 && out_mode == 4;
+    if (dual && cfg.tile_cols < 2) { cfg.tile_cols = 2; cfg.tile_x = 0; }   /* dual with no tiling given = a 2-wide wall on this Pi */
     SDL_GL_SetSwapInterval(cfg.vsync ? 1 : 0);
     SDL_ShowCursor(SDL_DISABLE);
     int W, H; SDL_GL_GetDrawableSize(win, &W, &H);
@@ -458,7 +492,7 @@ int main(int argc, char **argv) {
           u_view = glGetUniformLocation(prog, "u_view"), u_p = glGetUniformLocation(prog, "u_p");
 
     /* low-res FBO for our shader, second one for projectM's output */
-    int rw = (int)(W * cfg.scale), rh = (int)(H * cfg.scale);
+    int rw = (int)(W * cfg.scale) * (dual ? 2 : 1), rh = (int)(H * cfg.scale);   /* dual: one scene render, twice as wide */
     GLuint tex, pm_tex; GLuint fbo = make_fbo(rw, rh, &tex); GLuint pm_fbo = make_fbo(rw, rh, &pm_tex);
 
     /* projectM (scene 8) — optional */
@@ -482,7 +516,7 @@ int main(int argc, char **argv) {
     GLint w_tex = glGetUniformLocation(warp, "u_tex"), w_mask = glGetUniformLocation(warp, "u_mask"), w_has_mask = glGetUniformLocation(warp, "u_has_mask"),
           w_res = glGetUniformLocation(warp, "u_res"), w_inv = glGetUniformLocation(warp, "u_inv"), w_edge = glGetUniformLocation(warp, "u_edge"),
           w_bright = glGetUniformLocation(warp, "u_bright"), w_gamma = glGetUniformLocation(warp, "u_gamma"), w_test = glGetUniformLocation(warp, "u_test"),
-          w_gain = glGetUniformLocation(warp, "u_gain");
+          w_gain = glGetUniformLocation(warp, "u_gain"), w_src = glGetUniformLocation(warp, "u_src");
     map_init(cfg.mapping);
     double map_poll_last = 0;
 
@@ -505,7 +539,7 @@ int main(int argc, char **argv) {
 
     int sock = open_multicast();
     float tile[4] = { (float)cfg.tile_x / cfg.tile_cols, (float)(cfg.tile_rows - 1 - cfg.tile_y) / cfg.tile_rows,
-                      1.0f / cfg.tile_cols, 1.0f / cfg.tile_rows };   /* y flipped: tile row 0 = top */
+                      (dual ? 2.0f : 1.0f) / cfg.tile_cols, 1.0f / cfg.tile_rows };   /* y flipped: tile row 0 = top; dual = this Pi spans two columns */
     float view[3] = { cfg.view_zoom, cfg.view_rot, cfg.view_hue };
 
     double last = now_s(), hb_last = last, fps_t = last; int frames = 0; float fps = 0;
@@ -638,24 +672,31 @@ int main(int argc, char **argv) {
                 ndi_send(); }
         }
 
-        /* final pass: cheap upscale blit, or the mapping warp when mapping.txt is not identity */
-        if (map_identity()) {
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, out_fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-            glBlitFramebuffer(0, 0, rw, rh, 0, 0, W, H, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-        } else {
-            float inv[9], feather, edge[4], bright, gam, gain[3]; int test;
-            map_inverse(inv); map_params(&feather, edge, &bright, &gam, &test); map_gain(gain);
-            unsigned mask = map_mask_texture();
-            glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, W, H);
-            glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
-            glUseProgram(warp);
-            glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, out_tex); glUniform1i(w_tex, 0);
-            glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, mask ? mask : out_tex); glUniform1i(w_mask, 1);
-            glActiveTexture(GL_TEXTURE0);
-            glUniform1i(w_has_mask, mask ? 1 : 0);
-            glUniform2f(w_res, (float)W, (float)H); glUniformMatrix3fv(w_inv, 1, GL_FALSE, inv);
-            glUniform4fv(w_edge, 1, edge); glUniform1f(w_bright, bright); glUniform1f(w_gamma, gam); glUniform1i(w_test, test); glUniform3fv(w_gain, 1, gain);
-            glDrawArrays(GL_TRIANGLES, 0, 3);
+        /* final pass, once per output: cheap upscale blit, or the mapping warp when mapping.txt is not identity.
+           dual: output 1 shows the left half of the (double-width) scene, output 2 the right half. mirror: both show all. */
+        for (int o = 0; o < (win2 ? 2 : 1); o++) {
+            int ow = o ? W2 : W, oh = o ? H2 : H;
+            float sx0 = dual ? (o ? 0.5f : 0.0f) : 0.0f, sw = dual ? 0.5f : 1.0f;
+            if (o) SDL_GL_MakeCurrent(win2, ctx);
+            if (map_identity()) {
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, out_fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+                glBlitFramebuffer((int)(sx0 * rw), 0, (int)((sx0 + sw) * rw), rh, 0, 0, ow, oh, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+            } else {
+                float inv[9], feather, edge[4], bright, gam, gain[3]; int test;
+                map_inverse(inv); map_params(&feather, edge, &bright, &gam, &test); map_gain(gain);
+                unsigned mask = map_mask_texture();
+                glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, ow, oh);
+                glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
+                glUseProgram(warp);
+                glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, out_tex); glUniform1i(w_tex, 0);
+                glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, mask ? mask : out_tex); glUniform1i(w_mask, 1);
+                glActiveTexture(GL_TEXTURE0);
+                glUniform1i(w_has_mask, mask ? 1 : 0);
+                glUniform2f(w_res, (float)ow, (float)oh); glUniformMatrix3fv(w_inv, 1, GL_FALSE, inv); glUniform2f(w_src, sx0, sw);
+                glUniform4fv(w_edge, 1, edge); glUniform1f(w_bright, bright); glUniform1f(w_gamma, gam); glUniform1i(w_test, test); glUniform3fv(w_gain, 1, gain);
+                glDrawArrays(GL_TRIANGLES, 0, 3);
+            }
+            if (o) { SDL_GL_SwapWindow(win2); SDL_GL_MakeCurrent(win, ctx); }
         }
         if (cfg.max_frames && frames + 1 >= cfg.max_frames) {
             running = 0;
@@ -681,6 +722,6 @@ int main(int argc, char **argv) {
         if (now - hb_last >= 1.0 && sock >= 0) { send_heartbeat(sock, fps, W, H); hb_last = now; }
     }
     vb_shutdown(); pm_shutdown(); ndi_shutdown();
-    SDL_GL_DeleteContext(ctx); SDL_DestroyWindow(win); SDL_Quit();
+    SDL_GL_DeleteContext(ctx); if (win2) SDL_DestroyWindow(win2); SDL_DestroyWindow(win); SDL_Quit();
     return out_res_restart ? 3 : 0;   /* 3 = mode change, systemd Restart=always relaunches us */
 }
