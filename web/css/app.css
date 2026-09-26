@@ -357,3 +357,4 @@ body.perf .ui-box { width: min(620px, 100%); padding: 24px; } body.perf .ui-acts
 body.perf .ui-toast { font-size: 16px; padding: 14px 22px; bottom: 30px; }
 .show.flash { animation: cardflash 2.4s ease-out; } @keyframes cardflash { 0% { box-shadow: 0 0 0 3px var(--ok); } 100% { box-shadow: 0 0 0 0 transparent; } }
 .savebar { gap: 8px; flex-wrap: wrap; align-items: center; }
+h3.subhead { margin: 16px 0 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); } h3.subhead .sub { text-transform: none; letter-spacing: 0; font-weight: 400; }

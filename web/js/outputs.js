@@ -25,7 +25,44 @@ $('ndi-scan').onclick = ndiScan;
 const MP = {list: [], name: null, m: null, saved: null, sel: null, adding: null, drag: null, img: new Image(), imgName: null, imgT: 0, timer: null, pushT: null};
 const MP_ID = {quad: [0, 0, 1, 0, 1, 1, 0, 1], masks: [], feather: 0, edge: [0, 0, 0, 0], bright: 1, gamma: 1, test: 0, gain: [1, 1, 1]};
 const mapClone = m => JSON.parse(JSON.stringify(m || MP_ID));
-function mapFetch() { if (!S.live) { mapRenderList(); return; } fetch('/api/mapping').then(r => r.json()).then(j => { MP.list = j.renderers || []; mapRenderList(); }).catch(() => {}); }
+function mapFetch() { if (!S.live) { mapRenderList(); mappFetch(); return; } fetch('/api/mapping').then(r => r.json()).then(j => { MP.list = j.renderers || []; mapRenderList(); }).catch(() => {}); mappFetch(); }
+// ---- saved mapping presets — same cards / save dialog as shows and LED configs (ui.cards / ui.saveAs)
+let MAPP = [];
+async function mappFetch() { if (!S.live) { $('mapp-list').innerHTML = '<span class="hint">demo mode — saved mappings live on the master</span>'; return; } try { MAPP = (await (await fetch('/api/mapping/presets')).json()).presets || []; } catch (e) { $('mapp-list').innerHTML = '<span class="hint">could not load saved mappings</span>'; return; } renderMapp(); cloudMenu($('mapp-cloud'), 'mapping_preset', MAPP.map(x => x.name)); }
+function renderMapp(flash) {
+  $('mapp-hint').textContent = MAPP.length ? `${MAPP.length} saved` : '';
+  ui.cards($('mapp-list'), {kind: 'mapping_preset', flash,
+    items: MAPP.map(m => ({name: m.name, notes: m.notes, meta: `${m.identity ? 'plain full-frame' : [m.keystone ? 'keystone' : '', m.masks ? `${m.masks} mask${m.masks === 1 ? '' : 's'}` : '', m.blend ? 'edge blend' : ''].filter(Boolean).join(' · ') || 'levels only'}${m.source ? ` · from ${esc(m.source)}` : ''} · saved ${new Date(m.saved * 1000).toLocaleString()}`})),
+    actions: [{id: 'load', label: 'LOAD', primary: true, title: 'onto the projector selected above'}, {id: 'update', label: 'Update', title: 'overwrite with the selected projector\'s current mapping'}, {id: 'dl', label: 'Download', href: n => `/api/mapping/presets/${encodeURIComponent(n)}?download=1`}, {id: 'delete', label: '✕', right: true}],
+    empty: 'No saved mappings yet — line a projector up, then press <b>Save this projector\'s mapping</b>.',
+    onAction: async (act, name, btn) => {
+      if (act === 'load') { if (!MP.name) return ui.alert('Pick a projector first.'); if (!await ui.confirm(`It replaces ${MP.name}'s current keystone, masks, blend and levels.`, {title: `Load "${name}" onto ${MP.name}?`, ok: 'Load'})) return; btn.textContent = 'loading…'; await mappLoad(name, MP.name); }
+      if (act === 'update') { if (!MP.name) return ui.alert('Pick a projector first.'); if (!await ui.confirm(`Overwrite "${name}" with ${MP.name}'s mapping as it is now?`, {ok: 'Overwrite'})) return; await mappSave(name, undefined, undefined); }
+      if (act === 'delete') { if (!await ui.confirm('', {title: `Delete saved mapping "${name}"?`, ok: 'Delete', danger: true})) return; await fetch(`/api/mapping/presets/${encodeURIComponent(name)}`, {method: 'DELETE'}); ui.toast(`Deleted ${esc(name)}`); mappFetch(); }
+    }});
+}
+async function mappLoad(name, to) {
+  const r = await fetch(`/api/mapping/presets/${encodeURIComponent(name)}/load`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({to})});
+  if (!r.ok) { ui.alert('Load failed (' + r.status + ').'); return false; }
+  const j = await r.json(); if (MP.name === to) { MP.m = mapClone(j.mapping); MP.saved = mapClone(MP.m); MP.sel = null; mapSliders(); }
+  ui.toast(`Mapping <b>${esc(name)}</b> loaded onto ${esc(to)}`, 'ok'); logLocal(`mapping preset ${name} → ${to}`); mapFetch(); return true;
+}
+async function mappSave(name, notes) {   // saves the editor's CURRENT mapping (even if not yet pushed to the projector)
+  const body = MP.m ? {mapping: MP.m, notes: notes == null ? undefined : notes, source: MP.name} : {from: MP.name, notes};
+  const r = await fetch(`/api/mapping/presets/${encodeURIComponent(name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
+  if (!r.ok) { ui.alert('The master refused the save (' + r.status + ').'); return false; }
+  ui.toast(`Mapping saved: <b>${esc(name)}</b>`, 'ok'); logLocal('mapping preset saved: ' + name); await mappFetch(); renderMapp(name); return true;
+}
+async function mappSaveDialog() {
+  if (!S.live) return ui.alert('Connect to a master first — the demo has nowhere to save.');
+  if (!MP.name || !MP.m) return ui.alert('Pick a projector first.');
+  const v = await ui.saveAs({what: 'mapping', title: `Save ${MP.name}'s mapping`, text: `Keystone, ${MP.m.masks.length} mask${MP.m.masks.length === 1 ? '' : 's'}, edge blend, brightness / gamma / RGB gain — as shown in the editor right now.`,
+    existing: MAPP.map(x => x.name), placeholder: 'e.g. Warehouse left wall', fields: [{key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'projector position, throw, lens…'}]});
+  if (!v) return null; return (await mappSave(v.name, v.notes)) ? v.name : null;
+}
+$('mapp-save').onclick = () => mappSaveDialog();
+$('mapp-import').onchange = async () => { const f = $('mapp-import').files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); if (!d.mapping) throw new Error('no "mapping" block'); const n = await ui.prompt('Import mapping', {value: d.name || f.name.replace(/\.fractalmap\.json$|\.json$/i, ''), label: 'Import as'}); if (n) { await fetch(`/api/mapping/presets/${encodeURIComponent(n)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({import: d})}); ui.toast(`Imported <b>${esc(n)}</b>`, 'ok'); await mappFetch(); renderMapp(n); } } catch (e) { ui.alert('Not a mapping file: ' + e.message); } $('mapp-import').value = ''; };
+$('mapp-cloud').onchange = async () => { const n = $('mapp-cloud').value; $('mapp-cloud').value = ''; if (!n) return; const r = await fetch(`/api/cloud/fetch/mapping_preset/${encodeURIComponent(n)}`, {method: 'POST'}); ui.toast(r.ok ? `Mapping "${esc(n)}" pulled from the cloud` : 'Pull failed', r.ok ? 'ok' : 'bad'); mappFetch(); };
 function mapRenderList() {
   const names = [...new Set([...MP.list.map(r => r.name), ...Object.keys(S.fleet || {})])].sort();
   const sel = $('map-name');

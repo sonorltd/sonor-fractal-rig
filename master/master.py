@@ -552,6 +552,76 @@ async def web_app(engine, cfg):
     app.router.add_post("/api/led/configs/{name}/load", api_led_config_load)
     app.router.add_delete("/api/led/configs/{name}", api_led_config_delete)
 
+    # ---- projection-mapping presets: a named copy of one projector's mapping (keystone, masks, blend, gain) that can
+    #      be loaded onto any projector — "Warehouse left wall", "Studio bench 4:3 screen". Local files + cloud mirror
+    #      (shared between rigs, like shows and LED configs).
+    MAPP_DIR = os.path.join(ROOT, "master", "mapping_presets"); os.makedirs(MAPP_DIR, exist_ok=True)
+    def mapp_path(name): return os.path.join(MAPP_DIR, clean_show(name) + ".json")
+    def mapp_list():
+        from mapping import normalise, is_identity
+        out = []
+        for f in sorted(os.listdir(MAPP_DIR)):
+            if f.endswith(".json"):
+                try:
+                    d = json.load(open(os.path.join(MAPP_DIR, f))); m = normalise(d.get("mapping"))
+                    out.append(dict(name=d.get("name", f[:-5]), saved=d.get("saved", 0), notes=d.get("notes", ""), source=d.get("source", ""),
+                                    masks=len(m["masks"]), identity=is_identity(m), blend=any(v > 0 for v in m["edge"]), keystone=m["quad"] != [0, 0, 1, 0, 1, 1, 0, 1]))
+                except Exception:
+                    pass
+        return out
+    def mapp_save(name, mapping=None, notes="", source="", body=None, mirror=True):
+        from mapping import normalise
+        d = body if isinstance(body, dict) and isinstance(body.get("mapping"), dict) else dict(name=clean_show(name), saved=time.time(), notes=notes, source=source, mapping=normalise(mapping))
+        d["name"] = clean_show(name); d["mapping"] = normalise(d.get("mapping"))
+        json.dump(d, open(mapp_path(name), "w"), indent=1)
+        engine.event(f"mapping preset saved: {d['name']}" + (f" (from {source})" if source else ""))
+        if mirror and engine.cloud:
+            engine.cloud.put("mapping_preset", d["name"], d)
+        return d
+    async def api_mapp_list(request):
+        return web.json_response(dict(presets=mapp_list()))
+    async def api_mapp_get(request):
+        p = mapp_path(request.match_info["name"])
+        if not os.path.exists(p): raise web.HTTPNotFound()
+        resp = web.FileResponse(p)
+        if request.query.get("download"): resp.headers["Content-Disposition"] = f'attachment; filename="{clean_show(request.match_info["name"])}.fractalmap.json"'
+        return resp
+    async def api_mapp_save(request):
+        try: body = await request.json()
+        except Exception: body = {}
+        name = request.match_info["name"]
+        if isinstance(body.get("import"), dict):
+            d = mapp_save(name, body=body["import"])
+        elif isinstance(body.get("mapping"), dict):        # the editor's current (possibly unsaved) mapping
+            d = mapp_save(name, body["mapping"], str(body.get("notes", "")), str(body.get("source", "")))
+        else:                                                # from a projector's stored mapping
+            src = str(body.get("from", ""))
+            if not engine.mapping or not src: raise web.HTTPBadRequest(text="from or mapping required")
+            d = mapp_save(name, engine.mapping.get(src), str(body.get("notes", "")), src)
+        return web.json_response(dict(ok=True, preset=d, presets=mapp_list()))
+    async def api_mapp_load(request):
+        p = mapp_path(request.match_info["name"])
+        if not os.path.exists(p) or not engine.mapping: raise web.HTTPNotFound()
+        try: body = await request.json()
+        except Exception: body = {}
+        to = str(body.get("to", ""))
+        if not to: raise web.HTTPBadRequest(text="to (projector name) required")
+        d = json.load(open(p)); m = engine.mapping.put(to, d.get("mapping"))
+        engine.event(f"mapping preset loaded: {d.get('name')} → {to}")
+        return web.json_response(dict(ok=True, to=to, mapping=m))
+    async def api_mapp_delete(request):
+        p = mapp_path(request.match_info["name"])
+        if os.path.exists(p):
+            os.remove(p)
+            if engine.cloud: engine.cloud.delete("mapping_preset", clean_show(request.match_info["name"]))
+        return web.json_response(dict(ok=True, presets=mapp_list()))
+    # registered BEFORE /api/mapping/{name} so "presets" is not taken for a projector name
+    app.router.add_get("/api/mapping/presets", api_mapp_list)
+    app.router.add_get("/api/mapping/presets/{name}", api_mapp_get)
+    app.router.add_post("/api/mapping/presets/{name}", api_mapp_save)
+    app.router.add_post("/api/mapping/presets/{name}/load", api_mapp_load)
+    app.router.add_delete("/api/mapping/presets/{name}", api_mapp_delete)
+
     # ---- cloud (Supabase mirror): status, settings, sync, browse
     async def api_cloud(request):
         return web.json_response(engine.cloud.status() if engine.cloud else dict(enabled=False, configured=False))
@@ -631,11 +701,18 @@ async def web_app(engine, cfg):
                 return False
             if _ts(upd) <= _mtime(p): return False
             engine.mapping.put(name, data, mirror=False); return True
+        def h_mapp(name, data, upd):
+            p = mapp_path(name)
+            if data is None:
+                if os.path.exists(p): os.remove(p); return True
+                return False
+            if _ts(upd) <= _mtime(p): return False
+            mapp_save(name, body=data, mirror=False); return True
         def h_config(name, data, upd):
             if data is not None:
                 json.dump(data, open(os.path.join(HERE, "config.cloud.json"), "w"), indent=1)   # kept for manual restore
             return False
-        for k, h in (("show", h_show), ("led_config", h_led), ("preset_bank", h_presets), ("palette_bank", h_palettes), ("cue_stack", h_cues), ("mapping", h_mapping), ("config", h_config)):
+        for k, h in (("show", h_show), ("led_config", h_led), ("preset_bank", h_presets), ("palette_bank", h_palettes), ("cue_stack", h_cues), ("mapping", h_mapping), ("mapping_preset", h_mapp), ("config", h_config)):
             engine.cloud.on(k, h)
 
     # ---- rig maintenance: update / restart the master itself, or any renderer through its status service (:8082)

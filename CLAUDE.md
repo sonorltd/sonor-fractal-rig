@@ -170,16 +170,21 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   looks / palettes / cues all save through the same modal from tab AND Perform. Fixed: Shows tab read `list` from an
   API that returns `shows` (the tab and Perform SHOWS page had been empty since the API landed). Supabase settings
   card removed (config.json carries url/key); Sync now / Pull everything + cloud state pill sit in the Rig update row.
+  **Mapping presets**: named copy of one projector's mapping (`master/mapping_presets/*.json`, cloud kind
+  `mapping_preset`, shared '*'), `/api/mapping/presets[/{name}[/load {to}]]` registered before `/api/mapping/{name}`;
+  Outputs → Projection mapping → "Saved mappings" uses the same cards/saveAs. Every named collection now: shows,
+  LED configs, mapping presets (documents → cards) · looks, palettes, Milkdrop (quick recall → listBox); cue stacks
+  travel inside shows.
 
 ## Web UI conventions (the anti-drift contract — `bash web/lint-ui.sh` enforces it, run before every commit)
 - **One UI kit: `web/js/ui.js`.** Every dialog is `ui.dialog / ui.confirm / ui.prompt / ui.alert`; every "save X as…" is
   `ui.saveAs` (name + optional fields, live overwrite warning); every result is a `ui.toast`. Native `prompt/confirm/alert`
   are banned — they don't render on the kiosk Pi (this was the "save disappears to nowhere" bug) and look different everywhere.
-- **Saved collections render one way.** Whole documents (shows, LED configurations) → `ui.cards` on their tab and
+- **Saved collections render one way.** Whole documents (shows, LED configurations, mapping presets) → `ui.cards` on their tab and
   `ui.tiles` in Perform; quick-recall items (looks, palettes, Milkdrop) → `listBox` (search + ★ + favourites-first).
   Favourites are `favs[kind]` in master config via `{fav:{kind,name,on}}`. A new collection reuses these three; never a
   hand-rolled card/tile template.
-- **Shared flows are single functions** used from every entry point: `showSaveDialog`, `ledcSaveDialog/ledcLoad`,
+- **Shared flows are single functions** used from every entry point: `showSaveDialog`, `ledcSaveDialog/ledcLoad`, `mappSaveDialog/mappLoad`,
   `presetSaveDialog`, `paletteSaveDialog`, `cueCaptureDialog`. Perform calls the same function as the tab.
 - **Menus live in `js/nav.js`** (`TABS`, `PERF_PAGES`) and look like `css/nav.css`. Colours are tokens in `css/theme.css`
   (canvas drawing code may use literals; markup may not). No inline `<style>`/`<script>` in index.html.
