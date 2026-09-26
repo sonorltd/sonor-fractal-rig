@@ -343,7 +343,8 @@ footer a { color: var(--muted); text-decoration: underline; }
 .healthgrid .ht .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .healthgrid .ht .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .healthgrid .ht.ok b { color: var(--ok); } .healthgrid .ht.warn b { color: var(--warn); } .healthgrid .ht.bad b { color: var(--bad); }
-.hdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); } .hdot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); } .hdot.warn { background: var(--warn); } .hdot.bad { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+.hdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); } .hdot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); } .hdot.warn { background: var(--warn); } .hdot.bad { background: var(--bad); box-shadow: 0 0 6px var(--bad); } .hdot.off { background: var(--panel2); border: 1px solid var(--muted); }
+.mono { font-family: var(--mono); }
 
 /* ---- shared UI kit (js/ui.js): modal dialogs, toasts, card flash. Big-finger sizes inherit in Perform (body.perf). */
 #ui-layer .ui-modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,.72); backdrop-filter: blur(3px); opacity: 0; transition: opacity .15s; padding: 16px; }

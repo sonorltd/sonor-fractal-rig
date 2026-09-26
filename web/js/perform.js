@@ -74,6 +74,7 @@ $('pf-vid-prev').onclick = () => send({video: {prev: 1}}); $('pf-vid-next').oncl
 $('pf-blackout').onclick = () => { if (pfBlackPrev == null) { pfBlackPrev = S.base.brightness; send({set: {brightness: 0}}); } else { send({set: {brightness: pfBlackPrev || 1}}); pfBlackPrev = null; } };
 $('pf-freeze').onclick = () => { if (pfFreezePrev == null) { pfFreezePrev = S.clock_speed; send({clock_speed: 0}); } else { send({clock_speed: pfFreezePrev || 1}); pfFreezePrev = null; } };
 $('pf-autotoggle').onclick = () => send({source: {name: 'auto', enabled: !S.auto_enabled}});
+$('pf-proj').onclick = () => { const fl = Object.values(S.fleet || {}); const on = fl.filter(h => h.proj && h.proj.power === 'on').length; projAll(on && on >= fl.length / 2 ? 'off' : 'on'); };
 $('pf-pm-prev').onclick = () => send({pm: {prev: 1}}); $('pf-pm-next').onclick = () => send({pm: {next: 1}}); $('pf-pm-random').onclick = () => send({pm: {random: 1}});
 $('pf-pm-hold').onclick = () => $('pm-hold').click(); $('pf-pm-fav').onclick = () => $('pm-favtoggle').click();
 $('perf').querySelectorAll('input[data-pk]').forEach(r => r.oninput = () => { r.dataset.touch = performance.now(); r.parentElement.querySelector('.v').textContent = (+r.value).toFixed(2); send({set: {[r.dataset.pk]: +r.value}}); });
@@ -105,6 +106,7 @@ function renderPerf() {
   const clips = (S.media.clips || []), csig = clips.map(c => c.name).join('|') + '#' + S.video.index + on9p;
   if ($('pf-clips').dataset.sig !== csig) { $('pf-clips').dataset.sig = csig; $('pf-clips').innerHTML = clips.slice(0, 24).map((c, i) => `<button class="pbtn pf-clip ${on9p && i === S.video.index ? 'active' : ''}" data-c="${i}">${c.thumb ? `<i class="bg" style="background-image:url(${c.thumb})"></i>` : ''}<span>${esc(c.name)}</span></button>`).join('') + `<button class="pbtn pf-clip ${on9p && S.video.index === 255 ? 'active' : ''}" data-c="255"><span>● LIVE</span></button>` || ''; $('pf-clips').querySelectorAll('[data-c]').forEach(b => b.onclick = () => send({video: {play: +b.dataset.c}})); }
   $('pf-scenes').querySelectorAll('button').forEach(b => b.className = 'pbtn' + (+b.dataset.m === Math.round(S.base.mode) ? ' active' : ''));
+  { const fl = Object.values(S.fleet || {}); const on = fl.filter(h => h.proj && h.proj.power === 'on').length; $('pf-proj').className = 'pbtn' + (fl.length && on === fl.length ? ' active' : ''); $('pf-proj-sub').textContent = fl.length ? `${on} / ${fl.length} on · tap to ${on && on >= fl.length / 2 ? 'power OFF' : 'power ON'}` : 'no renderers'; }
   $('pf-blackout').className = 'pbtn danger' + (S.base.brightness === 0 ? ' active' : ''); $('pf-freeze').className = 'pbtn' + (S.clock_speed === 0 ? ' active' : ''); $('pf-autotoggle').className = 'pbtn' + (S.auto_enabled ? ' active' : '');
   const engPP = engineOf(S.base.mode); const pfv = favList('preset');
   let names = Object.keys(S.presets || {}).filter(n => pfPresetFilter === 'all' || (pfPresetFilter === 'fav' ? pfv.includes(n) : engineOf(presetMode(n)) === engPP));

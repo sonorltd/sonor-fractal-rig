@@ -14,6 +14,36 @@ function throttleDecode(str) {
   return `<span class="${v & 0xF ? 'bad' : 'warn'}">${str} — ${on.join(', ')}</span>`;
 }
 let stBuilt = false;
+function projCell(n, h) {   // Projectors table: power dot · source · ⏻ · input menu · ⚙ — two-way over RS-232 / PJLink from that Pi
+  const p = h.proj || {}; const pw = p.power || 'unknown';
+  const dot = pw === 'on' ? 'ok' : pw === 'warming' || pw === 'cooling' ? 'warn' : pw === 'off' ? 'off' : '';
+  const label = pw === 'unknown' ? (p.port === null && p.msg && /no USB|not reachable/.test(p.msg) ? 'no RS-232' : '?') : pw;
+  return `<i class="hdot ${dot}" title="${esc(p.msg || 'not polled yet')}"></i> <span class="mono" style="font-size:11px">${esc(label)}${p.source ? ' · ' + esc(p.source) : ''}</span> <button class="btn small" data-pj="${esc(n)}" data-cmd="${pw === 'on' ? 'off' : 'on'}" title="${pw === 'on' ? 'power off' : 'power on'}">⏻</button><select class="btn small" data-pjin="${esc(n)}" title="input"><option value="">in…</option><option value="hdmi1">HDMI 1</option><option value="hdmi2">HDMI 2</option><option value="blank">blank</option><option value="unblank">unblank</option><option value="status">re-read</option></select><button class="btn small" data-pj="${esc(n)}" data-cmd="config" title="protocol / port">⚙</button>`;
+}
+async function projAct(name, cmd, el) {
+  if (cmd === 'config') {
+    let cur = {}; try { cur = (await (await fetch(`/api/rig/${encodeURIComponent(name)}/projector`)).json()).config || {}; } catch (e) {}
+    const v = await ui.dialog({title: `${name} · projector control`, text: 'How this Pi talks to its projector. ViewSonic V52HD / PX / PA: RS-232, 19200 8N1, via a USB→RS-232 lead. PJLink: over the LAN, needs the projector\'s IP.',
+      fields: [{key: 'protocol', label: 'Protocol', type: 'select', value: cur.protocol || 'viewsonic', options: [['viewsonic', 'ViewSonic RS-232 (hex, 19200)'], ['pjlink', 'PJLink over LAN (TCP 4352)']]},
+               {key: 'port', label: 'Serial port', value: cur.port || 'auto', hint: 'auto = first USB→RS-232 adapter found'}, {key: 'baud', label: 'Baud', value: cur.baud || 19200},
+               {key: 'host', label: 'PJLink host (IP)', value: cur.host || ''}], ok: 'Save'});
+    if (!v) return; const r = await (await fetch(`/api/rig/${encodeURIComponent(name)}/projector/config`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({protocol: v.protocol, port: v.port, baud: +v.baud || 19200, host: v.host})})).json();
+    ui.toast(r.ok ? `${esc(name)}: projector control saved` : `${esc(name)}: ${esc(r.msg || 'failed')}`, r.ok ? 'ok' : 'bad'); return;
+  }
+  if (cmd === 'off' && !await ui.confirm(`Power off the projector on ${name}?`, {ok: 'Power off'})) return;
+  if (el) el.disabled = true;
+  try { const r = await (await fetch(`/api/rig/${encodeURIComponent(name)}/projector`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({cmd})})).json();
+    ui.toast(`${esc(name)} projector ${esc(cmd)}: ${esc(r.msg || (r.ok ? 'ok' : 'failed'))}`, r.ok ? 'ok' : 'warn', 3500); }
+  catch (e) { ui.toast(`${esc(name)}: request failed`, 'bad'); }
+  if (el) setTimeout(() => { el.disabled = false; }, 1500);
+}
+async function projAll(cmd) {
+  const names = Object.keys(S.fleet || {}); if (!names.length) return ui.alert('No renderers online.');
+  if (!await ui.confirm(`${cmd === 'on' ? 'Power on' : cmd === 'off' ? 'Power off' : cmd} the projector on ${names.length === 1 ? names[0] : names.length + ' Pis (' + names.join(', ') + ')'}?`, {ok: cmd === 'off' ? 'Power off' : 'Go'})) return;
+  const r = await (await fetch(`/api/rig/projectors/${encodeURIComponent(cmd)}`, {method: 'POST'})).json();
+  ui.toast('Projectors ' + cmd + ': ' + Object.entries(r.results || {}).map(([k, v]) => `${esc(k)} → ${esc(v)}`).join(' · '), 'ok', 5000);
+}
+$('proj-all-on').onclick = () => projAll('on'); $('proj-all-off').onclick = () => projAll('off');
 function rigHealth(n, h) {   // one verdict per renderer, shared by the Projectors table and the health tiles
   const why = []; const vmis = h.version && h.version !== ($('pill-ver').textContent || '').replace('v', '');
   if (h.age > 3) why.push('no heartbeat for ' + h.age + ' s'); if (h.fps && h.fps < 45) why.push(h.fps.toFixed(0) + ' fps'); if (h.loss_rate > 5) why.push('losing packets now'); else if (h.lost) why.push(h.lost + ' packets lost in total');
@@ -37,6 +67,8 @@ function healthTiles(d, cfg, fl) {
   const hot = fl.filter(([, h]) => h.temp > 0).sort((a, b) => b[1].temp - a[1].temp)[0];
   const mt = d.cpu_temp, hottest = hot && (!mt || hot[1].temp > mt) ? [hot[0], hot[1].temp] : (mt ? ['master', mt] : null);
   tile('Hottest Pi', hottest ? hottest[1].toFixed(0) + ' °C' : '—', hottest ? hottest[0] + (d.throttled && !/0x0\b/.test(d.throttled) ? ' · master THROTTLED' : '') : '', !hottest ? '' : hottest[1] > 75 || (d.throttled && !/0x0\b/.test(d.throttled)) ? 'bad' : hottest[1] > 65 ? 'warn' : 'ok');
+  const pon = fl.filter(([, h]) => h.proj && h.proj.power === 'on').length, pknown = fl.filter(([, h]) => h.proj && h.proj.power && h.proj.power !== 'unknown').length;
+  tile('Projector power', fl.length ? `${pon} / ${fl.length} on` : '—', pknown < fl.length ? `${fl.length - pknown} not reporting (RS-232 lead?)` : pon === fl.length ? 'all lit' : 'some off', !fl.length ? '' : pknown < fl.length ? 'warn' : pon === fl.length ? 'ok' : 'warn');
   tile('Master load', d.load ? esc(String(d.load).split(' ')[0]) : '—', `${esc(d.mem || '')}${d.uptime_s ? ' · up ' + fmtAge(d.uptime_s) : ''}`, d.load && +String(d.load).split(' ')[0] > 3 ? 'warn' : d.load ? 'ok' : '');
   tile('This UI', BR.rtt == null ? '—' : BR.rtt + ' ms', `round-trip · ${BR.snapHz || '?'} snapshots/s · ${BR.reconnects} reconnects`, BR.rtt == null ? '' : BR.rtt > 150 ? 'bad' : BR.rtt > 80 ? 'warn' : 'ok');
   const c = S.cloud; tile('Cloud', !c || !c.configured ? 'off' : !c.enabled ? 'paused' : c.online ? 'synced' : 'offline', c ? `${c.pending || 0} queued · last ${c.last_sync ? new Date(c.last_sync * 1000).toLocaleTimeString() : 'never'}` : '', !c || !c.configured || !c.enabled ? '' : c.online ? 'ok' : 'warn');

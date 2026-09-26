@@ -8,7 +8,10 @@
 # Idempotent — re-run after `git pull` to rebuild + restart.
 set -euo pipefail
 ROLE="${1:-slave}"; shift || true
-RENDER_ARGS="$*"
+# --gpio-serial: projector RS-232 on the 40-pin header (GPIO14/15 via a MAX3232 board) instead of a USB lead
+GPIO_SERIAL=0; ARGS=()
+for a in "$@"; do if [ "$a" = "--gpio-serial" ]; then GPIO_SERIAL=1; else ARGS+=("$a"); fi; done
+RENDER_ARGS="${ARGS[*]:-}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 USER_NAME="${SUDO_USER:-$(whoami)}"
 
@@ -51,8 +54,22 @@ if [ "$ROLE" = "master" ]; then
 fi
 systemctl daemon-reload
 
+if [ "$GPIO_SERIAL" = 1 ]; then
+  echo "== GPIO UART for projector RS-232 (GPIO14 TXD pin 8 · GPIO15 RXD pin 10 · GND pin 6 → MAX3232 → projector)"
+  CFG=/boot/firmware/config.txt; [ -f "$CFG" ] || CFG=/boot/config.txt
+  grep -q '^enable_uart=1' "$CFG" || echo 'enable_uart=1' >> "$CFG"
+  grep -q '^dtparam=uart0=on' "$CFG" || echo 'dtparam=uart0=on' >> "$CFG"          # Pi 5: header UART
+  grep -q '^dtoverlay=disable-bt' "$CFG" || echo 'dtoverlay=disable-bt' >> "$CFG"    # Pi 4: give the full UART to the header
+  CMD=/boot/firmware/cmdline.txt; [ -f "$CMD" ] || CMD=/boot/cmdline.txt
+  sed -i 's/console=serial0,115200 //; s/console=ttyAMA0,115200 //; s/console=ttyS0,115200 //' "$CMD"   # no login console on it
+  systemctl disable --now serial-getty@ttyAMA0.service serial-getty@serial0.service serial-getty@ttyS0.service hciuart.service 2>/dev/null || true
+  [ -f /var/lib/fractal-rig/projector.json ] || echo '{"protocol": "viewsonic", "port": "/dev/serial0", "baud": 19200}' > /var/lib/fractal-rig/projector.json
+  chown "$USER_NAME" /var/lib/fractal-rig/projector.json || true
+  echo "   -> reboot once for the UART change to take effect (then: python3 setup/projector.py status)"
+fi
+
 # KMSDRM needs the user in video/render/input groups; systemd-journal lets the status page show the renderer log
-usermod -aG video,render,input,systemd-journal "$USER_NAME" || true
+usermod -aG video,render,input,systemd-journal,dialout "$USER_NAME" || true   # dialout: USB→RS-232 projector control
 
 # one-button updates from the web UI: the master / status service run setup/rig-update, which needs to re-run this
 # installer as root without a password prompt (studio Pi, same trust level as sonor-rig)

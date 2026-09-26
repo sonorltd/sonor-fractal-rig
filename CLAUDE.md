@@ -165,6 +165,16 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   inline matrix builder, Perform **LEDS** page (output, brightness, test, per-zone mute, saved configs). Rig tab:
   Projectors table carries health dot / loss % / temp / heartbeat jitter (engine `hb_worst`, `loss_rate`,
   `fps_min` from HB timing), a Health & network tile strip, Sources moved under Projectors, one Log card.
+- 2026-09-26 v0.8.0 (cont. 4) — **Projector control, two-way, per Pi**: `setup/projector.py` (stdlib; ViewSonic hex
+  RS-232 19200 8N1 or PJLink TCP 4352; termios, no pyserial) — `command(on|off|status|hdmi1|hdmi2|blank|unblank|raw)`,
+  status reads power AND source; config `/var/lib/fractal-rig/projector.json`; port auto = USB lead then
+  `/dev/serial0` (GPIO14/15 via MAX3232, `install.sh … --gpio-serial` frees the header UART). fractal-media-sync
+  serves `GET/POST :8082/projector` + `/projector/config` and polls power every 20 s; master proxies
+  `/api/rig/{name}/projector[/config]`, fans out `POST /api/rig/projectors/{cmd}`, polls every renderer every 15 s
+  into `fleet[name].proj`. UI: Projectors table column (dot · source · ⏻ · input · ⚙), Rig row *Projectors ON/OFF*,
+  Perform SHOW *⏻ PROJECTORS*, health tile. Verified against a pty fake projector; real V52HD untested — `raw` cmd
+  exists to try codes from its own RS-232 sheet. Info: topology redrawn for **Ruijie/Reyee two-tier** (Pi switch
+  NBS3100-8GT2SFP-P in the case → core NBS3200 with the querier → EG105G-P gateway), kit list, GPIO wiring table.
 - 2026-09-26 v0.8.0 (cont. 3) — **six new shader scenes** 10 Menger (raymarch, steps = iterations/5), 11 Voronoi,
   12 Turing (domain-warped fbm), 13 Scope (harmonic curves), 14 Mandala, 15 Truchet — in `fractal.frag` (shared by
   Pi + preview), `mode` max 15 in params.py (regen params.js), fractal.c `last_shader_scene` accepts ≥10, web

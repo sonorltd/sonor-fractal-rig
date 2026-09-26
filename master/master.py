@@ -808,28 +808,79 @@ async def web_app(engine, cfg):
         return web.Response(text=txt, content_type="text/plain")
 
     async def api_rig_remote(request):
-        name, act = request.match_info["name"], request.match_info["act"]
+        name = request.match_info["name"]
+        act = request.match_info.get("act") or ("projector/config" if request.path.endswith("/projector/config") else "projector")
         r = engine.fleet.get(name)
         if not r:
             raise web.HTTPNotFound(text="renderer not heard from")
-        if act not in ("update", "restart", "reboot", "update.log"):
+        if act not in ("update", "restart", "reboot", "update.log", "projector", "projector/config"):
             raise web.HTTPNotFound()
         import aiohttp
         url = f"http://{r['ip']}:8082/{act}"
+        try:
+            body = await request.json() if request.can_read_body else {}
+        except Exception:
+            body = {}
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8)) as sess:
                 if act == "update.log":
                     async with sess.get(url) as resp:
                         return web.Response(text=await resp.text(), content_type="text/plain")
-                async with sess.post(url) as resp:
+                if act == "projector" and request.method == "GET":
+                    async with sess.get(url) as resp:
+                        return web.json_response(await resp.json())
+                async with sess.post(url, json=body) as resp:
                     j = await resp.json()
         except Exception as ex:
             return web.json_response(dict(ok=False, msg=f"{name}: status service not reachable ({ex}) — is fractal-media-sync running on it?"))
-        engine.event(f"{name}: {act} → {j.get('msg', '')}")
+        if act.startswith("projector"):
+            if isinstance(j.get("cached"), dict): engine.fleet[name]["proj"] = dict(j["cached"], msg=j.get("msg", ""))
+            engine.event(f"{name}: projector {body.get('cmd', act)} → {j.get('msg', '')}")
+        else:
+            engine.event(f"{name}: {act} → {j.get('msg', '')}")
         return web.json_response(j)
 
+    async def api_projectors_all(request):
+        """POST /api/rig/projectors/{cmd} — the same projector command to every renderer that is online (on / off / hdmi1 …)."""
+        cmd = request.match_info["cmd"]
+        import aiohttp
+        out = {}
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8)) as sess:
+            for name, r in list(engine.fleet.items()):
+                if time.time() - r.get("seen", 0) > 15: continue
+                try:
+                    async with sess.post(f"http://{r['ip']}:8082/projector", json=dict(cmd=cmd)) as resp:
+                        j = await resp.json()
+                    out[name] = j.get("msg", "ok" if j.get("ok") else "failed")
+                    if isinstance(j.get("cached"), dict): r["proj"] = dict(j["cached"], msg=j.get("msg", ""))
+                except Exception as ex:
+                    out[name] = f"unreachable ({ex.__class__.__name__})"
+        engine.event((f"projectors {cmd}: " + ", ".join(f"{k}: {v}" for k, v in out.items())) if out else f"projectors {cmd}: no renderers online")
+        return web.json_response(dict(ok=True, results=out))
+
+    async def projector_poller():
+        """Every 15 s ask each online renderer's status service how its projector is (cached there; no serial on the request path)."""
+        import aiohttp
+        while True:
+            await asyncio.sleep(15)
+            try:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=4)) as sess:
+                    for name, r in list(engine.fleet.items()):
+                        if time.time() - r.get("seen", 0) > 15: continue
+                        try:
+                            async with sess.get(f"http://{r['ip']}:8082/projector") as resp:
+                                j = await resp.json()
+                            r["proj"] = dict(power=j.get("power", "unknown"), source=j.get("source"), msg=j.get("msg", ""), port=j.get("port"), protocol=(j.get("config") or {}).get("protocol"), at=j.get("at"))
+                        except Exception:
+                            r["proj"] = dict(power="unknown", msg="status service not reachable", port=None)
+            except Exception:
+                pass
+    asyncio.get_event_loop().create_task(projector_poller())
+    app.router.add_post("/api/rig/projectors/{cmd}", api_projectors_all)      # before {name}/{act}
     app.router.add_post("/api/rig/self/{act}", api_rig_self)
     app.router.add_get("/api/rig/self/update.log", api_rig_log)
+    app.router.add_post("/api/rig/{name}/projector/config", api_rig_remote)
+    app.router.add_get("/api/rig/{name}/projector", api_rig_remote)
     app.router.add_post("/api/rig/{name}/{act}", api_rig_remote)
     app.router.add_get("/api/rig/{name}/update.log", api_rig_remote)
 

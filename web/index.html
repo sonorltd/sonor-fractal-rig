@@ -524,6 +524,9 @@
       <button class="btn small" id="rig-restart-renderer" title="restart this Pi's renderer">Restart master's renderer</button>
       <button class="btn small" id="rig-log">Update log</button>
       <span style="width:1px;height:22px;background:var(--line);margin:0 4px"></span>
+      <button class="btn small" id="proj-all-on" title="RS-232 power-on to every projector (each Pi drives its own over a USB→RS-232 lead)">⏻ Projectors ON</button>
+      <button class="btn small" id="proj-all-off" title="power every projector off (they cool down for a minute)">Projectors OFF</button>
+      <span style="width:1px;height:22px;background:var(--line);margin:0 4px"></span>
       <span class="pill" id="cloud-pill2" title="Supabase — every save on this Pi is mirrored when there is internet; offline edits queue"><i class="dot" id="cloud-dot2"></i><span id="cloud-state">cloud</span></span>
       <button class="btn small" id="cloud-sync" title="push queued changes, pull anything newer">☁ Sync now</button>
       <button class="btn small" id="cloud-pull-all" title="pull every show / preset bank / cue stack / LED config / mapping that is newer in the cloud">☁ Pull everything</button>
@@ -533,7 +536,8 @@
   </div>
   <div class="card wide" style="margin-bottom:16px">
     <h2>Projectors <span class="spacer"></span><span class="sub">heartbeat every second from each renderer · loss = multicast packets missed · HB = worst heartbeat gap (LAN health)</span></h2>
-    <div class="tablewrap"><table><thead><tr><th></th><th>name</th><th>ip</th><th>ver</th><th>fps</th><th>res</th><th>tile</th><th>loss</th><th>temp</th><th>HB</th><th>media</th><th>age</th><th></th></tr></thead><tbody id="fleet"></tbody></table></div>
+    <div class="hint" style="margin:0 0 8px">Projector column = RS-232 (or PJLink) from that Pi: power state polled every 15 s, source when on. ⏻ toggles power, the menu sets the input, ⚙ picks protocol / port. Every Pi needs a USB→RS-232 lead into the projector's control port (ViewSonic: 19200 8N1, enable RS-232 / standby power in the projector menu).</div>
+    <div class="tablewrap"><table><thead><tr><th></th><th>name</th><th>projector</th><th>ip</th><th>ver</th><th>fps</th><th>res</th><th>tile</th><th>loss</th><th>temp</th><th>HB</th><th>media</th><th>age</th><th></th></tr></thead><tbody id="fleet"></tbody></table></div>
   </div>
   <div class="card wide" id="health-card" style="margin-bottom:16px">
     <h2>Health &amp; network <span class="spacer"></span><span class="sub">the numbers that matter on the night — everything else is in the detail cards below</span></h2>
@@ -705,78 +709,88 @@ sudo bash setup/install.sh master</pre>
   </div>
 
   <div class="card" id="i-topology">
-    <h3>Field network — topology for the whole rig</h3>
-    <p>Everything hangs off <b>one managed gigabit switch in the flight case</b>, wired. Wi-Fi is for the control tablet only. Three kinds of traffic share the wire and they want different things: the <span class="tl sync">sync multicast</span> wants zero loss and low jitter (tiny packets, 60 a second), <span class="tl video">video</span> (NDI, ~100 Mb/s per 1080p stream) wants bandwidth, and <span class="tl light">lighting</span> (Art-Net / sACN / DDP at 40 fps) wants nothing dropped in bursts. Gigabit copper carries all of it with room to spare; the failures come from Wi-Fi, from snooping without a querier, and from daisy-chained unmanaged switches.</p>
-    <svg class="topo" viewBox="0 0 1000 620" role="img" aria-label="Fractal Rig field network topology">
+    <h3>Field network — topology for the whole rig (Ruijie / Reyee)</h3>
+    <p>Two tiers. The <b>Pi switch</b> lives in the flight case with the Pis: a <b>Reyee RG-NBS3100-8GT2SFP-P</b> (8 × gigabit PoE+, 2 × SFP) powers the Pi 5s and carries the sync multicast. One uplink (Cat6, or fibre on the SFP if the case is far from the desk) goes to the <b>core</b> — a Reyee <b>RG-NBS3200-24GT4XS-P</b> (or a second NBS3100 for a small rig) — or straight into the <b>Reyee EG gateway</b> (RG-EG105G-P / EG210G-P: DHCP, VLAN, WAN). Everything else hangs off the core: Pioneer LINK, the Ableton and Resolume laptops, pixel controllers, the DMX node, the RAP access point for the tablet. Three kinds of traffic share the wire: the <span class="tl sync">sync multicast</span> wants zero loss and low jitter, <span class="tl video">video</span> (NDI, ~100 Mb/s per 1080p stream) wants bandwidth, <span class="tl light">lighting</span> (DDP / Art-Net / sACN at 40 fps) wants no bursts dropped. Gigabit carries all of it; the failures come from Wi-Fi, from snooping with no querier, and from a chain of unmanaged switches.</p>
+    <svg class="topo" viewBox="0 0 1000 640" role="img" aria-label="Fractal Rig field network topology, Ruijie two-tier">
       <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>
-      <!-- flight case zone -->
-      <rect class="zone" x="310" y="14" width="380" height="594"/><text class="small" x="322" y="32">FLIGHT CASE · rig VLAN 10.42.0.0/24 · one gigabit switch · IGMP querier ON</text>
+      <!-- flight case zone (Pi tier) -->
+      <rect class="zone" x="310" y="14" width="380" height="386"/><text class="small" x="322" y="32">FLIGHT CASE · Pi tier · Reyee RG-NBS3100-8GT2SFP-P · IGMP snooping ON (querier lives on the core)</text>
       <!-- master -->
-      <rect class="node master" x="400" y="50" width="200" height="90"/>
-      <text x="500" y="72" text-anchor="middle" font-weight="600">Master · Pi 5 · .10</text>
-      <text class="small" x="500" y="88" text-anchor="middle">fractal-master + renderer (headless → NDI)</text>
-      <text class="small" x="500" y="103" text-anchor="middle">web UI :8081 · DHCP reservation</text>
-      <text class="mono" x="500" y="122" text-anchor="middle">tx 239.255.42.1:5005 @ 60 pps · rx HB :5006</text>
-      <!-- switch -->
-      <rect class="node switch" x="400" y="280" width="200" height="84"/>
-      <text x="500" y="304" text-anchor="middle" font-weight="600">Managed gigabit switch</text>
-      <text class="small" x="500" y="321" text-anchor="middle">USW-Lite-8-PoE · Reyee RG-NBS3100</text>
-      <text class="small" x="500" y="336" text-anchor="middle">VigorSwitch · PoE for the Pis</text>
-      <text class="small" x="500" y="351" text-anchor="middle">IGMP snooping + querier · 1 VLAN</text>
-      <path class="l sync both" d="M500 140 V280"/><text class="port" x="508" y="214">sync multicast ⇅ heartbeats</text>
-      <!-- bottom: renderers / projectors / pixels / dmx -->
-      <rect class="node" x="330" y="440" width="150" height="70"/><text x="405" y="462" text-anchor="middle" font-weight="600">Renderer Pi ×N</text><text class="small" x="405" y="478" text-anchor="middle">fractal1 … fractalN · .11–.19</text><text class="small" x="405" y="493" text-anchor="middle">PoE · HDMI → projector</text>
-      <path class="l sync" d="M450 364 L420 440"/>
-      <rect class="node" x="330" y="530" width="150" height="58"/><text x="405" y="552" text-anchor="middle" font-weight="600">Projectors</text><text class="small" x="405" y="568" text-anchor="middle">HDMI · mapping per Pi</text>
-      <path class="l plain" d="M405 510 V530"/>
-      <rect class="node" x="520" y="440" width="150" height="70"/><text x="595" y="462" text-anchor="middle" font-weight="600">Pixel controllers</text><text class="small" x="595" y="478" text-anchor="middle">WLED / Gledopto · .20–.29</text><text class="mono" x="595" y="495" text-anchor="middle">DDP :4048 · Art-Net :6454</text>
-      <path class="l light" d="M550 364 L580 440"/>
-      <rect class="node" x="520" y="530" width="150" height="58"/><text x="595" y="552" text-anchor="middle" font-weight="600">Art-Net → DMX node</text><text class="small" x="595" y="568" text-anchor="middle">Sonor ArtNet Node · .30–.39 · sACN :5568</text>
-      <path class="l light" d="M600 350 H682 V545 H670"/>
-      <!-- left: tempo + control in -->
+      <rect class="node master" x="400" y="46" width="200" height="86"/>
+      <text x="500" y="68" text-anchor="middle" font-weight="600">Master · Pi 5 · .10</text>
+      <text class="small" x="500" y="84" text-anchor="middle">fractal-master + renderer (headless → NDI)</text>
+      <text class="small" x="500" y="99" text-anchor="middle">web UI :8081 · USB→RS-232 to its projector</text>
+      <text class="mono" x="500" y="117" text-anchor="middle">tx 239.255.42.1:5005 @ 60 pps · rx HB :5006</text>
+      <!-- pi switch -->
+      <rect class="node switch" x="400" y="190" width="200" height="72"/>
+      <text x="500" y="213" text-anchor="middle" font-weight="600">Pi switch · NBS3100-8GT2SFP-P</text>
+      <text class="small" x="500" y="229" text-anchor="middle">8 × PoE+ for the Pis · 2 × SFP uplink</text>
+      <text class="small" x="500" y="244" text-anchor="middle">rig VLAN 10.42.0.0/24 · 1 uplink to core</text>
+      <path class="l sync both" d="M500 132 V190"/><text class="port" x="508" y="166">sync ⇅ HB</text>
+      <!-- renderers / projectors -->
+      <rect class="node" x="330" y="300" width="150" height="86"/><text x="405" y="322" text-anchor="middle" font-weight="600">Renderer Pi ×N</text><text class="small" x="405" y="338" text-anchor="middle">fractal1 … · .11–.19 · PoE</text><text class="small" x="405" y="353" text-anchor="middle">HDMI → projector</text><text class="small" x="405" y="368" text-anchor="middle">USB→RS-232 → projector ctrl</text>
+      <path class="l sync" d="M450 262 L420 300"/>
+      <rect class="node" x="520" y="300" width="150" height="86"/><text x="595" y="322" text-anchor="middle" font-weight="600">Projectors</text><text class="small" x="595" y="338" text-anchor="middle">ViewSonic V52HD (one per Pi)</text><text class="small" x="595" y="353" text-anchor="middle">HDMI picture · mapping per Pi</text><text class="mono" x="595" y="370" text-anchor="middle">RS-232 19200 8N1 · power / input</text>
+      <path class="l plain" d="M480 343 H520"/><text class="port" x="470" y="392">HDMI + RS-232 (per Pi)</text>
+      <!-- core switch / gateway (desk tier) -->
+      <text class="small" x="410" y="428">DESK TIER · core + gateway</text>
+      <rect class="node switch" x="400" y="440" width="200" height="72"/>
+      <text x="500" y="463" text-anchor="middle" font-weight="600">Core · NBS3200-24GT4XS-P</text>
+      <text class="small" x="500" y="479" text-anchor="middle">IGMP snooping + QUERIER · PoE for the AP</text>
+      <text class="small" x="500" y="494" text-anchor="middle">everything that is not a Pi plugs in here</text>
+      <path class="l sync both" d="M400 240 H296 V462 H400"/><text class="port" x="300" y="300" transform="rotate(-90 300 300)" text-anchor="middle">uplink · Cat6 / SFP</text>
+      <rect class="node" x="400" y="548" width="200" height="72"/>
+      <text x="500" y="571" text-anchor="middle" font-weight="600">Gateway · Reyee EG105G-P · .1</text>
+      <text class="small" x="500" y="587" text-anchor="middle">DHCP with reservations · VLAN · WAN</text>
+      <text class="small" x="500" y="602" text-anchor="middle">venue internet / 4G router on WAN — optional</text>
+      <path class="l ctl both" d="M500 512 V548"/>
+      <!-- left: tempo + control in (on the core) -->
+      <text class="small" x="30" y="128">TEMPO &amp; CONTROL IN → core</text>
       <rect class="node" x="30" y="150" width="210" height="90"/>
       <text x="135" y="172" text-anchor="middle" font-weight="600">Pioneer · XDJ / CDJ + mixer</text>
-      <text class="small" x="135" y="188" text-anchor="middle">LINK port → same switch, same L2</text>
+      <text class="small" x="135" y="188" text-anchor="middle">LINK port → core, same L2 as the master</text>
       <text class="small" x="135" y="203" text-anchor="middle">169.254.x.x unless it gets DHCP</text>
       <text class="mono" x="135" y="222" text-anchor="middle">Pro DJ Link broadcast :50000–50002</text>
-      <path class="l tempo" d="M240 210 C320 210 330 300 400 300"/>
+      <path class="l tempo" d="M240 210 C330 210 330 462 400 462"/>
       <rect class="node" x="30" y="270" width="210" height="72"/>
       <text x="135" y="292" text-anchor="middle" font-weight="600">Ableton / Link laptop · .50</text>
       <text class="small" x="135" y="308" text-anchor="middle">Ableton Link multicast, lead or follow</text>
       <text class="mono" x="135" y="326" text-anchor="middle">Link :20808</text>
-      <path class="l tempo both" d="M240 322 H400"/>
+      <path class="l tempo both" d="M240 322 C330 322 330 476 400 476"/>
       <rect class="node" x="30" y="370" width="210" height="72"/>
       <text x="135" y="392" text-anchor="middle" font-weight="600">MIDI controller / DMX in</text>
-      <text class="small" x="135" y="408" text-anchor="middle">USB straight into the master</text>
+      <text class="small" x="135" y="408" text-anchor="middle">USB straight into the master Pi</text>
       <text class="small" x="135" y="424" text-anchor="middle">not on the network at all</text>
-      <path class="l ctl" d="M240 385 C300 385 300 132 400 132"/>
-      <text class="small" x="30" y="128">TEMPO &amp; CONTROL IN</text>
-      <!-- right: video, control UI, uplink -->
-      <text class="small" x="750" y="40">VIDEO · CONTROL · UPLINK</text>
+      <path class="l ctl" d="M240 385 C300 385 300 126 400 126"/>
+      <!-- right: video, control UI, lighting (on the core) -->
+      <text class="small" x="750" y="40">VIDEO · CONTROL · LIGHTING → core</text>
       <rect class="node" x="750" y="50" width="220" height="90"/>
       <text x="860" y="72" text-anchor="middle" font-weight="600">Resolume laptop · .40</text>
-      <text class="small" x="860" y="88" text-anchor="middle">wired · NDI in + out · OSC two-way</text>
+      <text class="small" x="860" y="88" text-anchor="middle">wired to core · NDI in + out · OSC two-way</text>
       <text class="mono" x="860" y="106" text-anchor="middle">NDI :5353 / 5960+ · OSC :7000 ⇄ :8000</text>
       <text class="small" x="860" y="124" text-anchor="middle">or an HDMI capture card into a Pi</text>
-      <path class="l video both" d="M750 110 C680 110 670 300 600 300"/>
+      <path class="l video both" d="M750 110 C690 110 680 455 600 455"/>
       <rect class="node" x="750" y="165" width="220" height="60"/>
-      <text x="860" y="187" text-anchor="middle" font-weight="600">Access point · rig SSID only</text>
-      <text class="small" x="860" y="204" text-anchor="middle">U6-Lite / Reyee RAP · control traffic only</text>
-      <path class="l ctl" d="M750 200 C690 200 680 322 600 322"/>
+      <text x="860" y="187" text-anchor="middle" font-weight="600">AP · Reyee RAP2260 · rig SSID</text>
+      <text class="small" x="860" y="204" text-anchor="middle">PoE from the core · tablet traffic only</text>
+      <path class="l ctl" d="M750 200 C690 200 680 470 600 470"/>
       <rect class="node" x="750" y="250" width="220" height="56"/>
       <text x="860" y="272" text-anchor="middle" font-weight="600">Phone / tablet / kiosk</text>
       <text class="small" x="860" y="289" text-anchor="middle">web UI + Perform · sonorpi.local:8081</text>
       <path class="wifi" d="M860 225 V250"/><text class="port" x="868" y="242">Wi-Fi</text>
-      <rect class="node" x="750" y="340" width="220" height="90"/>
-      <text x="860" y="362" text-anchor="middle" font-weight="600">Router · DHCP · 4G/5G · .1</text>
-      <text class="small" x="860" y="378" text-anchor="middle">Vigor 2927 / Reyee EG / GL.iNet</text>
-      <text class="small" x="860" y="394" text-anchor="middle">reservations for every fixed box</text>
-      <text class="small" x="860" y="412" text-anchor="middle">venue internet optional, never required</text>
-      <path class="l ctl" d="M750 370 C690 370 680 344 600 344"/>
-      <rect class="node" x="750" y="480" width="220" height="60"/>
-      <text x="860" y="502" text-anchor="middle" font-weight="600">Supabase (cloud)</text>
-      <text class="small" x="860" y="519" text-anchor="middle">shows · looks · cue lists · LEDs · mappings</text>
-      <path class="l cloud both" d="M860 430 V480"/><text class="port" x="868" y="459">HTTPS · queued offline</text>
+      <rect class="node" x="750" y="340" width="220" height="70"/>
+      <text x="860" y="362" text-anchor="middle" font-weight="600">Pixel controllers · .20–.29</text>
+      <text class="small" x="860" y="378" text-anchor="middle">WLED / Gledopto, wired to the core</text>
+      <text class="mono" x="860" y="396" text-anchor="middle">DDP :4048 · Art-Net :6454 (unicast)</text>
+      <path class="l light" d="M750 375 C690 375 680 484 600 484"/>
+      <rect class="node" x="750" y="430" width="220" height="60"/>
+      <text x="860" y="452" text-anchor="middle" font-weight="600">Art-Net → DMX node · .30–.39</text>
+      <text class="small" x="860" y="469" text-anchor="middle">Sonor ArtNet Node · sACN :5568 (multicast)</text>
+      <path class="l light" d="M750 460 C690 460 680 498 600 498"/>
+      <rect class="node" x="750" y="540" width="220" height="60"/>
+      <text x="860" y="562" text-anchor="middle" font-weight="600">Supabase (cloud)</text>
+      <text class="small" x="860" y="579" text-anchor="middle">shows · looks · cue lists · LEDs · mappings</text>
+      <path class="l cloud both" d="M600 584 H750"/><text class="port" x="612" y="578">HTTPS · queued offline</text>
       <!-- legend -->
       <g transform="translate(30 480)">
         <text class="small" x="0" y="0">TRAFFIC</text>
@@ -786,21 +800,46 @@ sudo bash setup/install.sh master</pre>
         <line class="l light" x1="0" y1="76" x2="28" y2="76"/><text class="small" x="36" y="80">lighting (DDP · Art-Net · sACN)</text>
         <line class="l ctl" x1="0" y1="96" x2="28" y2="96"/><text class="small" x="36" y="100">control (web UI · MIDI · DHCP)</text>
         <line class="l cloud" x1="0" y1="116" x2="28" y2="116"/><text class="small" x="36" y="120">cloud mirror (optional)</text>
+        <line class="l plain" x1="0" y1="136" x2="28" y2="136"/><text class="small" x="36" y="140">HDMI + RS-232 (not network)</text>
       </g>
     </svg>
+    <h4>Reyee kit list</h4>
+    <table>
+      <tr><td>Pi switch</td><td><b>RG-NBS3100-8GT2SFP-P</b> (V2) — 8 × PoE+ gigabit, 2 × SFP, L2 managed, local web UI. Lives in the flight case, powers the Pi 5s.</td></tr>
+      <tr><td>Core</td><td><b>RG-NBS3200-24GT4XS-P</b> for a full rig (24 × PoE, 4 × 10G SFP+), or a second <b>NBS3100-8GT2SFP-P</b> when it is one desk and a couple of controllers. Runs the IGMP querier.</td></tr>
+      <tr><td>Gateway</td><td><b>RG-EG105G-P</b> (small) or <b>RG-EG210G-P</b> — DHCP with reservations, the rig VLAN, WAN to venue internet or a 4G/5G router. The rig never depends on the WAN.</td></tr>
+      <tr><td>Access point</td><td><b>RAP2260(G)</b> or <b>RAP1200(F)</b> on a core PoE port, one rig-only SSID for the tablet.</td></tr>
+      <tr><td>Per Pi</td><td>Cat6 patch lead to the Pi switch, HDMI to the projector, and a <b>USB→RS-232 lead</b> (FTDI / PL2303; ~£10) to the projector's RS-232 port for power and input control.</td></tr>
+    </table>
     <h4>Rules that keep it solid</h4>
     <ul>
-      <li><b>One switch, one VLAN, everything wired.</b> Pis, Resolume laptop, Pioneer LINK, pixel controllers and DMX nodes all on the same layer-2 segment: Pro DJ Link is broadcast, the sync is multicast with TTL 1, Ableton Link is multicast — none of it crosses a router. Daisy-chaining a second unmanaged switch is fine for a far projector position; a Wi-Fi bridge in that path is not.</li>
-      <li><b>IGMP snooping on, with the switch as querier</b> (or snooping off). This is the single setting that decides whether the rig survives the night. Check it with the LAN-jitter and multicast-loss tiles on the Rig tab: 1.0 s and 0 all evening.</li>
-      <li><b>DHCP from the case, not the venue.</b> The router (or the master) hands out addresses with reservations for every fixed box so the Pioneer gear, Pis and controllers always come up on the same subnet. Venue internet plugs into the router's WAN if it exists; a 4G/5G SIM in the router lets Supabase sync on site, and nothing breaks without it.</li>
-      <li><b>Wi-Fi carries the tablet, nothing else.</b> A dedicated AP (or the router's) on a rig-only SSID for the phone / tablet running the web UI. Never put a Pi, the Resolume laptop or a pixel controller on Wi-Fi — WLED nodes especially want a wire or their own 2.4 GHz AP kept away from the crowd.</li>
-      <li><b>Lighting protocols</b>: DDP and Art-Net are unicast from the master to each controller, so they only cost bandwidth on that one port; sACN multicast rides the same querier as the sync. 170 RGB pixels per Art-Net universe, consecutive universes for longer runs; keep controller firmware on a fixed IP. The Sonor ArtNet Node (Nano + ENC28J60) is 10 Mb/s — give it its own switch port, never a hub.</li>
-      <li><b>Video</b>: NDI from Resolume to the master (and the master's picture back to Resolume) is ~100 Mb/s per 1080p stream over gigabit — fine, but it is the one thing that would suffer on a 100 Mb/s port or Wi-Fi. An HDMI capture card into a Pi's USB 3 port is the zero-network alternative for the feed in.</li>
-      <li><b>Pioneer</b>: the master only listens. If the decks are on <code>169.254.x.x</code> and you cannot give them DHCP, add a link-local alias to the master (command in the section above) so it hears the beat packets.</li>
-      <li><b>Spares</b>: a second switch, a spare Pi imaged as a renderer, a 4G router and a bag of Cat6 patch leads with boots. Everything else is software.</li>
+      <li><b>One VLAN across both tiers, everything wired.</b> Pis, Resolume, Pioneer LINK, pixel controllers and DMX nodes all in the same layer-2 segment: Pro DJ Link is broadcast, the sync is multicast with TTL 1, Ableton Link is multicast — none of it crosses a router. The Pi switch → core uplink is a plain access (or trunk with that one VLAN) port.</li>
+      <li><b>IGMP: snooping on both switches, exactly one querier — the core.</b> On Reyee: Switch → Multicast → IGMP Snooping on, and on the core enable the <em>querier</em> for the rig VLAN; leave it off on the Pi switch (two queriers elect, but it is one more thing to go wrong). No querier at all is the classic failure: the picture runs for a couple of minutes, then multicast is pruned and every projector freezes. Watch the LAN-jitter and multicast-loss tiles on the Rig tab: 1.0 s and 0 all night.</li>
+      <li><b>DHCP from the gateway, not the venue.</b> Reservations for every fixed box (plan below) so Pioneer gear, Pis and controllers always come up on the same subnet. Venue internet or a 4G/5G router on the EG's WAN lets Supabase sync on site; nothing breaks without it.</li>
+      <li><b>Wi-Fi carries the tablet, nothing else.</b> One rig SSID on the RAP. Never a Pi, the Resolume laptop or a pixel controller on Wi-Fi — WLED nodes want a wire or their own 2.4 GHz AP kept away from the crowd.</li>
+      <li><b>Lighting</b>: DDP and Art-Net are unicast from the master to each controller, so they cost bandwidth on that port only; sACN multicast rides the same querier as the sync. 170 RGB pixels per Art-Net universe, consecutive universes for long runs. The Sonor ArtNet Node (Nano + ENC28J60) is 10 Mb/s half-duplex — its own core port, never a hub.</li>
+      <li><b>Video</b>: NDI Resolume ⇄ master crosses the uplink at ~100 Mb/s per 1080p stream — fine on gigabit, it is the one thing that would hurt on a 100 Mb/s port or Wi-Fi. An HDMI capture card into a Pi's USB 3 is the zero-network alternative for the feed in.</li>
+      <li><b>Projector control is per Pi, over RS-232</b> — no network dependency, works before the projector has a picture. Each Pi's status service answers <code>GET/POST :8082/projector</code>; the master polls power (and source when on) every 15 s and shows it in the Projectors table, with ⏻ / input per projector and <em>Projectors ON / OFF</em> for the whole rig (also on the Perform SHOW page). ViewSonic V52HD: 19200 8N1, hex protocol (<code>06 14 00 04 00 34 11 00 00 5D</code> = on); enable RS-232 control / standby power in the projector's menu so it listens while off. Other brands: pick <b>PJLink</b> in the ⚙ dialog and give it the projector's IP (that one <em>is</em> on the network — put it on the core, .60–.69).</li>
+      <li><b>Wiring the Pi to the projector's RS-232.</b> Two ways, both end up as <code>/dev/serial0</code> or <code>/dev/ttyUSB0</code> and the software finds either automatically:
+        <table>
+          <tr><td>USB lead</td><td>A USB→RS-232 adapter (FTDI FT232 or Prolific PL2303, ~£10) into any Pi USB port, DB9 into the projector. Zero configuration — plug in and press ⏻.</td></tr>
+          <tr><td>GPIO header</td><td>Use a <b>MAX3232 board</b> (3.3 V TTL ⇄ RS-232 level shifter, the little red modules with a DB9). RS-232 is ±12 V — <b>never</b> wire the projector straight to the GPIO pins.</td></tr>
+        </table>
+        <p style="margin:6px 0 4px"><b>GPIO wiring</b> (40-pin header, pin 1 is nearest the SD-card corner, odd pins on the inside row):</p>
+        <table>
+          <tr><td>Pin 1 · 3V3</td><td>→ MAX3232 <code>VCC</code> (3.3 V; do not use 5 V on pin 2/4 unless the board says 5 V-tolerant)</td></tr>
+          <tr><td>Pin 6 · GND</td><td>→ MAX3232 <code>GND</code></td></tr>
+          <tr><td>Pin 8 · GPIO14 TXD</td><td>→ MAX3232 <code>TXD</code> / <code>T1IN</code> (the TTL <em>input</em> of the board)</td></tr>
+          <tr><td>Pin 10 · GPIO15 RXD</td><td>← MAX3232 <code>RXD</code> / <code>R1OUT</code> (the TTL <em>output</em> of the board)</td></tr>
+          <tr><td>MAX3232 DB9</td><td>pin 2 RXD · pin 3 TXD · pin 5 GND → projector RS-232. Projector control ports are almost always DTE (they <em>transmit</em> on pin 3), so you usually need a <b>crossed (null-modem) cable</b> or a null-modem adapter; if <code>status</code> gets no reply, swap 2 ↔ 3. Only three wires are used — no handshaking.</td></tr>
+        </table>
+        <p style="margin:6px 0 4px">Install with the flag so the Pi frees the header UART and points the projector service at it (one reboot): <code>sudo bash setup/install.sh slave --scale 0.5 --name fractal1 --gpio-serial</code>. It sets <code>enable_uart=1</code>, <code>dtparam=uart0=on</code> (Pi 5) / <code>dtoverlay=disable-bt</code> (Pi 4 — Bluetooth is not used), removes the serial login console and writes <code>/var/lib/fractal-rig/projector.json</code> with <code>port: /dev/serial0</code>. Test from the Pi: <code>python3 setup/projector.py status</code> → <code>power on · HDMI 1</code>. In the projector menu turn on <em>RS-232 control</em> / <em>standby power</em> (ViewSonic: Advanced → Standby Settings) so it listens while off — otherwise power-on over serial cannot work.</p>
+      </li>
+      <li><b>Pioneer</b>: the master only listens. If the decks are on <code>169.254.x.x</code> and you cannot give them DHCP, add a link-local alias to the master (command in the Network section).</li>
+      <li><b>Spares</b>: a second NBS3100, a spare Pi imaged as a renderer, a spare USB→RS-232 lead, a 4G router and a bag of Cat6 patch leads with boots. Everything else is software.</li>
     </ul>
     <h4>Suggested address plan (10.42.0.0/24)</h4>
-    <table><tr><td>.1</td><td>router / DHCP / uplink</td></tr><tr><td>.10</td><td>master Pi (<code>sonorpi</code>)</td></tr><tr><td>.11–.19</td><td>renderer Pis (<code>fractal1</code>…)</td></tr><tr><td>.20–.29</td><td>WLED / pixel controllers (one per LED zone group)</td></tr><tr><td>.30–.39</td><td>Art-Net / sACN → DMX nodes</td></tr><tr><td>.40–.49</td><td>Resolume / media laptops</td></tr><tr><td>.50–.59</td><td>Ableton / Link machines</td></tr><tr><td>.60–.69</td><td>Pioneer gear (reservations by MAC; else 169.254 auto)</td></tr><tr><td>.100–.199</td><td>DHCP pool: phones, tablets, guests</td></tr></table>
+    <table><tr><td>.1</td><td>Reyee EG gateway / DHCP / WAN</td></tr><tr><td>.2–.5</td><td>switches (core .2, Pi switch .3) and the AP</td></tr><tr><td>.10</td><td>master Pi (<code>sonorpi</code>)</td></tr><tr><td>.11–.19</td><td>renderer Pis (<code>fractal1</code>…)</td></tr><tr><td>.20–.29</td><td>WLED / pixel controllers</td></tr><tr><td>.30–.39</td><td>Art-Net / sACN → DMX nodes</td></tr><tr><td>.40–.49</td><td>Resolume / media laptops</td></tr><tr><td>.50–.59</td><td>Ableton / Link machines</td></tr><tr><td>.60–.69</td><td>Pioneer gear and any PJLink projectors (reservations by MAC)</td></tr><tr><td>.100–.199</td><td>DHCP pool: phones, tablets, guests</td></tr></table>
   </div>
 
   <div class="card" id="i-protocol">
@@ -997,7 +1036,7 @@ sudo bash setup/install.sh master</pre>
       <div class="pgrid c3" id="pf-scenes"></div>
       <div class="pgrid c3" id="pf-engine-quick"></div>
       <div class="plabel">Safety</div>
-      <div class="pgrid c3"><button class="pbtn danger" id="pf-blackout">BLACKOUT<small>brightness → 0</small></button><button class="pbtn" id="pf-freeze">FREEZE<small>clock speed → 0</small></button><button class="pbtn" id="pf-autotoggle">AUTO DRIFT<small>on / off</small></button></div>
+      <div class="pgrid c4"><button class="pbtn danger" id="pf-blackout">BLACKOUT<small>brightness → 0</small></button><button class="pbtn" id="pf-freeze">FREEZE<small>clock speed → 0</small></button><button class="pbtn" id="pf-autotoggle">AUTO DRIFT<small>on / off</small></button><button class="pbtn" id="pf-proj">⏻ PROJECTORS<small id="pf-proj-sub">—</small></button></div>
     </div>
     <div class="ppage" data-pg="1">
       <div class="plabel">Saved looks <span class="pf-hint">— tap to recall · the scene switches with it</span> <span class="seg" id="pf-preset-filter" style="margin-left:8px"><button data-f="engine" class="active">this engine</button><button data-f="all">all</button><button data-f="fav">★ favs</button></span></div>
