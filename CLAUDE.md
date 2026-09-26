@@ -165,6 +165,28 @@ optional audio, autonomous drift. **Read `README.md` and `PROTOCOL.md` first.**
   inline matrix builder, Perform **LEDS** page (output, brightness, test, per-zone mute, saved configs). Rig tab:
   Projectors table carries health dot / loss % / temp / heartbeat jitter (engine `hb_worst`, `loss_rate`,
   `fps_min` from HB timing), a Health & network tile strip, Sources moved under Projectors, one Log card.
+- 2026-09-26 v0.8.0 (cont. 2) — **`web/js/ui.js` UI kit** (modal dialogs, saveAs, toasts, cards, tiles) replaces every
+  native prompt/confirm/alert and every ad-hoc card/tile template; `web/lint-ui.sh` guards it. Shows / LED configs /
+  looks / palettes / cues all save through the same modal from tab AND Perform. Fixed: Shows tab read `list` from an
+  API that returns `shows` (the tab and Perform SHOWS page had been empty since the API landed). Supabase settings
+  card removed (config.json carries url/key); Sync now / Pull everything + cloud state pill sit in the Rig update row.
+
+## Web UI conventions (the anti-drift contract — `bash web/lint-ui.sh` enforces it, run before every commit)
+- **One UI kit: `web/js/ui.js`.** Every dialog is `ui.dialog / ui.confirm / ui.prompt / ui.alert`; every "save X as…" is
+  `ui.saveAs` (name + optional fields, live overwrite warning); every result is a `ui.toast`. Native `prompt/confirm/alert`
+  are banned — they don't render on the kiosk Pi (this was the "save disappears to nowhere" bug) and look different everywhere.
+- **Saved collections render one way.** Whole documents (shows, LED configurations) → `ui.cards` on their tab and
+  `ui.tiles` in Perform; quick-recall items (looks, palettes, Milkdrop) → `listBox` (search + ★ + favourites-first).
+  Favourites are `favs[kind]` in master config via `{fav:{kind,name,on}}`. A new collection reuses these three; never a
+  hand-rolled card/tile template.
+- **Shared flows are single functions** used from every entry point: `showSaveDialog`, `ledcSaveDialog/ledcLoad`,
+  `presetSaveDialog`, `paletteSaveDialog`, `cueCaptureDialog`. Perform calls the same function as the tab.
+- **Menus live in `js/nav.js`** (`TABS`, `PERF_PAGES`) and look like `css/nav.css`. Colours are tokens in `css/theme.css`
+  (canvas drawing code may use literals; markup may not). No inline `<style>`/`<script>` in index.html.
+- **Modules are classic scripts in index.html order** (core → ui → nav → tabs… → perform → milkdrop → boot). Call
+  later files' functions at event time only; anything that must run at load goes in `js/boot.js`.
+- **API shapes are contracts**: `/api/shows` returns `{shows, last}`, `/api/led/configs` returns `{configs}` — the
+  UI normalises once in its fetch function, nowhere else.
 
 ## App-specific rules
 - Renderer must stay single-threaded C with no deps beyond SDL2 + GLES — it has to be boring.

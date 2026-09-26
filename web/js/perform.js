@@ -30,8 +30,8 @@ try { const pp = +localStorage.getItem('frx.perfpage'); if (PERF_PAGES.some(p =>
 // presets: save / update from Perform
 let pfLastPreset = null, pfPresetFilter = 'engine';
 $('pf-preset-filter').querySelectorAll('button').forEach(b => b.onclick = () => { pfPresetFilter = b.dataset.f; $('pf-preset-filter').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b)); renderPerf(); });
-$('pf-preset-save').onclick = () => { const n = prompt('Name for this look'); if (n && n.trim()) { send({preset: {save: n.trim()}}); pfLastPreset = n.trim(); } };
-$('pf-preset-update').onclick = () => { if (!pfLastPreset) return alert('load or save a look first'); if (confirm(`Overwrite "${pfLastPreset}" with the current look?`)) send({preset: {save: pfLastPreset}}); };
+$('pf-preset-save').onclick = () => presetSaveDialog().then(n => { if (n) pfLastPreset = n; });
+$('pf-preset-update').onclick = async () => { if (!pfLastPreset) return ui.alert('Load or save a look first.'); if (await ui.confirm(`Overwrite "${pfLastPreset}" with the current look?`, {ok: 'Overwrite'})) { send({preset: {save: pfLastPreset}}); ui.toast(`Look updated: <b>${esc(pfLastPreset)}</b>`, 'ok'); } };
 // clips page extras
 $('pf-vid-loop').onclick = () => send({video: {loop: !(S.base.video_loop > 0.5)}});
 $('pf-vid-barsync').onclick = () => send({video: {bar_sync: !S.video.bar_sync}});
@@ -41,23 +41,26 @@ $('perf').querySelectorAll('[data-pfeed]').forEach(b => b.onclick = () => send({
 $('pf-live-stop').onclick = () => { send({video: {live_stop: 1}}); setTimeout(() => fetchMedia(true), 800); };
 // shows page
 let PF_SHOWS = null;
-async function pfShowsFetch() { if (!S.live) { $('pf-shows').innerHTML = '<span class="hint">shows live on the master</span>'; return; } try { PF_SHOWS = await (await fetch('/api/shows')).json(); } catch (e) { return; } pfRenderShows(); }
+async function pfShowsFetch() { if (!S.live) { $('pf-shows').innerHTML = '<span class="hint">shows live on the master</span>'; return; } try { const j = await (await fetch('/api/shows')).json(); PF_SHOWS = {list: j.shows || j.list || [], last: j.last}; } catch (e) { return; } pfRenderShows(); }
 function pfRenderShows() {
-  if (!PF_SHOWS) return; const sF = favList('show'); let list = PF_SHOWS.list || []; list = list.filter(x => sF.includes(x.name)).concat(list.filter(x => !sF.includes(x.name)));
-  $('pf-shows').innerHTML = list.map(sh => `<button class="pbtn pf-show ${sh.name === PF_SHOWS.last ? 'active' : ''}" data-s="${esc(sh.name)}">${sF.includes(sh.name) ? '★ ' : ''}${esc(sh.name)}<small>${sh.venue ? esc(sh.venue) + ' · ' : ''}${sh.projectors.length} projector${sh.projectors.length === 1 ? '' : 's'} · ${MODE_NAMES[Math.round(sh.scene || 0)] || ''}</small></button>`).join('') || '<span class="hint">no shows saved yet — set the rig up and press SAVE</span>';
-  $('pf-shows').querySelectorAll('[data-s]').forEach(b => b.onclick = async () => { if (!confirm(`Load show "${b.dataset.s}"? This changes the whole rig.`)) return; b.textContent = 'loading…'; await fetch(`/api/shows/${encodeURIComponent(b.dataset.s)}/load`, {method: 'POST', headers: {'content-type': 'application/json'}, body: '{}'}); pfShowsFetch(); });
+  if (!PF_SHOWS) return;
+  ui.tiles($('pf-shows'), {kind: 'show', items: (PF_SHOWS.list || []).map(sh => ({id: sh.name, label: sh.name, active: sh.name === PF_SHOWS.last, cls: 'pf-show', sub: `${sh.venue ? sh.venue + ' · ' : ''}${sh.projectors.length} projector${sh.projectors.length === 1 ? '' : 's'} · ${MODE_NAMES[Math.round(sh.scene || 0)] || ''}`})),
+    empty: 'no shows saved yet — set the rig up and press SAVE',
+    onPick: async (name, b) => { if (!await ui.confirm('This changes the whole rig.', {title: `Load show "${name}"?`, ok: 'Load'})) return; b.textContent = 'loading…'; await fetch(`/api/shows/${encodeURIComponent(name)}/load`, {method: 'POST', headers: {'content-type': 'application/json'}, body: '{}'}); ui.toast(`Show loaded: <b>${esc(name)}</b>`, 'ok'); $('pf-shows').dataset.sig = ''; pfShowsFetch(); }});
   $('pf-show-cur').textContent = PF_SHOWS.last || 'none loaded';
 }
-$('pf-show-update').onclick = async () => { const n = PF_SHOWS && PF_SHOWS.last; if (!n) return alert('no show loaded — use SAVE'); if (!confirm(`Overwrite show "${n}" with the rig as it is now?`)) return; await fetch(`/api/shows/${encodeURIComponent(n)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({update: true})}); pfShowsFetch(); };
-$('pf-show-save').onclick = async () => { const n = prompt('Name for this show (venue / scenario)'); if (!n || !n.trim()) return; await fetch(`/api/shows/${encodeURIComponent(n.trim())}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({update: true})}); pfShowsFetch(); };
+$('pf-show-update').onclick = async () => { const n = PF_SHOWS && PF_SHOWS.last; if (!n) return ui.alert('No show loaded — use SAVE RIG AS NEW SHOW.'); if (!await ui.confirm(`Overwrite show "${n}" with the rig as it is now?`, {ok: 'Overwrite'})) return; await fetch(`/api/shows/${encodeURIComponent(n)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({update: true})}); ui.toast(`Show updated: <b>${esc(n)}</b>`, 'ok'); pfShowsFetch(); };
+$('pf-show-save').onclick = async () => { if (!S.live) return ui.alert('Connect to a master first.'); if (!SHOWS.list.length) { try { const j = await (await fetch('/api/shows')).json(); SHOWS = {list: j.shows || j.list || [], last: j.last}; } catch (e) {} } const n = await showSaveDialog(); if (n) pfShowsFetch(); };
 // LEDs page
 let PF_LEDC = null, pfLedBlackPrev = null;
 async function pfLedcFetch() { if (!S.live) { $('pf-ledc').innerHTML = '<span class="hint">saved on the master</span>'; return; } try { PF_LEDC = (await (await fetch('/api/led/configs')).json()).configs || []; } catch (e) { return; } pfRenderLedc(); }
 function pfRenderLedc() {
-  if (!PF_LEDC) return; const f = favList('led_config'); const list = PF_LEDC.filter(x => f.includes(x.name)).concat(PF_LEDC.filter(x => !f.includes(x.name)));
-  $('pf-ledc').innerHTML = list.map(c => `<button class="pbtn pf-show" data-l="${esc(c.name)}">${f.includes(c.name) ? '★ ' : ''}${esc(c.name)}<small>${c.strips} zone${c.strips === 1 ? '' : 's'} · ${c.pixels} px</small></button>`).join('') || '<span class="hint">no saved LED configurations — lay zones out on the LEDs tab and save them</span>';
-  $('pf-ledc').querySelectorAll('[data-l]').forEach(b => b.onclick = async () => { if (!confirm(`Load LED configuration "${b.dataset.l}"? It replaces the current zones.`)) return; b.textContent = 'loading…'; await fetch(`/api/led/configs/${encodeURIComponent(b.dataset.l)}/load`, {method: 'POST'}); LED.dirty = false; LED.pending = null; LED.sig = ''; pfLedcFetch(); });
+  if (!PF_LEDC) return;
+  ui.tiles($('pf-ledc'), {kind: 'led_config', items: PF_LEDC.map(c => ({id: c.name, label: c.name, cls: 'pf-show', sub: `${c.strips} zone${c.strips === 1 ? '' : 's'} · ${c.pixels} px`})),
+    empty: 'no saved LED configurations — lay zones out on the LEDs tab and save them',
+    onPick: async (name, b) => { if (!await ui.confirm('It replaces the current zones.', {title: `Load LED configuration "${name}"?`, ok: 'Load'})) return; b.textContent = 'loading…'; await ledcLoad(name); $('pf-ledc').dataset.sig = ''; pfLedcFetch(); }});
 }
+$('pf-ledc-save').onclick = async () => { if (!LEDC.length) { try { LEDC = (await (await fetch('/api/led/configs')).json()).configs || []; } catch (e) {} } const n = await ledcSaveDialog(); if (n) pfLedcFetch(); };
 $('pf-led-toggle').onclick = () => send({led: {enabled: !(S.outputs.led && S.outputs.led.enabled)}});
 $('pf-led-blackout').onclick = () => { const led = S.outputs.led || {}; if (pfLedBlackPrev == null) { pfLedBlackPrev = led.brightness == null ? 0.8 : led.brightness; send({led: {brightness: 0}}); } else { send({led: {brightness: pfLedBlackPrev || 0.8}}); pfLedBlackPrev = null; } };
 $('pf-led-bri').oninput = () => { const r = $('pf-led-bri'); r.dataset.touch = performance.now(); r.parentElement.querySelector('.v').textContent = (+r.value).toFixed(2); send({led: {brightness: +r.value}}); };
@@ -106,7 +109,9 @@ function renderPerf() {
   const engPP = engineOf(S.base.mode); const pfv = favList('preset');
   let names = Object.keys(S.presets || {}).filter(n => pfPresetFilter === 'all' || (pfPresetFilter === 'fav' ? pfv.includes(n) : engineOf(presetMode(n)) === engPP));
   names = names.filter(n => pfv.includes(n)).concat(names.filter(n => !pfv.includes(n)));   // favourites first, like every list on the site
-  const psig = names.join('|') + '#' + pfLastPreset + pfPresetFilter + pfv.join(','); if ($('pf-presets').dataset.sig !== psig) { $('pf-presets').dataset.sig = psig; $('pf-presets').innerHTML = names.map(n => { const pr = (typeof S.presets[n] === 'object' && S.presets[n]) || {mode: presetMode(n)}; const sc = MODE_NAMES[Math.round(pr.mode || 0)] || ''; return `<button class="pbtn pf-preset ${n === pfLastPreset ? 'active' : ''}" data-p="${esc(n)}" style="border-left:5px solid var(--eng-${engineOf(presetMode(n))})">${pfv.includes(n) ? '★ ' : ''}${esc(n)}<small>${sc}${pr.pm_preset != null && Math.round(pr.mode) === 8 ? ' #' + Math.round(pr.pm_preset) : ''}</small></button>`; }).join('') || `<span class="hint">${pfPresetFilter === 'fav' ? 'no favourite looks yet — star them on the Control page' : Object.keys(S.presets || {}).length ? 'no ' + ENGINE_LABEL[engPP] + ' looks — tap "all" or save one' : 'no looks saved yet — set one up and press SAVE CURRENT LOOK'}</span>`; $('pf-presets').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { pfLastPreset = b.dataset.p; send({preset: {load: b.dataset.p}}); renderPerf(); }); }
+  ui.tiles($('pf-presets'), {kind: 'preset', items: names.map(n => { const pr = (typeof S.presets[n] === 'object' && S.presets[n]) || {mode: presetMode(n)}; const sc = MODE_NAMES[Math.round(pr.mode || 0)] || ''; return {id: n, label: n, active: n === pfLastPreset, cls: 'pf-preset', style: `border-left:5px solid var(--eng-${engineOf(presetMode(n))})`, sub: sc + (pr.pm_preset != null && Math.round(pr.mode) === 8 ? ' #' + Math.round(pr.pm_preset) : '')}; }),
+    empty: pfPresetFilter === 'fav' ? 'no favourite looks yet — star them on the Control page' : Object.keys(S.presets || {}).length ? 'no ' + ENGINE_LABEL[engPP] + ' looks — tap "all" or save one' : 'no looks saved yet — set one up and press SAVE CURRENT LOOK',
+    onPick: n => { pfLastPreset = n; send({preset: {load: n}}); renderPerf(); }});
   $('pf-preset-last').textContent = pfLastPreset || 'nothing loaded yet';
   $('pf-scene-pill').textContent = (MODE_NAMES[Math.round(S.base.mode)] || '') + (on8 && S.pm.name ? ' · ' + shortName(S.pm.name) : on9p && S.video.name ? ' · ' + S.video.name : '');
   $('pf-vid-name').textContent = S.video.name ? (S.video.index === 255 ? 'LIVE feed' : `#${S.video.index} · ${S.video.name}`) + (S.video.duration ? ` · ${Math.floor(S.video.position)}s / ${Math.floor(S.video.duration)}s` : '') : 'no clip';
@@ -118,10 +123,8 @@ function renderPerf() {
   $('pf-pm-hold').className = 'pbtn' + (S.pm.cycle_bars === 0 && pmHeld ? ' active' : ''); $('pf-pm-fav').textContent = (pmFavs.has(nm) ? '★' : '☆') + ' FAVOURITE';
   const favs = list.map((n, i) => [n, i]).filter(([n]) => pmFavs.has(n)); const fsig = favs.map(f => f[1]).join(',') + '|' + S.pm.index;
   if ($('pf-pm-favs').dataset.sig !== fsig) { $('pf-pm-favs').dataset.sig = fsig; $('pf-pm-favs').innerHTML = favs.map(([n, i]) => `<button class="pbtn pm-tile ${i === S.pm.index ? 'active' : ''}" data-i="${i}">${esc(shortName(n))}</button>`).join('') || '<span class="hint">star presets in the projectM panel and they appear here</span>'; $('pf-pm-favs').querySelectorAll('[data-i]').forEach(b => b.onclick = () => send({pm: {index: +b.dataset.i}})); }
-  const palF = favList('palette'); let palN = Object.keys(S.palettes || {}); palN = palN.filter(n => palF.includes(n)).concat(palN.filter(n => !palF.includes(n)));
-  const palSig = palN.join('|') + S.palette_current + palF.join(','); if ($('pf-palettes').dataset.sig !== palSig) { $('pf-palettes').dataset.sig = palSig;
-    $('pf-palettes').innerHTML = palN.map(n => { const p = S.palettes[n], h = (p.hue || 0) * 360, h2 = ((p.hue || 0) + (p.hue_spread || 1) * 0.35) * 360; return `<button class="pbtn pm-tile ${n === S.palette_current ? 'active' : ''}" data-pal="${esc(n)}" style="background:linear-gradient(135deg, hsl(${h} 60% 22%), hsl(${h2 % 360} 60% 22%))">${palF.includes(n) ? '★ ' : ''}${esc(n)}</button>`; }).join('') || '<span class="hint">no palettes</span>';
-    $('pf-palettes').querySelectorAll('[data-pal]').forEach(b => b.onclick = () => send({palette: {load: b.dataset.pal, fade_bars: 2}})); }
+  ui.tiles($('pf-palettes'), {kind: 'palette', items: Object.keys(S.palettes || {}).map(n => { const p = S.palettes[n], h = (p.hue || 0) * 360, h2 = ((p.hue || 0) + (p.hue_spread || 1) * 0.35) * 360; return {id: n, label: n, active: n === S.palette_current, cls: 'pm-tile', style: `background:linear-gradient(135deg, hsl(${h} 60% 22%), hsl(${h2 % 360} 60% 22%))`}; }),
+    empty: 'no palettes', onPick: n => send({palette: {load: n, fade_bars: 2}})});
   $('pf-pal-lock').className = 'pbtn' + (S.palette_lock ? ' active' : ''); $('pf-pal-lock').firstChild.textContent = S.palette_lock ? '🔒 PALETTE LOCKED' : '🔓 PALETTE LOCK';
   const pled = S.outputs.led || {}, pz = pled.strips || [];
   $('pf-led-toggle').className = 'pbtn huge' + (pled.enabled ? ' active' : ''); $('pf-led-sub').textContent = pled.enabled ? `on · ${pled.pixels || 0} px · ${pz.length} zone${pz.length === 1 ? '' : 's'}${Object.keys(pled.errors || {}).length ? ' · ERRORS' : ''}` : 'off';

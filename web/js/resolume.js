@@ -10,7 +10,7 @@ function renderPad() {
   for (let l = L; l >= 1; l--) h += `<tr><th>layer ${l}</th>` + Array.from({length: C}, (_, c) => { const k = `${l}:${c + 1}`; return `<td><button data-l="${l}" data-c="${c + 1}" class="${rpadLit === k ? 'on' : ''}">${esc(names[k] || (c + 1))}</button></td>`; }).join('') + '</tr>';
   $('rpad').innerHTML = h + '</tbody>';
   $('rpad').querySelectorAll('td button').forEach(b => { b.onclick = () => { rsend(`/composition/layers/${b.dataset.l}/clips/${b.dataset.c}/connect`, 1); rpadLit = `${b.dataset.l}:${b.dataset.c}`; renderPad(); };
-    b.ondblclick = () => { const k = `${b.dataset.l}:${b.dataset.c}`; const n = prompt(`Label for layer ${b.dataset.l} / column ${b.dataset.c}`, RGRID.names[k] || ''); if (n === null) return; RGRID.names[k] = n; if (!n) delete RGRID.names[k]; send({resolume: {grid: RGRID}}); renderPad(); }; });
+    b.ondblclick = async () => { const k = `${b.dataset.l}:${b.dataset.c}`; const v = await ui.dialog({title: `Label for layer ${b.dataset.l} / column ${b.dataset.c}`, fields: [{key: 'n', label: 'Label (blank to clear)', value: RGRID.names[k] || ''}], ok: 'Set'}); if (!v) return; const n = v.n; RGRID.names[k] = n; if (!n) delete RGRID.names[k]; send({resolume: {grid: RGRID}}); renderPad(); }; });
   $('rpad').querySelectorAll('th.col').forEach(t => t.onclick = () => rsend(`/composition/columns/${t.dataset.col}/connect`, 1));
   if (document.activeElement !== $('rg-layers')) $('rg-layers').value = L; if (document.activeElement !== $('rg-cols')) $('rg-cols').value = C;
   if ($('rlayers').children.length !== L) {

@@ -25,7 +25,7 @@
   <span class="pill" id="pill-cloud" style="cursor:pointer" title="Supabase sync — click for details"><i class="dot" id="cloud-dot"></i><span id="cloud-label">cloud</span></span>
 </header>
 <div class="strip" aria-hidden="true">
-  <i style="background:#8058a1"></i><i style="background:#4bb9d3"></i><i style="background:#78ba57"></i><i style="background:#f5d05c"></i><i style="background:#e37c59"></i><i style="background:#ec6061"></i><i style="background:#e67eb1"></i><i style="background:#ad9978"></i><i style="background:#b7b1a7"></i><i style="background:#302f2e"></i>
+  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
 </div>
 
 <main>
@@ -160,9 +160,9 @@
     <div class="card">
       <h2>Presets <span class="spacer"></span><span class="pill" id="preset-count">—</span><span class="seg" id="preset-filter"><button data-f="engine" class="active">this engine</button><button data-f="all">all</button></span></h2>
       <div class="flist" id="presets"></div>
-      <div class="row" style="margin-top:10px">
-        <input class="text" id="preset-name" placeholder="new preset name">
-        <button class="btn small primary" id="preset-save">Save current</button>
+      <div class="row savebar" style="margin-top:10px">
+        <button class="btn small primary" id="preset-save">＋ Save current look…</button>
+        <span class="hint" style="margin:0">tap a look to recall it · ★ to favourite · ✕ to delete</span>
       </div>
     </div>
 
@@ -170,8 +170,8 @@
       <h2>Palette <span class="spacer"></span><button class="btn small" id="palette-lock" title="keep the current colours when loading presets that carry a different colour theme">🔒 lock</button></h2>
       <div class="flist" id="palettes"></div>
       <div class="row" style="margin-top:8px;gap:6px">
-        <input class="text" id="palette-name" placeholder="save current colours as…" style="flex:1">
-        <button class="btn small primary" id="palette-save">Save</button>
+        <button class="btn small primary" id="palette-save">＋ Save current colours…</button>
+        <span class="spacer"></span><label style="font-size:11px;color:var(--muted)">recall fade</label>
         <select id="palette-fade" class="btn small" title="fade time when recalling a palette"><option value="0">snap</option><option value="1">1 bar</option><option value="2" selected>2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option></select>
       </div>
       <div class="hint">A palette is just the colour group — hue, spread, cycle, contrast, brightness, glow — so it recalls over any scene or Milkdrop/video post-pass. <b>Lock</b> keeps your palette when you change preset or cue, so a set stays on one colour theme.</div>
@@ -217,11 +217,8 @@
   <div class="card">
     <h2>Shows <span class="spacer"></span><span class="sub">a whole rig setup per venue or scenario — look, presets, every projector's mapping, playlist, outputs, resolution</span><span class="pill" id="show-current">—</span></h2>
     <div class="hint" style="margin:0 0 10px">Save the rig as it is right now under a name ("Warehouse — 3 projectors", "Studio bench", "Wedding ambient"…). Loading a show puts <em>everything</em> back: parameters and which ones drift, the preset bank, projection mapping for each projector by name (projectors not in the show go back to a plain picture), video playlist and auto-advance, projectM cycling, Resolume / Link / LED settings and the output resolution. <b>Update</b> re-captures the current state into an existing show; <b>Download</b> gives a file you can keep or move to another master.</div>
-    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px"><label style="font-size:11px;color:var(--muted)">Name</label><input class="text" id="show-name" placeholder="e.g. Warehouse — 3 projectors"></div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px"><label style="font-size:11px;color:var(--muted)">Venue</label><input class="text" id="show-venue" placeholder="where"></div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:220px"><label style="font-size:11px;color:var(--muted)">Notes</label><input class="text" id="show-notes" placeholder="cabling, which projector is which, anything future-you needs"></div>
-      <button class="btn primary" id="show-save">Save current rig as show</button>
+    <div class="row savebar">
+      <button class="btn primary" id="show-save">＋ Save current rig as show…</button>
       <label class="btn small" style="cursor:pointer">Import file… <input type="file" id="show-import" accept=".json,.zip,application/json,application/zip" hidden></label>
       <select id="show-cloud" class="btn small" title="shows other rigs (or this one, before a re-image) saved to the cloud"><option value="">☁ from cloud…</option></select>
     </div>
@@ -450,12 +447,11 @@
 <section id="leds" hidden>
   <div class="card" id="led-configs-card">
     <h2>Saved LED configurations <span class="spacer"></span><span class="sub">zones, protocols, brightness — named, exported, and mirrored to the cloud</span></h2>
-    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px"><label style="font-size:11px;color:var(--muted)">Name</label><input class="text" id="ledc-name" placeholder="e.g. Studio bar + booth"></div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:200px"><label style="font-size:11px;color:var(--muted)">Notes</label><input class="text" id="ledc-notes" placeholder="which controller is where"></div>
-      <button class="btn small primary" id="ledc-save">Save current layout</button>
+    <div class="row savebar">
+      <button class="btn primary" id="ledc-save">＋ Save current layout…</button>
       <label class="btn small" style="cursor:pointer">Import file… <input type="file" id="ledc-import" accept=".json,application/json" hidden></label>
       <select id="ledc-cloud" class="btn small"><option value="">☁ from cloud…</option></select>
+      <span class="hint" id="ledc-hint" style="margin:0 0 0 auto"></span>
     </div>
     <div class="showgrid" id="ledc-list" style="margin-top:10px"><span class="hint">loading…</span></div>
   </div>
@@ -509,8 +505,12 @@
       <button class="btn small" id="rig-restart-master" title="restart the fractal-master service">Restart master</button>
       <button class="btn small" id="rig-restart-renderer" title="restart this Pi's renderer">Restart master's renderer</button>
       <button class="btn small" id="rig-log">Update log</button>
-      <span class="hint" style="margin:0 0 0 8px">Updates take 1–3 minutes (apt + build); the page reconnects by itself. Every renderer must be on the same version — after a packet change the projectors go dark until they are.</span>
+      <span style="width:1px;height:22px;background:var(--line);margin:0 4px"></span>
+      <span class="pill" id="cloud-pill2" title="Supabase — every save on this Pi is mirrored when there is internet; offline edits queue"><i class="dot" id="cloud-dot2"></i><span id="cloud-state">cloud</span></span>
+      <button class="btn small" id="cloud-sync" title="push queued changes, pull anything newer">☁ Sync now</button>
+      <button class="btn small" id="cloud-pull-all" title="pull every show / preset bank / cue stack / LED config / mapping that is newer in the cloud">☁ Pull everything</button>
     </div>
+    <div class="hint" style="margin-top:8px">Updates take 1–3 minutes (apt + build); the page reconnects by itself. Every renderer must be on the same version — after a packet change the projectors go dark until they are. <span id="cloud-detail"></span></div>
     <pre id="rig-log-out" style="display:none;max-height:260px;overflow:auto;font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px"></pre>
   </div>
   <div class="card wide" style="margin-bottom:16px">
@@ -525,19 +525,17 @@
     <h2>Sources <span class="spacer"></span><span class="sub">tempo &amp; control inputs, with the raw counters behind each status dot</span></h2>
     <div id="st-sources"></div>
   </div>
-  <div class="card wide" id="cloud-card" style="margin-bottom:16px">
-    <h2>Cloud sync · Supabase <span class="spacer"></span><span class="pill"><i class="dot" id="cloud-dot2"></i><span id="cloud-state">—</span></span></h2>
-    <div class="hint" style="margin:0 0 10px">Everything the rig saves — shows, the preset bank, the cue stack, LED configurations, every projector's mapping and the local config — is written to this Pi first and mirrored to Supabase whenever it has internet. Take the rig to a venue with no connection and nothing changes; edits queue and sync when you're back. Another master (or a re-imaged card) pulls the lot down on first start. Shows and LED configs are shared between rigs; presets, cues, mappings and config are per rig name.</div>
-    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
-      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:220px"><label style="font-size:11px;color:var(--muted)">Supabase URL</label><input class="text" id="cloud-url" placeholder="https://xxxx.supabase.co"></div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:220px"><label style="font-size:11px;color:var(--muted)">Publishable / anon key (leave blank to keep)</label><input class="text" id="cloud-key" placeholder="sb_publishable_…" type="password"></div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px"><label style="font-size:11px;color:var(--muted)">Rig name</label><input class="text" id="cloud-rig" placeholder="hostname"></div>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="cloud-enabled"> enabled</label>
-      <button class="btn small primary" id="cloud-save">Save &amp; connect</button>
-      <button class="btn small" id="cloud-sync" title="push queued changes, pull anything newer">Sync now</button>
-      <button class="btn small" id="cloud-pull-all" title="pull every document from the cloud, newer-than-local only">Pull everything</button>
-    </div>
-    <div id="cloud-detail" class="hint" style="margin:8px 0 0"></div>
+  <div class="card wide" style="margin-bottom:16px">
+    <h2>Projectors <span class="spacer"></span><span class="sub">heartbeat every second from each renderer · loss = multicast packets missed · HB = worst heartbeat gap (LAN health)</span></h2>
+    <div class="tablewrap"><table><thead><tr><th></th><th>name</th><th>ip</th><th>ver</th><th>fps</th><th>res</th><th>tile</th><th>loss</th><th>temp</th><th>HB</th><th>media</th><th>age</th><th></th></tr></thead><tbody id="fleet"></tbody></table></div>
+  </div>
+  <div class="card wide" id="health-card" style="margin-bottom:16px">
+    <h2>Health &amp; network <span class="spacer"></span><span class="sub">the numbers that matter on the night — everything else is in the detail cards below</span></h2>
+    <div class="healthgrid" id="health"></div>
+  </div>
+  <div class="card wide" id="sources-card" style="margin-bottom:16px">
+    <h2>Sources <span class="spacer"></span><span class="sub">tempo &amp; control inputs, with the raw counters behind each status dot</span></h2>
+    <div id="st-sources"></div>
   </div>
   <div class="grid" id="st-grid"></div>
 </section>
@@ -944,6 +942,7 @@ sudo bash setup/install.sh master</pre>
       <div class="pgrid c3" id="pf-led-zones"></div>
       <div class="plabel">Saved LED configurations <span class="pf-hint">— tap to load a venue's layout</span></div>
       <div class="pgrid c2" id="pf-ledc"><span class="hint">loading…</span></div>
+      <div class="pgrid c2"><button class="pbtn" id="pf-ledc-save">+ SAVE CURRENT LED LAYOUT</button></div>
     </div>
   </div>
   </div>
@@ -953,6 +952,7 @@ sudo bash setup/install.sh master</pre>
 
 <script src="params.js"></script>
 <script src="js/core.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/control.js"></script>
 <script src="js/palettes.js"></script>

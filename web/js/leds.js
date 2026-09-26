@@ -113,7 +113,7 @@ $('mx-build').onclick = () => {
     if (proto !== 'ddp') uni += Math.ceil(cols / 170); } });
   $('strip-matrix-form').style.display = 'none';
 };
-$('strips-clear').onclick = () => { if (LED.zones.length && confirm(`Remove all ${LED.zones.length} zones? (undo is available)`)) ledEdit(zs => { zs.length = 0; ledSel = null; }); };
+$('strips-clear').onclick = async () => { if (LED.zones.length && await ui.confirm(`Remove all ${LED.zones.length} zones? (undo is available)`, {ok: 'Remove all', danger: true})) ledEdit(zs => { zs.length = 0; ledSel = null; }); };
 $('strips-undo').onclick = ledUndo;
 $('strips-auto').onclick = () => { LED.auto = !LED.auto; try { localStorage.setItem('frx.ledauto', LED.auto ? '1' : '0'); } catch (e) {} renderZones(); if (LED.auto && LED.dirty) ledQueue(true); };
 $('strips-apply').onclick = ledApply;

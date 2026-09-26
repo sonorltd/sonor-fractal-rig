@@ -111,6 +111,15 @@ function renderSources() {
     const pf = row.querySelector('#prodj-follow'); if (pf && document.activeElement !== pf) pf.value = String(S.prodj_follow || 0);
   });
 }
+async function presetSaveDialog(defaults) {   // one save flow for looks — Control, Perform, anywhere else
+  const eng = engineOf(S.base.mode); const v = await ui.saveAs({what: 'look', title: 'Save current look', text: `${ENGINE_LABEL[eng]} · ${MODE_NAMES[Math.round(S.base.mode)] || ''} — every parameter and which ones drift, recalled in one tap.`,
+    name: defaults && defaults.name, existing: Object.keys(S.presets || {}), placeholder: 'e.g. Julia spiral (warm)'});
+  if (!v) return null; send({preset: {save: v.name}}); ui.toast(`Look saved: <b>${esc(v.name)}</b>`, 'ok'); return v.name;
+}
+async function paletteSaveDialog() {
+  const v = await ui.saveAs({what: 'palette', title: 'Save current colours as palette', text: 'Hue, spread, cycle, contrast, brightness and glow — recalls over any scene.', existing: Object.keys(S.palettes || {}), placeholder: 'e.g. Ember'});
+  if (!v) return null; send({palette: {save: v.name}}); ui.toast(`Palette saved: <b>${esc(v.name)}</b>`, 'ok'); return v.name;
+}
 function renderLog() { if (!$('log')) return; $('log').innerHTML = (S.log || []).slice(-12).reverse().map(m => `<div>${esc(m)}</div>`).join(''); }
 
 function buildPmList() {

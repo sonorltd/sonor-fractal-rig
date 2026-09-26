@@ -206,14 +206,14 @@ function mapFinishMask() {
       else { const p = MP.m.masks[MP.sel.poly]; for (let k = 0; k < p.length; k += 2) { p[k] += dx * px; p[k + 1] += dy * py; } }
       mapChanged(); ev.preventDefault(); }
   });
-  $('map-name').onchange = () => { if (mapDirty() && !confirm('Discard unsaved mapping changes for ' + MP.name + '?')) { $('map-name').value = MP.name; return; } MP.name = $('map-name').value; MP.m = null; MP.sel = null; MP_UNDO.length = 0; mapSetTool(null); mapRenderList(); };
+  $('map-name').onchange = async () => { if (mapDirty() && !await ui.confirm('Discard unsaved mapping changes for ' + MP.name + '?', {ok: 'Discard', danger: true})) { $('map-name').value = MP.name; return; } MP.name = $('map-name').value; MP.m = null; MP.sel = null; MP_UNDO.length = 0; mapSetTool(null); mapRenderList(); };
   $('map-test').onclick = () => { if (!MP.m) return; MP.m.test = MP.m.test ? 0 : 1; mapChanged(); mapPut(false); };
   $('map-addmask').onclick = () => { if (!MP.m) return; if (MP.tool === 'poly' && MP.adding && MP.adding.length >= 6) mapFinishMask(); else mapSetTool(MP.tool === 'poly' ? null : 'poly'); };
   $('map-addrect').onclick = () => { if (!MP.m) return; mapSetTool(MP.tool === 'rect' ? null : 'rect'); };
   $('map-delmask').onclick = () => { if (MP.sel && MP.sel.type === 'mask') { mapSnapshot(); MP.m.masks.splice(MP.sel.poly, 1); MP.sel = null; mapChanged(); } };
-  $('map-clearmasks').onclick = () => { if (!MP.m || !MP.m.masks.length || !confirm('Remove all ' + MP.m.masks.length + ' masks on ' + MP.name + '?')) return; mapSnapshot(); MP.m.masks = []; MP.sel = null; mapChanged(); };
+  $('map-clearmasks').onclick = async () => { if (!MP.m || !MP.m.masks.length || !await ui.confirm('Remove all ' + MP.m.masks.length + ' masks on ' + MP.name + '?')) return; mapSnapshot(); MP.m.masks = []; MP.sel = null; mapChanged(); };
   $('map-undo').onclick = mapUndo;
-  $('map-reset').onclick = () => { if (!MP.m || !confirm('Reset ' + MP.name + ' to a plain full-screen picture?')) return; mapSnapshot(); MP.m = mapClone(MP_ID); MP.sel = null; mapSliders(); mapChanged(); mapPut(false); };
+  $('map-reset').onclick = async () => { if (!MP.m || !await ui.confirm('Reset ' + MP.name + ' to a plain full-screen picture?', {ok: 'Reset'})) return; mapSnapshot(); MP.m = mapClone(MP_ID); MP.sel = null; mapSliders(); mapChanged(); mapPut(false); };
   $('map-revert').onclick = () => { if (!MP.saved) return; mapSnapshot(); MP.m = mapClone(MP.saved); MP.sel = null; mapSliders(); mapChanged(false); if ($('map-live').checked) mapPut(false); };
   $('map-save').onclick = () => mapPut(true);
   $('map-copy').onchange = () => { const from = $('map-copy').value; $('map-copy').value = ''; if (!from || !MP.name || from === MP.name) return; const r = MP.list.find(x => x.name === from); if (!r) return; mapSnapshot(); MP.m = mapClone(r.mapping); MP.sel = null; mapSliders(); mapChanged(); if (!$('map-live').checked) mapPut(false); };

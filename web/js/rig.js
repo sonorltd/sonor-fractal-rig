@@ -169,17 +169,17 @@ $('diag-refresh').onclick = () => { renderStatus(); };
 // ------------------------------------------------------------ rig maintenance (update / restart / reboot)
 async function rigAct(name, act, btn) {
   const label = {update: 'pull the latest from GitHub and reinstall', restart: 'restart the renderer', reboot: 'REBOOT'}[act] || act;
-  if (!confirm(`${name}: ${label}?`)) return;
+  if (!await ui.confirm(`${name === 'self' ? 'master' : name}: ${label}?`, {ok: act, danger: act === 'reboot'})) return;
   if (btn) { btn.disabled = true; btn.textContent = act + '…'; }
-  try { const j = await (await fetch(`/api/rig/${encodeURIComponent(name)}/${act}`, {method: 'POST'})).json(); logLocal(`${name}: ${j.msg || (j.ok ? 'ok' : 'failed')}`); if (!j.ok) alert(j.msg); }
-  catch (e) { alert('request failed: ' + e.message); }
+  try { const j = await (await fetch(`/api/rig/${encodeURIComponent(name)}/${act}`, {method: 'POST'})).json(); logLocal(`${name}: ${j.msg || (j.ok ? 'ok' : 'failed')}`); if (!j.ok) ui.alert(j.msg || 'failed'); else ui.toast(`${esc(name === 'self' ? 'master' : name)}: ${esc(j.msg || 'ok')}`, 'ok', 4000); }
+  catch (e) { ui.alert('Request failed: ' + e.message); }
   if (btn) setTimeout(() => { btn.disabled = false; btn.textContent = act; }, 4000);
 }
 $('rig-update-master').onclick = () => rigAct('self', 'update');
 $('rig-restart-master').onclick = () => rigAct('self', 'restart');
 $('rig-restart-renderer').onclick = () => rigAct('self', 'restart-renderer');
 $('rig-update-all').onclick = async () => {
-  const names = Object.keys(S.fleet || {}); if (!confirm(`Update the master and ${names.length} renderer${names.length === 1 ? '' : 's'} (${names.join(', ')}) from GitHub?\nProjectors go dark for a couple of minutes while they rebuild.`)) return;
+  const names = Object.keys(S.fleet || {}); if (!await ui.confirm(`Projectors go dark for a couple of minutes while they rebuild.`, {title: `Update the master and ${names.length} renderer${names.length === 1 ? '' : 's'} (${names.join(', ') || 'none online'}) from GitHub?`, ok: 'Update everything'})) return;
   for (const n of names) { try { const j = await (await fetch(`/api/rig/${encodeURIComponent(n)}/update`, {method: 'POST'})).json(); logLocal(`${n}: ${j.msg}`); } catch (e) { logLocal(`${n}: failed`); } }
   await fetch('/api/rig/self/update', {method: 'POST'}); logLocal('master: updating…');
 };

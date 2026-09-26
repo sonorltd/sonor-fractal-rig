@@ -20,14 +20,13 @@ function renderCues(force) {
       $('cue-list').querySelectorAll('.cue').forEach(el => el.onclick = e => { if (e.target.closest('button')) return; send({cue: {jump: +el.dataset.i}}); });
       $('cue-list').querySelectorAll('[data-up]').forEach(b => b.onclick = () => send({cue: {id: +b.dataset.up, move: -1}}));
       $('cue-list').querySelectorAll('[data-down]').forEach(b => b.onclick = () => send({cue: {id: +b.dataset.down, move: 1}}));
-      $('cue-list').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('Delete this cue?')) { if (cueEdit === +b.dataset.del) cueEdit = null; send({cue: {delete: +b.dataset.del}}); } });
+      $('cue-list').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (await ui.confirm('Delete this cue?', {ok: 'Delete', danger: true})) { if (cueEdit === +b.dataset.del) cueEdit = null; send({cue: {delete: +b.dataset.del}}); } });
       $('cue-list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { cueEdit = cueEdit === +b.dataset.edit ? null : +b.dataset.edit; renderCueEditor(); renderCues(true); });
     }
   }
   // perform tiles
-  if (perfOn && $('pf-cues')) { const psig = JSON.stringify([cs.map(c => [c.name, c.colour]), pos]); if ($('pf-cues').dataset.sig !== psig) { $('pf-cues').dataset.sig = psig;
-    $('pf-cues').innerHTML = cs.map((c, i) => `<button class="pbtn pf-show ${i === pos ? 'active' : ''}" data-j="${i}" style="border-left:6px solid ${esc(c.colour || 'var(--line)')}">${i + 1} · ${esc(c.name)}<small>${esc(cueSummary(c)).slice(0, 60)}</small></button>`).join('') || '<span class="hint">no cues — build the stack on the Cues tab</span>';
-    $('pf-cues').querySelectorAll('[data-j]').forEach(b => b.onclick = () => send({cue: {jump: +b.dataset.j}})); } }
+  if (perfOn && $('pf-cues')) ui.tiles($('pf-cues'), {items: cs.map((c, i) => ({id: String(i), label: `${i + 1} · ${c.name}`, sub: cueSummary(c).slice(0, 60), active: i === pos, cls: 'pf-show', style: `border-left:6px solid ${esc(c.colour || 'var(--line)')}`})),
+    empty: 'no cues — build the stack on the Cues tab', onPick: j => send({cue: {jump: +j}})});
 }
 function renderCueEditor() {
   const c = (S.cues || []).find(x => x.id === cueEdit); const ed = $('cue-editor'); ed.hidden = !c; if (!c) return;
@@ -63,15 +62,19 @@ function renderCueEditor() {
   $('ce-close').onclick = () => { cueEdit = null; renderCueEditor(); renderCues(true); };
 }
 $('cue-go').onclick = () => send({cue: {go: true}}); $('cue-back').onclick = () => send({cue: {back: 1}}); $('cue-stopfollow').onclick = () => send({cue: {stop_follow: 1}});
-$('cue-capture').onclick = () => { const n = prompt('Cue name', 'Cue ' + ((S.cues || []).length + 1)); if (n) send({cue: {capture: n}}); };
+async function cueCaptureDialog() {   // one flow for Cues tab + Perform
+  const v = await ui.saveAs({what: 'cue', title: 'Capture the current look as a cue', text: 'Appended to the end of the cue stack; edit its fade / follow / actions in the cue editor afterwards.', name: 'Cue ' + ((S.cues || []).length + 1), existing: (S.cues || []).map(c => c.name), ok: 'Capture', okOverwrite: 'Capture (same name)'});
+  if (!v) return null; send({cue: {capture: v.name}}); ui.toast(`Cue captured: <b>${esc(v.name)}</b>`, 'ok'); return v.name;
+}
+$('cue-capture').onclick = () => cueCaptureDialog();
 $('cue-add').onclick = () => send({cue: {add: {name: 'Cue ' + ((S.cues || []).length + 1), fade_bars: 1, actions: {}}}});
 $('cue-reset').onclick = () => send({cue: {reset: 1}});
-$('cue-clear').onclick = () => { if (confirm('Delete every cue?')) { cueEdit = null; send({cue: {clear: 1}}); } };
+$('cue-clear').onclick = async () => { if (await ui.confirm('Delete every cue?', {ok: 'Delete all', danger: true})) { cueEdit = null; send({cue: {clear: 1}}); } };
 $('pf-cue-go').onclick = () => send({cue: {go: true}}); $('pf-cue-back').onclick = () => send({cue: {back: 1}}); $('pf-cue-stop').onclick = () => send({cue: {stop_follow: 1}});
-$('pf-cue-capture').onclick = () => { const n = prompt('Cue name', 'Cue ' + ((S.cues || []).length + 1)); if (n) send({cue: {capture: n}}); };
+$('pf-cue-capture').onclick = () => cueCaptureDialog();
 $('pf-cue-reset').onclick = () => send({cue: {reset: 1}});
 $('pf-pal-lock').onclick = () => send({palette: {lock: !S.palette_lock}});
-$('pf-pal-save').onclick = () => { const n = prompt('Palette name'); if (n && n.trim()) send({palette: {save: n.trim()}}); };
+$('pf-pal-save').onclick = () => paletteSaveDialog();
 // modulation editor
 const MOD_SOURCES = ['energy', 'bass', 'beat'].concat(Array.from({length: 16}, (_, i) => 'band' + i));
 let modDraft = null;

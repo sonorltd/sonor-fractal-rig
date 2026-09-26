@@ -5,52 +5,50 @@
 let SHOWS = {list: [], last: null};
 async function showsFetch() {
   if (!S.live) { $('show-list').innerHTML = '<div class="hint">Demo mode — shows live on the master.</div>'; return; }
-  try { SHOWS = await (await fetch('/api/shows')).json(); } catch (e) { $('show-list').innerHTML = '<div class="hint">could not load shows</div>'; return; }
+  try { const j = await (await fetch('/api/shows')).json(); SHOWS = {list: j.shows || j.list || [], last: j.last}; } catch (e) { $('show-list').innerHTML = '<div class="hint">could not load shows</div>'; return; }
   renderShows(); cloudMenu($('show-cloud'), 'show', (SHOWS.list || []).map(x => x.name));
 }
 function showParts() { return [...document.querySelectorAll('.show-part')].filter(c => c.checked).map(c => c.value); }
-function renderShows() {
+function renderShows(flash) {
   $('show-current').textContent = SHOWS.last ? 'current: ' + SHOWS.last : 'no show loaded';
-  const shF = favList('show'); let list = SHOWS.list || []; list = list.filter(x => shF.includes(x.name)).concat(list.filter(x => !shF.includes(x.name)));
-  if (!list.length) { $('show-list').innerHTML = '<div class="hint">No shows yet — set the rig up, then save it above.</div>'; return; }
-  $('show-list').innerHTML = list.map(sh => sh.broken ? `<div class="show"><h4>${esc(sh.name)}</h4><div class="meta">file unreadable</div><div class="acts"><button class="btn small" data-del="${esc(sh.name)}">Delete</button></div></div>` : `
-    <div class="show ${sh.name === SHOWS.last ? 'current' : ''}">
-      <h4><span class="favstar ${shF.includes(sh.name) ? 'on' : ''}" data-fav="${esc(sh.name)}" title="favourite">★</span> ${esc(sh.name)}${sh.name === SHOWS.last ? ' <span class="pill ok">loaded</span>' : ''}</h4>
-      <div class="meta">${sh.venue ? esc(sh.venue) + ' · ' : ''}saved ${new Date(sh.saved * 1000).toLocaleString()}<br>scene ${MODE_NAMES[Math.round(sh.scene || 0)] || sh.scene} · ${sh.presets} presets · ${sh.clips} clips in playlist · res ${['auto', '1080p', '4K'][sh.out_res] || 'auto'}<br>projectors: ${sh.projectors.length ? sh.projectors.map(esc).join(', ') : 'none mapped'}</div>
-      ${sh.notes ? `<div class="notes">${esc(sh.notes)}</div>` : ''}
-      <div class="acts">
-        <button class="btn small primary" data-load="${esc(sh.name)}">LOAD</button>
-        <button class="btn small" data-update="${esc(sh.name)}" title="re-capture the rig as it is now into this show">Update</button>
-        <button class="btn small" data-rename="${esc(sh.name)}">Rename</button>
-        <a class="btn small" href="/api/shows/${encodeURIComponent(sh.name)}?download=1" title="settings only (small file)">Download</a>
-        <a class="btn small" href="/api/shows/${encodeURIComponent(sh.name)}?bundle=1" title="settings + every clip it uses, as a zip — move a venue to another master">+ media</a>
-        <button class="btn small" data-del="${esc(sh.name)}" style="margin-left:auto">✕</button>
-      </div>
-    </div>`).join('');
   const post = async (url, body) => { const r = await fetch(url, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body || {})}); return r.json(); };
-  $('show-list').querySelectorAll('[data-fav]').forEach(b => b.onclick = () => { toggleFav('show', b.dataset.fav); setTimeout(renderShows, 300); });
-  $('show-list').querySelectorAll('[data-load]').forEach(b => b.onclick = async () => { const parts = showParts(); if (!parts.length) return alert('tick at least one part to load'); if (!confirm(`Load "${b.dataset.load}"?\nThis changes the live rig: ${parts.join(', ')}.`)) return; b.textContent = 'loading…'; await post(`/api/shows/${encodeURIComponent(b.dataset.load)}/load`, {parts: parts.length === 7 ? null : parts}); logLocal('show loaded: ' + b.dataset.load); showsFetch(); mapFetch(); });
-  $('show-list').querySelectorAll('[data-update]').forEach(b => b.onclick = async () => { if (!confirm(`Overwrite "${b.dataset.update}" with the rig as it is now?`)) return; await post(`/api/shows/${encodeURIComponent(b.dataset.update)}`, {update: true}); showsFetch(); });
-  $('show-list').querySelectorAll('[data-rename]').forEach(b => b.onclick = async () => { const n = prompt('New name', b.dataset.rename); if (!n || n === b.dataset.rename) return; await post(`/api/shows/${encodeURIComponent(b.dataset.rename)}/rename`, {new: n}); showsFetch(); });
-  $('show-list').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (!confirm(`Delete show "${b.dataset.del}"? (the rig itself is not changed)`)) return; await fetch(`/api/shows/${encodeURIComponent(b.dataset.del)}`, {method: 'DELETE'}); showsFetch(); });
+  ui.cards($('show-list'), {kind: 'show', flash,
+    items: (SHOWS.list || []).map(sh => ({name: sh.name, current: sh.name === SHOWS.last, broken: sh.broken, notes: sh.notes,
+      meta: sh.broken ? 'file unreadable' : `${sh.venue ? esc(sh.venue) + ' · ' : ''}saved ${new Date(sh.saved * 1000).toLocaleString()}<br>scene ${MODE_NAMES[Math.round(sh.scene || 0)] || sh.scene} · ${sh.presets} presets · ${sh.clips} clips in playlist · res ${['auto', '1080p', '4K'][sh.out_res] || 'auto'}<br>projectors: ${sh.projectors.length ? sh.projectors.map(esc).join(', ') : 'none mapped'}`})),
+    actions: [{id: 'load', label: 'LOAD', primary: true}, {id: 'update', label: 'Update', title: 're-capture the rig as it is now into this show'}, {id: 'rename', label: 'Rename'},
+      {id: 'dl', label: 'Download', href: n => `/api/shows/${encodeURIComponent(n)}?download=1`, title: 'settings only (small file)'},
+      {id: 'bundle', label: '+ media', href: n => `/api/shows/${encodeURIComponent(n)}?bundle=1`, title: 'settings + every clip it uses, as a zip — move a venue to another master'},
+      {id: 'delete', label: '✕', right: true}],
+    empty: 'No shows yet — set the rig up, then press <b>Save current rig as show</b>.',
+    onAction: async (act, name, btn) => {
+      if (act === 'load') { const parts = showParts(); if (!parts.length) return ui.alert('Tick at least one part to load.');
+        if (!await ui.confirm(`This changes the live rig: ${parts.join(', ')}.`, {title: `Load "${name}"?`, ok: 'Load'})) return;
+        btn.textContent = 'loading…'; await post(`/api/shows/${encodeURIComponent(name)}/load`, {parts: parts.length === 7 ? null : parts}); ui.toast(`Show loaded: <b>${esc(name)}</b>`, 'ok'); showsFetch(); mapFetch(); }
+      if (act === 'update') { if (!await ui.confirm(`Overwrite "${name}" with the rig as it is now?`, {ok: 'Overwrite'})) return; await post(`/api/shows/${encodeURIComponent(name)}`, {update: true}); ui.toast(`Show updated: <b>${esc(name)}</b>`, 'ok'); showsFetch(); }
+      if (act === 'rename') { const n = await ui.prompt('Rename show', {value: name, label: 'New name'}); if (!n || n === name) return; await post(`/api/shows/${encodeURIComponent(name)}/rename`, {new: n}); showsFetch(); }
+      if (act === 'delete') { if (!await ui.confirm('The rig itself is not changed.', {title: `Delete show "${name}"?`, ok: 'Delete', danger: true})) return; await fetch(`/api/shows/${encodeURIComponent(name)}`, {method: 'DELETE'}); ui.toast(`Deleted ${esc(name)}`); showsFetch(); }
+    }});
 }
-$('show-save').onclick = async () => {
-  const name = $('show-name').value.trim(); if (!name) return alert('give the show a name');
-  if (!S.live) return alert('Connect to a master first.');
-  if ((SHOWS.list || []).some(x => x.name === name) && !confirm(`"${name}" exists — overwrite it with the current rig?`)) return;
-  await fetch(`/api/shows/${encodeURIComponent(name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({venue: $('show-venue').value.trim(), notes: $('show-notes').value.trim(), update: true})});
-  $('show-name').value = ''; logLocal('show saved: ' + name); showsFetch();
-};
+async function showSaveDialog(defaults) {   // shared by the Shows tab and Perform → identical everywhere
+  if (!S.live) return ui.alert('Connect to a master first — the demo has nowhere to save.');
+  const v = await ui.saveAs({what: 'show', title: 'Save current rig as show', text: 'Everything as it is right now: look, presets, every projector\'s mapping, playlist, outputs, resolution, cues.',
+    name: defaults && defaults.name, existing: (SHOWS.list || []).map(x => x.name), placeholder: 'e.g. Warehouse — 3 projectors',
+    fields: [{key: 'venue', label: 'Venue', value: defaults && defaults.venue, placeholder: 'where'}, {key: 'notes', label: 'Notes', type: 'textarea', value: defaults && defaults.notes, placeholder: 'cabling, which projector is which, anything future-you will thank you for'}]});
+  if (!v) return null;
+  await fetch(`/api/shows/${encodeURIComponent(v.name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({venue: v.venue, notes: v.notes, update: true})});
+  ui.toast(`Show saved: <b>${esc(v.name)}</b>`, 'ok'); logLocal('show saved: ' + v.name); return v.name;
+}
+$('show-save').onclick = async () => { const n = await showSaveDialog(); if (n) { await showsFetch(); renderShows(n); } };
 $('show-import').onchange = async () => {
   const f = $('show-import').files[0]; if (!f) return;
   if (/\.zip$/i.test(f.name)) {   // bundle with media
-    const name = prompt('Import bundle as', f.name.replace(/\.fractalshow\.zip$|\.zip$/i, '')); if (!name) { $('show-import').value = ''; return; }
+    const name = await ui.prompt('Import show bundle', {value: f.name.replace(/\.fractalshow\.zip$|\.zip$/i, ''), label: 'Import as'}); if (!name) { $('show-import').value = ''; return; }
     const fd = new FormData(); fd.append('file', f); logLocal('importing bundle ' + f.name + '…');
-    try { const r = await (await fetch('/api/shows-import?name=' + encodeURIComponent(name), {method: 'POST', body: fd})).json(); if (!r.ok) alert('import failed'); else logLocal(`bundle imported: ${r.name} (+${r.added.length} clips)`); showsFetch(); fetchMedia(true); } catch (e) { alert('import failed: ' + e.message); }
+    try { const r = await (await fetch('/api/shows-import?name=' + encodeURIComponent(name), {method: 'POST', body: fd})).json(); if (!r.ok) ui.alert('Import failed.'); else ui.toast(`Bundle imported: <b>${esc(r.name)}</b> (+${r.added.length} clips)`, 'ok'); showsFetch(); fetchMedia(true); } catch (e) { ui.alert('Import failed: ' + e.message); }
     $('show-import').value = ''; return;
   }
-  try { const d = JSON.parse(await f.text()); const name = prompt('Import as', d.name || f.name.replace(/\.fractalshow\.json$|\.json$/, '')); if (!name) return;
-    const r = await (await fetch(`/api/shows/${encodeURIComponent(name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({import: d})})).json(); if (!r.ok) alert('import failed'); showsFetch(); }
-  catch (e) { alert('not a show file: ' + e.message); }
+  try { const d = JSON.parse(await f.text()); const name = await ui.prompt('Import show', {value: d.name || f.name.replace(/\.fractalshow\.json$|\.json$/, ''), label: 'Import as'}); if (!name) return;
+    const r = await (await fetch(`/api/shows/${encodeURIComponent(name)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({import: d})})).json(); if (!r.ok) ui.alert('Import failed.'); else ui.toast(`Show imported: <b>${esc(name)}</b>`, 'ok'); showsFetch(); }
+  catch (e) { ui.alert('Not a show file: ' + e.message); }
   $('show-import').value = '';
 };

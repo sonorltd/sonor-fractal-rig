@@ -122,7 +122,7 @@ function listBox(el, o) {
   body.querySelectorAll('div[data-id]').forEach(d => d.onclick = e => {
     const id = d.dataset.id;
     if (e.target.hasAttribute('data-fav')) { toggleFav(o.kind, id); return; }
-    if (e.target.hasAttribute('data-del')) { if (confirm(`Delete "${id}"?`)) o.onDel(id); return; }
+    if (e.target.hasAttribute('data-del')) { ui.confirm('', {title: `Delete "${id}"?`, ok: 'Delete', danger: true}).then(y => { if (y) { o.onDel(id); ui.toast(`Deleted ${esc(id)}`); } }); return; }
     o.onPick(id);
   });
   const cur = body.querySelector('.cur'); if (cur && !body.matches(':hover')) cur.scrollIntoView({block: 'nearest'});

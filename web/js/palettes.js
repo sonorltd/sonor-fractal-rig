@@ -12,4 +12,4 @@ function renderPalettes() {
     onPick: n => send({palette: {load: n, fade_bars: +$('palette-fade').value}}), onDel: n => send({palette: {delete: n}})});
 }
 $('palette-lock').onclick = () => send({palette: {lock: !S.palette_lock}});
-$('palette-save').onclick = () => { const n = $('palette-name').value.trim(); if (!n) return; send({palette: {save: n}}); $('palette-name').value = ''; };
+$('palette-save').onclick = () => paletteSaveDialog();

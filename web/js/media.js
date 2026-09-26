@@ -77,8 +77,8 @@ function renderMedia() {
     $('media-grid').querySelectorAll('.th').forEach(el => el.onclick = () => send({video: {play: +el.closest('.clip').dataset.i}}));
     $('media-grid').querySelectorAll('[data-play]').forEach(b => b.onclick = () => send({video: {play: +b.dataset.play}}));
     $('media-grid').querySelectorAll('[data-pl]').forEach(b => b.onclick = () => send({video: {playlist: (S.video.playlist || []).concat([b.dataset.pl])}}));
-    $('media-grid').querySelectorAll('[data-ren]').forEach(b => b.onclick = () => { const n = prompt('New name for ' + b.dataset.ren, b.dataset.ren); if (n && n !== b.dataset.ren) { send({video: {rename: {old: b.dataset.ren, new: n}}}); setTimeout(() => fetchMedia(true), 600); } });
-    $('media-grid').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('Delete ' + b.dataset.del + '.mp4 from the master? Renderers remove it on their next sync.')) { send({video: {delete: b.dataset.del}}); setTimeout(() => fetchMedia(true), 600); } });
+    $('media-grid').querySelectorAll('[data-ren]').forEach(b => b.onclick = async () => { const n = await ui.prompt('Rename clip', {value: b.dataset.ren, label: 'New name'}); if (n && n !== b.dataset.ren) { send({video: {rename: {old: b.dataset.ren, new: n}}}); setTimeout(() => fetchMedia(true), 600); } });
+    $('media-grid').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (await ui.confirm('Renderers remove it on their next sync.', {title: 'Delete ' + b.dataset.del + '.mp4 from the master?', ok: 'Delete', danger: true})) { send({video: {delete: b.dataset.del}}); setTimeout(() => fetchMedia(true), 600); } });
   }
   // playlist
   const pl = v.playlist || [];
@@ -122,13 +122,13 @@ async function liveDevices() {
   sel.innerHTML = list.map(d => `<option value="${d.dev}">${d.dev} — ${esc(d.name || 'video device')}${d.hdmi ? ' (capture)' : ''}</option>`).join('') || '<option value="">no capture device found — plug the HDMI dongle into the master</option>';
 }
 $('live-kind').onchange = liveDevices; $('live-refresh').onclick = liveDevices;
-$('live-start').onclick = () => { const kind = $('live-kind').value, source = $('live-source').value; if (!source) return alert('no source selected'); send({video: {live_start: {kind, source, size: $('live-size').value, low: $('live-low').checked}}}); setTimeout(() => fetchMedia(true), kind === 'ndi' ? 4000 : 1200); };
+$('live-start').onclick = () => { const kind = $('live-kind').value, source = $('live-source').value; if (!source) return ui.alert('No source selected.'); send({video: {live_start: {kind, source, size: $('live-size').value, low: $('live-low').checked}}}); setTimeout(() => fetchMedia(true), kind === 'ndi' ? 4000 : 1200); };
 $('live-stop').onclick = () => { send({video: {live_stop: 1}}); setTimeout(() => fetchMedia(true), 800); };
 $('live-show').onclick = () => send({video: {live: 1}});
 liveDevices();
 // uploads (XHR for progress)
 function uploadFiles(files) {
-  if (!S.live) return alert('Connect to a master first — the Pages demo has no library.');
+  if (!S.live) return ui.alert('Connect to a master first — the Pages demo has no library.');
   [...files].forEach(f => {
     const row = document.createElement('div'); row.className = 'up'; row.innerHTML = `<span>${esc(f.name)} <span class="mute">${fmtMB(f.size)}</span></span><span class="warn" data-st>uploading…</span><div class="bar"><i style="width:0"></i></div>`;
     $('media-uploads').prepend(row);
@@ -176,7 +176,7 @@ $('tap').onclick = () => send({tap: 1});
 $('beat1').onclick = () => send({beat1: 1});
 $('bpm-set').onclick = () => send({bpm: +$('bpm-in').value});
 $('bpm-clear').onclick = () => send({bpm: 0});
-$('preset-save').onclick = () => { const n = $('preset-name').value.trim(); if (n) { send({preset: {save: n}}); $('preset-name').value = ''; } };
+$('preset-save').onclick = () => presetSaveDialog().then(n => { if (n) lastPresetLoaded = n; });
 $('auto-all').onclick = () => { const a = {}; PARAMS.forEach(p => { if (p.kind !== 'i') a[p.key] = true; }); send({auto: a}); };
 $('auto-none').onclick = () => { const a = {}; PARAMS.forEach(p => a[p.key] = false); send({auto: a}); };
 $('reset').onclick = () => { const s = {}; PARAMS.forEach(p => s[p.key] = p.def_); send({set: s}); };

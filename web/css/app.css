@@ -332,3 +332,28 @@ footer a { color: var(--muted); text-decoration: underline; }
 .healthgrid .ht .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .healthgrid .ht.ok b { color: var(--ok); } .healthgrid .ht.warn b { color: var(--warn); } .healthgrid .ht.bad b { color: var(--bad); }
 .hdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); } .hdot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); } .hdot.warn { background: var(--warn); } .hdot.bad { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+
+/* ---- shared UI kit (js/ui.js): modal dialogs, toasts, card flash. Big-finger sizes inherit in Perform (body.perf). */
+#ui-layer .ui-modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,.72); backdrop-filter: blur(3px); opacity: 0; transition: opacity .15s; padding: 16px; }
+#ui-layer .ui-modal.on { opacity: 1; }
+.ui-box { width: min(480px, 100%); max-height: 92vh; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.6); transform: translateY(8px); transition: transform .15s; }
+.ui-modal.on .ui-box { transform: none; }
+.ui-box h3 { margin: 0 0 8px; font-size: 16px; }
+.ui-box p { margin: 0 0 12px; color: var(--muted); font-size: 13px; white-space: pre-wrap; }
+.ui-field { display: flex; flex-direction: column; gap: 4px; margin: 0 0 10px; }
+.ui-field label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; } .ui-field label i { color: var(--bad); font-style: normal; }
+.ui-field .text, .ui-field select.text { width: 100%; font-size: 15px; padding: 10px 12px; }
+.ui-field small { color: var(--muted); font-size: 11px; }
+.ui-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.ui-note { font-size: 12px; color: var(--warn); margin: -4px 0 10px; }
+.ui-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.ui-acts .btn { min-width: 96px; padding: 10px 16px; }
+.ui-modal.danger .ui-box { border-color: var(--bad); }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+body.perf .ui-box { width: min(620px, 100%); padding: 24px; } body.perf .ui-acts .btn { min-height: 56px; font-size: 16px; min-width: 140px; } body.perf .ui-field .text { font-size: 18px; padding: 14px; }
+#ui-toasts { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 70; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
+.ui-toast { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent2); border-radius: 10px; padding: 10px 16px; font-size: 13px; box-shadow: 0 8px 30px rgba(0,0,0,.5); opacity: 0; transform: translateY(8px); transition: all .25s; max-width: 80vw; }
+.ui-toast.on { opacity: 1; transform: none; } .ui-toast.ok { border-left-color: var(--ok); } .ui-toast.warn { border-left-color: var(--warn); } .ui-toast.bad { border-left-color: var(--bad); }
+body.perf .ui-toast { font-size: 16px; padding: 14px 22px; bottom: 30px; }
+.show.flash { animation: cardflash 2.4s ease-out; } @keyframes cardflash { 0% { box-shadow: 0 0 0 3px var(--ok); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.savebar { gap: 8px; flex-wrap: wrap; align-items: center; }
